@@ -1,0 +1,282 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import type { Orcamento, StatusOrcamento } from "@/app/types";
+import { STATUS_CONFIG } from "@/app/types";
+import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+
+const TODOS_STATUS = Object.keys(STATUS_CONFIG) as StatusOrcamento[];
+
+function totalOrcamento(o: Orcamento) {
+  return o.itens.reduce((a, i) => a + (i.total || 0), 0);
+}
+
+function custoTotalOrcamento(o: Orcamento) {
+  return o.itens.reduce((a, i) => {
+    const qty = i.quantidade || 1;
+    return a + (i.custoUnitario || 0) * qty + (i.freteProducao || 0) + (i.custoArte || 0);
+  }, 0);
+}
+
+function margemOrcamento(o: Orcamento): number | null {
+  const receita = totalOrcamento(o);
+  const custo = custoTotalOrcamento(o);
+  if (!receita || !custo) return null;
+  return ((receita - custo) / receita) * 100;
+}
+
+function fmt(v: number) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function StatusBadge({ status }: { status: StatusOrcamento }) {
+  const cfg = STATUS_CONFIG[status];
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${cfg.bg} ${cfg.cor}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+      {status}
+    </span>
+  );
+}
+
+function StatusDropdown({ orcamentoId, statusAtual, onChange }: {
+  orcamentoId: string;
+  statusAtual: StatusOrcamento;
+  onChange: (novo: StatusOrcamento) => void;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function fechar(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setAberto(false);
+    }
+    document.addEventListener("mousedown", fechar);
+    return () => document.removeEventListener("mousedown", fechar);
+  }, []);
+
+  async function mudar(novo: StatusOrcamento) {
+    setAberto(false);
+    await fetch(`/api/orcamentos/${orcamentoId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: novo }),
+    });
+    onChange(novo);
+  }
+
+  return (
+    <div ref={ref} className="relative" onClick={(e) => e.preventDefault()}>
+      <button
+        onClick={(e) => { e.preventDefault(); setAberto((p) => !p); }}
+        className="flex items-center gap-1"
+      >
+        <StatusBadge status={statusAtual} />
+        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {aberto && (
+        <div className="absolute z-20 top-full mt-1 left-0 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]">
+          {TODOS_STATUS.map((s) => (
+            <button
+              key={s}
+              onClick={() => mudar(s)}
+              className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 ${s === statusAtual ? "font-bold" : ""}`}
+            >
+              <span className={`w-2 h-2 rounded-full ${STATUS_CONFIG[s].dot}`} />
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function ListaOrcamentos() {
+  const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [busca, setBusca] = useState("");
+
+  useEffect(() => {
+    fetch("/api/orcamentos")
+      .then((r) => r.json())
+      .then((data) => {
+        setOrcamentos(data.map((o: Orcamento) => ({ ...o, status: o.status || "Em andamento" })));
+        setCarregando(false);
+      });
+  }, []);
+
+  function atualizarStatus(id: string, novo: StatusOrcamento) {
+    setOrcamentos((prev) => prev.map((o) => o.id === id ? { ...o, status: novo } : o));
+  }
+
+  const filtrados = orcamentos.filter((o) => {
+    const q = busca.toLowerCase();
+    return (
+      o.numero?.toLowerCase().includes(q) ||
+      o.cliente?.toLowerCase().includes(q) ||
+      o.solicitante?.toLowerCase().includes(q)
+    );
+  });
+
+  const totalGeralReceita = filtrados.reduce((a, o) => a + totalOrcamento(o), 0);
+  const totalGeralCusto = filtrados.reduce((a, o) => a + custoTotalOrcamento(o), 0);
+  const margemGeral = totalGeralReceita && totalGeralCusto
+    ? ((totalGeralReceita - totalGeralCusto) / totalGeralReceita) * 100
+    : null;
+
+  return (
+    <WorkspaceLayout>
+      <main className="px-8 py-8 max-w-6xl">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Orçamentos</h1>
+          <Link href="/novo">
+            <button className="bg-[#fb4d06] text-white text-sm font-semibold py-2 px-5 rounded-xl hover:opacity-90 transition">
+              + Novo Orçamento
+            </button>
+          </Link>
+        </div>
+
+        {/* Cards resumo */}
+        {!carregando && orcamentos.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <p className="text-xs text-gray-400 mb-1">Orçamentos</p>
+              <p className="text-2xl font-bold text-gray-800">{filtrados.length}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <p className="text-xs text-gray-400 mb-1">Itens</p>
+              <p className="text-2xl font-bold text-gray-800">{filtrados.reduce((a, o) => a + o.itens.length, 0)}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <p className="text-xs text-gray-400 mb-1">Valor total</p>
+              <p className="text-xl font-bold text-[#fb4d06]">{fmt(totalGeralReceita)}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <p className="text-xs text-gray-400 mb-1">Margem geral</p>
+              <p className="text-xl font-bold text-green-700">
+                {margemGeral !== null ? `${margemGeral.toFixed(1)}%` : "—"}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Busca */}
+        {!carregando && orcamentos.length > 0 && (
+          <div className="relative mb-4">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Buscar por número, cliente ou solicitante..."
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
+          </div>
+        )}
+
+        {/* Tabela */}
+        {carregando ? (
+          <div className="text-center text-gray-400 py-20">Carregando...</div>
+        ) : orcamentos.length === 0 ? (
+          <div className="text-center text-gray-400 py-20">
+            <p className="text-lg mb-2">Nenhum orçamento ainda.</p>
+            <Link href="/novo" className="text-[#fb4d06] hover:underline text-sm">Criar primeiro orçamento →</Link>
+          </div>
+        ) : filtrados.length === 0 ? (
+          <div className="text-center text-gray-400 py-10">Nenhum resultado para &quot;{busca}&quot;</div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-800 text-white text-xs uppercase">
+                  <th className="px-4 py-3 text-left">Nº</th>
+                  <th className="px-4 py-3 text-left">Cliente</th>
+                  <th className="px-4 py-3 text-left">Data</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3 text-right">Total</th>
+                  <th className="px-4 py-3 text-right">Margem</th>
+                  <th className="px-4 py-3 text-center">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtrados.map((o, idx) => {
+                  const total = totalOrcamento(o);
+                  const margem = margemOrcamento(o);
+                  return (
+                    <tr key={o.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                      <td className="px-4 py-3">
+                        <span className="text-xs font-semibold text-[#fb4d06] bg-[#fb4d06]/5 px-2 py-0.5 rounded-full whitespace-nowrap">
+                          #{o.numero}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-800">{o.cliente || "—"}</div>
+                        {o.solicitante && <div className="text-xs text-gray-400">{o.solicitante}</div>}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{o.dataOrcamento}</td>
+                      <td className="px-4 py-3 text-center">
+                        <StatusDropdown
+                          orcamentoId={o.id}
+                          statusAtual={o.status || "Em andamento"}
+                          onChange={(novo) => atualizarStatus(o.id, novo)}
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-right font-bold text-[#fb4d06] whitespace-nowrap">
+                        {fmt(total)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {margem !== null ? (
+                          <span className={`text-xs font-bold ${margem >= 35 ? "text-green-600" : margem >= 20 ? "text-yellow-600" : "text-red-500"}`}>
+                            {margem.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <Link href={`/orcamentos/${o.id}`}>
+                            <button className="text-xs bg-[#fb4d06] hover:bg-[#e04405] text-white font-semibold px-3 py-1.5 rounded-lg transition">
+                              Editar
+                            </button>
+                          </Link>
+                          <a href={`/api/pdf/${o.id}?tipo=especificacoes`} target="_blank"
+                            className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1.5 rounded-lg transition" title="PDF Especificações">
+                            Esp.
+                          </a>
+                          <a href={`/api/pdf/${o.id}?tipo=valores`} target="_blank"
+                            className="text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 font-semibold px-2 py-1.5 rounded-lg transition" title="PDF Valores">
+                            Val.
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {filtrados.length > 1 && (
+                <tfoot>
+                  <tr className="bg-gray-800 text-white">
+                    <td colSpan={4} className="px-4 py-3 text-xs font-semibold uppercase text-right">Total geral</td>
+                    <td className="px-4 py-3 text-right font-bold text-yellow-400 whitespace-nowrap">{fmt(totalGeralReceita)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-green-400">
+                      {margemGeral !== null ? `${margemGeral.toFixed(1)}%` : "—"}
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        )}
+      </main>
+    </WorkspaceLayout>
+  );
+}

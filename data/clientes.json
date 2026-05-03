@@ -1,0 +1,30 @@
+[
+  {
+    "status": "Ativo",
+    "mesmoContatoFinanceiro": false,
+    "formasPagamento": [
+      "TED",
+      "Cartão Corporativo"
+    ],
+    "documentos": [],
+    "nomeEmpresa": "Mastercard",
+    "razaoSocial": "Mastercard Brasil",
+    "cnpj": "03030300",
+    "inscricaoEstadual": "02930",
+    "nomeContato": "Willian",
+    "whatsappContato": "110000000",
+    "emailContato": "willian@",
+    "nomeContatoFinanceiro": "Luana",
+    "whatsappContatoFinanceiro": "11000000",
+    "emailContatoFinanceiro": "financeiro@",
+    "endereco": "Av. das nacoes unidads",
+    "bairro": "centro",
+    "cep": "00000",
+    "cidade": "Sao Paulo",
+    "estado": "SP",
+    "id": "bk1vblsc",
+    "createdAt": "2026-04-22T00:44:07.667Z",
+    "userId": "user_3CghLh5lX2o4ZJ5d5CwGJD3IPtQ",
+    "userName": "Thiemy Moretti"
+  }
+]
