@@ -1,3 +1,16 @@
+// ── Clerk type augmentation ────────────────────────
+export {};
+
+declare global {
+  namespace Clerk {
+    interface UserPublicMetadata {
+      role?: "admin" | "user";
+    }
+  }
+}
+
+// ── Tipos do sistema ─────────────────────────────
+
 export type TipoPersonalizacao =
   | "Silk"
   | "DTF"
@@ -13,14 +26,22 @@ export interface ItemOrcamento {
   id: string;
   kit: string;
   referencia: string;
+  fornecedorId?: string;
+  fornecedorNome?: string;
   item: string;
+  cor?: string;
   acabamento: TipoPersonalizacao | string;
   descricao: string;
   quantidade: number;
+  imagemReferencia?: string;   // base64 da imagem de referência do item
   // Precificação
   custoUnitario: number;       // custo do fornecedor por unidade
-  freteProducao: number;       // frete total de produção (dividido pela qtd no cálculo)
-  custoArte: number;           // custo de arte (quando cliente não tem)
+  quantidadeMinima?: number;   // qtd mínima do fornecedor; se quantidade < mínimo, +5% no custo
+  diasProducao?: number;              // prazo de produção em dias úteis
+  freteProducao: number;              // frete total de produção (dividido pela qtd)
+  custoPersonalizacao: number;        // custo total de personalização no fornecedor (dividido pela qtd)
+  custoEmbalagemIndividual?: number;  // custo por item de embalagem individual (não dividido)
+  custoEmbalagemTransporte?: number;  // custo total de embalagem de transporte (dividido pela qtd)
   margem: number;              // margem em % (ex: 40 = 40%)
   valorUnitario: number;       // preço final ao cliente
   valorAjustado: boolean;      // true = usuário sobrescreveu o valor calculado
@@ -79,9 +100,12 @@ export interface Cliente {
   cep: string;
   // Financeiro
   formasPagamento: FormaPagamento[];
+  prazoPagamento?: string;
   status: StatusCliente;
   // Documentos
   documentos?: DocumentoFornecedor[];
+  // Solicitantes cadastrados neste cliente
+  solicitantes?: string[];
   // Meta
   createdAt: string;
   userId?: string;
@@ -146,15 +170,28 @@ export interface Orcamento {
   userEmail?: string;
   userName?: string;
   numero: string;
+  nomeProjeto?: string;
   cliente: string;
+  clienteId?: string;
   solicitante: string;
+  responsavel?: string;
   dataOrcamento: string;
+  dataSolicitacao?: string;
+  tiposNota?: ("DANFE" | "NFSE")[];
   prazoPagamento: string;
   prazoEntrega: string;
   observacoes: string;
   frete: string;
+  freteValor?: number;
+  manuseio?: boolean;
+  custoManuseio?: number;
+  mostrarHonorarios?: boolean;
+  percHonorarios?: number;
+  percImpostos?: number;
+  percComissao?: number;
   margemPadrao: number;
   status: StatusOrcamento;
   itens: ItemOrcamento[];
+  documentos?: DocumentoFornecedor[];
   createdAt: string;
 }

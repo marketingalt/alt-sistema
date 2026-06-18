@@ -120,12 +120,21 @@ export function gerarNumeroOrcamento(): string {
   garantirArquivos();
   const lista = listarOrcamentos();
   const numerosExistentes = new Set(lista.map((o) => o.numero));
-  const ano = new Date().getFullYear();
+
+  // Lê o contador atual e avança sequencialmente
+  let counter = { seq: 1669 }; // começa em 1669 → primeira chamada retorna 1670
+  try {
+    counter = JSON.parse(fs.readFileSync(COUNTER_PATH, "utf-8"));
+  } catch { /* usa padrão */ }
+
   let numero: string;
   do {
-    const rand = Math.floor(1000 + Math.random() * 9000);
-    numero = `${rand}/${ano}`;
+    counter.seq += 1;
+    numero = String(counter.seq);
   } while (numerosExistentes.has(numero));
+
+  // Salva o novo valor do contador
+  fs.writeFileSync(COUNTER_PATH, JSON.stringify(counter));
   return numero;
 }
 

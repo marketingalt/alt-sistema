@@ -13,8 +13,8 @@ export default function AcessoNegado() {
       <div className="max-w-md w-full text-center">
         {/* Logo */}
         <div className="mb-8">
-          <span className="text-5xl font-black text-yellow-400 tracking-tight">alt.</span>
-          <p className="text-gray-600 text-sm mt-1">marketing</p>
+          <span className="text-4xl font-bold text-[#fb4d06] tracking-tight">Omini</span>
+          <span className="text-4xl font-bold text-[#fb4d06] tracking-tight ml-2">Alt</span>
         </div>
 
         {/* Ícone */}
@@ -37,7 +37,7 @@ export default function AcessoNegado() {
 
         <button
           onClick={() => signOut({ redirectUrl: "/sign-in" })}
-          className="bg-yellow-400 text-gray-900 font-bold py-3 px-8 rounded-xl hover:bg-yellow-300 transition w-full"
+          className="bg-[#fb4d06] text-white font-bold py-3 px-8 rounded-xl hover:bg-[#e04400] transition w-full"
         >
           Entrar com outra conta
         </button>

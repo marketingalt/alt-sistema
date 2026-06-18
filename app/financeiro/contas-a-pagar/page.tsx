@@ -1,0 +1,1122 @@
+"use client";
+
+import { useEffect, useState, useMemo } from "react";
+import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+
+interface Conta {
+  id: string;
+  dataVencimento: string;
+  dataPagamento?: string;
+  fornecedor: string;
+  descricao: string;
+  valor: number;
+  modalidade: string;
+  banco: string;
+  area: string;
+  categoria: string;
+  obs?: string;
+  status: "pendente" | "pago" | "cancelado";
+  recorrente?: boolean;
+  periodicidade?: string | null;
+  fluxoCaixaId?: string;
+  driveLink?: string;
+  dadosBancarios?: {
+    nome?: string;
+    banco?: string;
+    chavePix?: string;
+    agencia?: string;
+    conta?: string;
+  };
+  createdAt: string;
+}
+
+const CATEGORIAS = [
+  "RECEITA OPERACIONAL BRUTA",
+  "CUSTOS DIRETOS DOS SERVIÇOS",
+  "DESPESAS ADM E GERAIS",
+  "DESPESAS COM PESSOAL OPERACIONAL",
+  "DESPESAS COM PESSOAL — PROLABORE",
+  "DEDUÇÕES DA RECEITA (IMPOSTOS)",
+  "DESPESAS COMERCIAIS",
+  "RESULTADO FINANCEIRO",
+  "EMPRÉSTIMO THIEMY",
+  "EMPRÉSTIMO FERNANDO",
+  "DEVOLUÇÃO THIEMY",
+  "DEVOLUÇÃO FERNANDO",
+  "ESTORNO",
+];
+
+const MODALIDADES = ["PIX", "TED", "DÉBITO", "BOLETO", "FATURA", "INVESTIMENTO", "TRANSFERENCIA"];
+const BANCOS = ["C6 BANK", "Banco Itaú"];
+const AREAS = ["PROJETOS", "DIGITAL", "MISTO", "ESTORNO"];
+const PERIODICIDADES = ["mensal", "quinzenal", "semanal", "anual"];
+const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+function fmt(v: number) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function statusEfetivo(conta: Conta): "pendente" | "vencido" | "pago" | "cancelado" {
+  if (conta.status === "pago") return "pago";
+  if (conta.status === "cancelado") return "cancelado";
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const venc = new Date(conta.dataVencimento + "T12:00:00");
+  if (venc < hoje) return "vencido";
+  return "pendente";
+}
+
+const STATUS_CONFIG = {
+  pendente: { label: "Pendente", bg: "bg-yellow-50", text: "text-yellow-700", dot: "bg-yellow-400" },
+  vencido:  { label: "Vencido",  bg: "bg-red-50",    text: "text-red-700",    dot: "bg-red-500" },
+  pago:     { label: "Pago",     bg: "bg-green-50",  text: "text-green-700",  dot: "bg-green-500" },
+  cancelado:{ label: "Cancelado",bg: "bg-gray-50",   text: "text-gray-500",   dot: "bg-gray-400" },
+};
+
+function diasParaVencer(dataVenc: string): number {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const venc = new Date(dataVenc + "T12:00:00");
+  return Math.ceil((venc.getTime() - hoje.getTime()) / 86400000);
+}
+
+const FORM_VAZIO = {
+  dataVencimento: "", fornecedor: "", descricao: "", valor: "",
+  modalidade: "PIX", banco: "C6 BANK", area: "MISTO",
+  categoria: "DESPESAS ADM E GERAIS", obs: "",
+  recorrente: false, periodicidade: "mensal",
+};
+
+export default function ContasAPagarPage() {
+  const [contas, setContas] = useState<Conta[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Filtros
+  const hoje = new Date();
+  const [mesSel, setMesSel] = useState(hoje.getMonth());
+  const [anoSel, setAnoSel] = useState(hoje.getFullYear());
+  const [statusFiltro, setStatusFiltro] = useState("todos");
+  const [areaFiltro, setAreaFiltro] = useState("Todas");
+  const [catFiltro, setCatFiltro] = useState("Todas");
+  const [busca, setBusca] = useState("");
+
+  // Modal editar/criar
+  const [modalForm, setModalForm] = useState(false);
+  const [editando, setEditando] = useState<Conta | null>(null);
+  const [form, setForm] = useState({ ...FORM_VAZIO });
+  const [salvando, setSalvando] = useState(false);
+
+  // Modal pagar
+  const [modalPagar, setModalPagar] = useState<Conta | null>(null);
+  const [formPagar, setFormPagar] = useState({ dataPagamento: "", modalidade: "PIX", banco: "C6 BANK" });
+  const [pagando, setPagando] = useState(false);
+
+  // Painel de detalhe
+  const [detalhe, setDetalhe] = useState<Conta | null>(null);
+  const [driveInput, setDriveInput] = useState("");
+  const [salvandoLink, setSalvandoLink] = useState(false);
+  const [dadosBancariosForm, setDadosBancariosForm] = useState({ nome: "", banco: "", chavePix: "", agencia: "", conta: "" });
+
+  useEffect(() => {
+    fetch("/api/contas-a-pagar")
+      .then((r) => r.json())
+      .then((d) => setContas(d.contas ?? []))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Contas do mês selecionado
+  const contasMes = useMemo(() => {
+    return contas.filter((c) => {
+      const ref = c.dataPagamento ?? c.dataVencimento;
+      const d = new Date(ref + "T12:00:00");
+      return d.getMonth() === mesSel && d.getFullYear() === anoSel;
+    });
+  }, [contas, mesSel, anoSel]);
+
+  // KPIs
+  const kpis = useMemo(() => {
+    const todas = contasMes;
+    const pendentes = todas.filter((c) => statusEfetivo(c) === "pendente");
+    const vencidas = todas.filter((c) => statusEfetivo(c) === "vencido");
+    const pagas = todas.filter((c) => c.status === "pago");
+    const proximas7 = contas.filter((c) => {
+      if (c.status !== "pendente") return false;
+      const d = diasParaVencer(c.dataVencimento);
+      return d >= 0 && d <= 7;
+    });
+    return {
+      totalPendente: pendentes.reduce((s, c) => s + c.valor, 0),
+      totalVencido: vencidas.reduce((s, c) => s + c.valor, 0),
+      totalPago: pagas.reduce((s, c) => s + c.valor, 0),
+      proximas7: proximas7.length,
+      totalProximas7: proximas7.reduce((s, c) => s + c.valor, 0),
+    };
+  }, [contasMes, contas]);
+
+  // Filtros aplicados
+  const contasFiltradas = useMemo(() => {
+    let lista = contasMes;
+    if (statusFiltro !== "todos") lista = lista.filter((c) => statusEfetivo(c) === statusFiltro);
+    if (areaFiltro !== "Todas") lista = lista.filter((c) => c.area === areaFiltro);
+    if (catFiltro !== "Todas") lista = lista.filter((c) => c.categoria === catFiltro);
+    if (busca.trim()) {
+      const q = busca.toLowerCase();
+      lista = lista.filter((c) => c.fornecedor.toLowerCase().includes(q) || c.descricao.toLowerCase().includes(q) || (c.obs ?? "").toLowerCase().includes(q));
+    }
+    return lista.sort((a, b) => a.dataVencimento.localeCompare(b.dataVencimento));
+  }, [contasMes, statusFiltro, areaFiltro, catFiltro, busca]);
+
+  function navMes(dir: number) {
+    let m = mesSel + dir; let a = anoSel;
+    if (m < 0) { m = 11; a--; } if (m > 11) { m = 0; a++; }
+    setMesSel(m); setAnoSel(a);
+  }
+
+  function abrirNovo() {
+    setEditando(null);
+    setForm({ ...FORM_VAZIO, dataVencimento: new Date(anoSel, mesSel, 15).toISOString().split("T")[0] });
+    setModalForm(true);
+  }
+
+  function abrirEditar(c: Conta) {
+    setEditando(c);
+    setForm({
+      dataVencimento: c.dataVencimento, fornecedor: c.fornecedor, descricao: c.descricao,
+      valor: String(c.valor), modalidade: c.modalidade, banco: c.banco, area: c.area,
+      categoria: c.categoria, obs: c.obs ?? "",
+      recorrente: c.recorrente ?? false, periodicidade: c.periodicidade ?? "mensal",
+    });
+    setModalForm(true);
+  }
+
+  function abrirPagar(c: Conta) {
+    setModalPagar(c);
+    setFormPagar({
+      dataPagamento: new Date().toISOString().split("T")[0],
+      modalidade: c.modalidade,
+      banco: c.banco,
+    });
+  }
+
+  async function salvarConta() {
+    if (!form.dataVencimento || !form.fornecedor.trim() || !form.descricao.trim()) return;
+    setSalvando(true);
+    const payload = { ...form, valor: parseFloat(String(form.valor).replace(",", ".")) || 0 };
+    try {
+      if (editando) {
+        await fetch(`/api/contas-a-pagar/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        setContas((prev) => prev.map((c) => c.id === editando.id ? { ...c, ...payload } : c));
+      } else {
+        const res = await fetch("/api/contas-a-pagar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const nova = await res.json();
+        setContas((prev) => [...prev, nova]);
+      }
+      setModalForm(false);
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function confirmarPagamento() {
+    if (!modalPagar || !formPagar.dataPagamento) return;
+    setPagando(true);
+    try {
+      const res = await fetch(`/api/contas-a-pagar/${modalPagar.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pagar: true, ...formPagar }),
+      });
+      const { fluxoCaixaId } = await res.json();
+      setContas((prev) => prev.map((c) =>
+        c.id === modalPagar.id
+          ? { ...c, status: "pago", dataPagamento: formPagar.dataPagamento, fluxoCaixaId }
+          : c
+      ));
+      setModalPagar(null);
+    } finally {
+      setPagando(false);
+    }
+  }
+
+  function abrirDetalhe(c: Conta) {
+    setDetalhe(c);
+    setDriveInput(c.driveLink ?? "");
+    setFormPagar({
+      dataPagamento: new Date().toISOString().split("T")[0],
+      modalidade: c.modalidade,
+      banco: c.banco,
+    });
+    setDadosBancariosForm({
+      nome: c.dadosBancarios?.nome ?? "",
+      banco: c.dadosBancarios?.banco ?? "",
+      chavePix: c.dadosBancarios?.chavePix ?? "",
+      agencia: c.dadosBancarios?.agencia ?? "",
+      conta: c.dadosBancarios?.conta ?? "",
+    });
+  }
+
+  async function confirmarPagamentoDrawer() {
+    if (!detalhe || !formPagar.dataPagamento) return;
+    setPagando(true);
+    const dadosBancarios =
+      formPagar.modalidade === "PIX"
+        ? { nome: dadosBancariosForm.nome, banco: dadosBancariosForm.banco, chavePix: dadosBancariosForm.chavePix }
+        : formPagar.modalidade === "TED"
+        ? { nome: dadosBancariosForm.nome, banco: dadosBancariosForm.banco, agencia: dadosBancariosForm.agencia, conta: dadosBancariosForm.conta }
+        : undefined;
+    try {
+      const res = await fetch(`/api/contas-a-pagar/${detalhe.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pagar: true, ...formPagar, dadosBancarios }),
+      });
+      const { fluxoCaixaId } = await res.json();
+      const atualizada: Conta = {
+        ...detalhe,
+        status: "pago",
+        dataPagamento: formPagar.dataPagamento,
+        modalidade: formPagar.modalidade,
+        banco: formPagar.banco,
+        fluxoCaixaId,
+        dadosBancarios,
+      };
+      setContas((prev) => prev.map((c) => (c.id === detalhe.id ? atualizada : c)));
+      setDetalhe(atualizada);
+    } finally {
+      setPagando(false);
+    }
+  }
+
+  async function salvarDadosBancarios() {
+    if (!detalhe) return;
+    const dadosBancarios =
+      detalhe.modalidade === "PIX"
+        ? { nome: dadosBancariosForm.nome, banco: dadosBancariosForm.banco, chavePix: dadosBancariosForm.chavePix }
+        : { nome: dadosBancariosForm.nome, banco: dadosBancariosForm.banco, agencia: dadosBancariosForm.agencia, conta: dadosBancariosForm.conta };
+    await fetch(`/api/contas-a-pagar/${detalhe.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dadosBancarios }),
+    });
+    const atualizada = { ...detalhe, dadosBancarios };
+    setContas((prev) => prev.map((c) => (c.id === detalhe.id ? atualizada : c)));
+    setDetalhe(atualizada);
+  }
+
+  async function salvarDriveLink() {
+    if (!detalhe) return;
+    setSalvandoLink(true);
+    try {
+      await fetch(`/api/contas-a-pagar/${detalhe.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ driveLink: driveInput.trim() }),
+      });
+      const atualizada = { ...detalhe, driveLink: driveInput.trim() };
+      setContas((prev) => prev.map((c) => (c.id === detalhe.id ? atualizada : c)));
+      setDetalhe(atualizada);
+    } finally {
+      setSalvandoLink(false);
+    }
+  }
+
+  async function duplicar() {
+    if (!editando) return;
+    setSalvando(true);
+    const payload = { ...form, valor: parseFloat(String(form.valor).replace(",", ".")) || 0 };
+    try {
+      const res = await fetch("/api/contas-a-pagar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const nova = await res.json();
+      setContas((prev) => [...prev, nova]);
+      setModalForm(false);
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function cancelar(id: string) {
+    if (!confirm("Cancelar esta conta?")) return;
+    await fetch(`/api/contas-a-pagar/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "cancelado" }) });
+    setContas((prev) => prev.map((c) => c.id === id ? { ...c, status: "cancelado" } : c));
+  }
+
+  async function excluir(id: string) {
+    if (!confirm("Excluir definitivamente esta conta?")) return;
+    await fetch(`/api/contas-a-pagar/${id}`, { method: "DELETE" });
+    setContas((prev) => prev.filter((c) => c.id !== id));
+  }
+
+  if (loading) return (
+    <WorkspaceLayout>
+      <div className="flex items-center justify-center h-96">
+        <div className="w-6 h-6 border-2 border-[#fb4d06] border-t-transparent rounded-full animate-spin" />
+      </div>
+    </WorkspaceLayout>
+  );
+
+  return (
+    <WorkspaceLayout>
+      <main className="px-6 py-6 max-w-7xl">
+        {/* Cabeçalho */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Contas a Pagar</h1>
+            <p className="text-gray-500 text-sm mt-0.5">Gerencie obrigações e pagamentos. Ao confirmar o pagamento, o lançamento vai automaticamente para o Fluxo de Caixa.</p>
+          </div>
+          <button onClick={abrirNovo} className="bg-[#fb4d06] text-white font-semibold py-2 px-5 rounded-xl hover:opacity-90 transition flex items-center gap-2 text-sm">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+            Nova Conta
+          </button>
+        </div>
+
+        {/* Navegação de mês */}
+        <div className="flex items-center gap-2 mb-5 flex-wrap">
+          <button onClick={() => navMes(-1)} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <div className="flex items-center gap-1">
+            {MESES.map((m, i) => (
+              <button key={i} onClick={() => setMesSel(i)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${mesSel === i ? "bg-[#fb4d06] text-white" : "text-gray-500 hover:bg-gray-100"}`}>{m}</button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1 border-l border-gray-200 pl-2">
+            {[2026, 2027].map((a) => (
+              <button key={a} onClick={() => setAnoSel(a)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${anoSel === a ? "bg-gray-800 text-white" : "text-gray-500 hover:bg-gray-100"}`}>{a}</button>
+            ))}
+          </div>
+          <button onClick={() => navMes(1)} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          </button>
+        </div>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-yellow-50 rounded-2xl p-4 border border-yellow-100">
+            <p className="text-xs font-medium text-yellow-700 mb-1">A Pagar no Mês</p>
+            <p className="text-xl font-bold text-yellow-800">{fmt(kpis.totalPendente)}</p>
+            <p className="text-xs text-yellow-600 mt-0.5">{contasMes.filter((c) => statusEfetivo(c) === "pendente").length} conta(s)</p>
+          </div>
+          <div className="bg-red-50 rounded-2xl p-4 border border-red-100">
+            <p className="text-xs font-medium text-red-700 mb-1">Vencidas</p>
+            <p className="text-xl font-bold text-red-700">{fmt(kpis.totalVencido)}</p>
+            <p className="text-xs text-red-500 mt-0.5">{contasMes.filter((c) => statusEfetivo(c) === "vencido").length} conta(s) em atraso</p>
+          </div>
+          <div className="bg-green-50 rounded-2xl p-4 border border-green-100">
+            <p className="text-xs font-medium text-green-700 mb-1">Pago no Mês</p>
+            <p className="text-xl font-bold text-green-700">{fmt(kpis.totalPago)}</p>
+            <p className="text-xs text-green-600 mt-0.5">{contasMes.filter((c) => c.status === "pago").length} conta(s) pagas</p>
+          </div>
+          <div className={`rounded-2xl p-4 border ${kpis.proximas7 > 0 ? "bg-orange-50 border-orange-100" : "bg-gray-50 border-gray-100"}`}>
+            <p className={`text-xs font-medium mb-1 ${kpis.proximas7 > 0 ? "text-orange-700" : "text-gray-500"}`}>Vencem em 7 dias</p>
+            <p className={`text-xl font-bold ${kpis.proximas7 > 0 ? "text-orange-700" : "text-gray-600"}`}>{fmt(kpis.totalProximas7)}</p>
+            <p className={`text-xs mt-0.5 ${kpis.proximas7 > 0 ? "text-orange-500" : "text-gray-400"}`}>{kpis.proximas7} conta(s)</p>
+          </div>
+        </div>
+
+        {/* Alerta vencidos */}
+        {contasMes.some((c) => statusEfetivo(c) === "vencido") && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 flex items-center gap-3">
+            <svg className="w-5 h-5 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p className="text-sm text-red-700 font-medium">
+              {contasMes.filter((c) => statusEfetivo(c) === "vencido").length} conta(s) vencidas aguardando pagamento.
+            </p>
+          </div>
+        )}
+
+        {/* Tabela */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+          {/* Filtros */}
+          <div className="px-4 py-3 border-b border-gray-100 flex flex-wrap gap-2 items-center">
+            <input placeholder="Buscar fornecedor ou descrição..."
+              value={busca} onChange={(e) => setBusca(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 w-56" />
+            <div className="flex gap-1">
+              {(["todos", "pendente", "vencido", "pago", "cancelado"] as const).map((s) => (
+                <button key={s} onClick={() => setStatusFiltro(s)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition capitalize ${
+                    statusFiltro === s ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  }`}>
+                  {s === "todos" ? "Todos" : STATUS_CONFIG[s as keyof typeof STATUS_CONFIG]?.label ?? s}
+                </button>
+              ))}
+            </div>
+            <select value={areaFiltro} onChange={(e) => setAreaFiltro(e.target.value)}
+              className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
+              <option>Todas</option>
+              {AREAS.map((a) => <option key={a}>{a}</option>)}
+            </select>
+            <select value={catFiltro} onChange={(e) => setCatFiltro(e.target.value)}
+              className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 flex-1 min-w-40">
+              <option value="Todas">Todas categorias</option>
+              {CATEGORIAS.map((c) => <option key={c}>{c}</option>)}
+            </select>
+            <span className="text-xs text-gray-400 ml-auto">{contasFiltradas.length} conta(s)</span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50/50">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">Vencimento</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Fornecedor / Descrição</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Categoria</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">Banco</th>
+                  <th className="text-right px-3 py-2.5 text-xs font-semibold text-gray-500">Valor</th>
+                  <th className="text-center px-3 py-2.5 text-xs font-semibold text-gray-500">Status</th>
+                  <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contasFiltradas.length === 0 && (
+                  <tr><td colSpan={7} className="text-center py-12 text-gray-400 text-sm">Nenhuma conta encontrada para este período.</td></tr>
+                )}
+                {contasFiltradas.map((c) => {
+                  const st = statusEfetivo(c);
+                  const cfg = STATUS_CONFIG[st];
+                  const dias = diasParaVencer(c.dataVencimento);
+                  return (
+                    <tr key={c.id} onClick={() => abrirDetalhe(c)} className={`border-b border-gray-50 group hover:bg-gray-50/50 cursor-pointer ${st === "vencido" ? "bg-red-50/30" : ""}`}>
+                      <td className="px-4 py-3">
+                        <p className={`text-xs font-bold ${st === "vencido" ? "text-red-600" : "text-gray-700"}`}>
+                          {new Date(c.dataVencimento + "T12:00:00").toLocaleDateString("pt-BR")}
+                        </p>
+                        {st === "pendente" && dias <= 7 && dias >= 0 && (
+                          <p className="text-[10px] text-orange-500 font-semibold mt-0.5">
+                            {dias === 0 ? "Vence hoje!" : `${dias}d`}
+                          </p>
+                        )}
+                        {st === "vencido" && (
+                          <p className="text-[10px] text-red-500 font-semibold mt-0.5">{Math.abs(dias)}d atraso</p>
+                        )}
+                        {c.recorrente && (
+                          <span className="text-[9px] font-semibold text-indigo-500 bg-indigo-50 px-1 py-0.5 rounded mt-0.5 inline-block">
+                            ↻ {c.periodicidade}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        <p className="text-sm font-semibold text-gray-800">{c.fornecedor}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{c.descricao}</p>
+                        {c.obs && <p className="text-[10px] text-gray-400 mt-0.5 italic">{c.obs}</p>}
+                        {c.status === "pago" && c.dataPagamento && (
+                          <p className="text-[10px] text-green-600 mt-0.5 font-medium">
+                            ✓ Pago em {new Date(c.dataPagamento + "T12:00:00").toLocaleDateString("pt-BR")}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        <p className="text-xs text-gray-600 font-medium">{c.categoria}</p>
+                        <span className={`text-[9px] font-semibold px-1 py-0.5 rounded mt-0.5 inline-block ${
+                          c.area === "PROJETOS" ? "bg-orange-50 text-orange-600" :
+                          c.area === "DIGITAL" ? "bg-purple-50 text-purple-600" :
+                          "bg-gray-100 text-gray-500"
+                        }`}>{c.area}</span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-col gap-0.5">
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded w-fit ${c.banco === "C6 BANK" ? "bg-yellow-50 text-yellow-700" : "bg-blue-50 text-blue-700"}`}>
+                            {c.banco === "C6 BANK" ? "C6" : "Itaú"}
+                          </span>
+                          <span className="text-[10px] text-gray-400">{c.modalidade}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        <p className={`text-sm font-bold ${c.valor === 0 ? "text-gray-400" : "text-red-600"}`}>
+                          {c.valor === 0 ? "A confirmar" : fmt(c.valor)}
+                        </p>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold ${cfg.bg} ${cfg.text}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                          {cfg.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Botão Pagar — destaque quando pendente/vencido */}
+                          {(st === "pendente" || st === "vencido") && (
+                            <button onClick={() => abrirPagar(c)}
+                              title="Marcar como pago"
+                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                                st === "vencido"
+                                  ? "bg-red-100 text-red-700 hover:bg-red-200"
+                                  : "bg-green-100 text-green-700 hover:bg-green-200"
+                              }`}>
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              Pagar
+                            </button>
+                          )}
+                          {c.status === "pago" && c.fluxoCaixaId && (
+                            <span className="text-[10px] text-green-600 bg-green-50 px-2 py-1 rounded-lg font-semibold">✓ No Fluxo</span>
+                          )}
+                          {/* Editar */}
+                          <button onClick={() => abrirEditar(c)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          {/* Cancelar / Excluir */}
+                          {c.status !== "pago" && (
+                            <button onClick={() => cancelar(c.id)}
+                              title="Cancelar conta"
+                              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-orange-500 hover:bg-orange-50 opacity-0 group-hover:opacity-100 transition">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                              </svg>
+                            </button>
+                          )}
+                          <button onClick={() => excluir(c.id)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {contasFiltradas.length > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 border-gray-200 bg-gray-50">
+                    <td colSpan={4} className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total do período</td>
+                    <td className="px-3 py-2.5 text-right font-bold text-sm text-red-600">
+                      {fmt(contasFiltradas.filter((c) => c.status !== "cancelado").reduce((s, c) => s + c.valor, 0))}
+                    </td>
+                    <td colSpan={2} />
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+      </main>
+
+      {/* ── Modal: Nova / Editar Conta ── */}
+      {modalForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setModalForm(false)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 shrink-0">
+              <div>
+                <h2 className="text-base font-bold text-gray-800">{editando ? "Editar Conta" : "Nova Conta a Pagar"}</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Preencha os dados da obrigação. Ao pagar, vai direto para o Fluxo de Caixa.</p>
+              </div>
+              <button onClick={() => setModalForm(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 px-6 py-5 flex flex-col gap-3">
+              {/* Fornecedor + Descrição */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Fornecedor / Beneficiário <span className="text-red-400">*</span></label>
+                <input value={form.fornecedor} onChange={(e) => setForm((f) => ({ ...f, fornecedor: e.target.value }))}
+                  placeholder="Ex: Receita Federal, Márcio Ramires..."
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Descrição <span className="text-red-400">*</span></label>
+                <input value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
+                  placeholder="Ex: Salário mensal, Aluguel mai/26..."
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+              </div>
+
+              {/* Data + Valor */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Data de Vencimento <span className="text-red-400">*</span></label>
+                  <input type="date" value={form.dataVencimento} onChange={(e) => setForm((f) => ({ ...f, dataVencimento: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
+                  <input type="text" placeholder="0,00 (deixe 0 se indefinido)"
+                    value={form.valor} onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                </div>
+              </div>
+
+              {/* Modalidade + Banco */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Modalidade de Pagamento</label>
+                  <select value={form.modalidade} onChange={(e) => setForm((f) => ({ ...f, modalidade: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
+                    {MODALIDADES.map((m) => <option key={m}>{m}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Banco</label>
+                  <select value={form.banco} onChange={(e) => setForm((f) => ({ ...f, banco: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
+                    {BANCOS.map((b) => <option key={b}>{b}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Área + Categoria DRE */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Área</label>
+                  <select value={form.area} onChange={(e) => setForm((f) => ({ ...f, area: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
+                    {AREAS.map((a) => <option key={a}>{a}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Categoria DRE</label>
+                  <select value={form.categoria} onChange={(e) => setForm((f) => ({ ...f, categoria: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
+                    {CATEGORIAS.map((c) => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Obs */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Observação</label>
+                <input value={form.obs} onChange={(e) => setForm((f) => ({ ...f, obs: e.target.value }))}
+                  placeholder="Informação adicional (opcional)"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+              </div>
+
+              {/* Recorrência */}
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <div onClick={() => setForm((f) => ({ ...f, recorrente: !f.recorrente }))}
+                    className={`w-9 h-5 rounded-full relative transition-colors ${form.recorrente ? "bg-[#fb4d06]" : "bg-gray-300"}`}>
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${form.recorrente ? "translate-x-4" : "translate-x-0.5"}`} />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">Conta recorrente</span>
+                </label>
+                {form.recorrente && (
+                  <div className="mt-3">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Periodicidade</label>
+                    <div className="flex gap-2">
+                      {PERIODICIDADES.map((p) => (
+                        <button key={p} type="button" onClick={() => setForm((f) => ({ ...f, periodicidade: p }))}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition capitalize ${
+                            form.periodicidade === p ? "border-[#fb4d06] bg-[#fb4d06]/5 text-[#fb4d06]" : "border-gray-200 text-gray-500 hover:border-gray-300"
+                          }`}>{p}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="px-6 pb-6 pt-3 border-t border-gray-100 shrink-0 flex gap-3">
+              <button onClick={() => setModalForm(false)} className="py-2.5 px-4 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+              {editando && (
+                <button onClick={duplicar} disabled={salvando}
+                  title="Cria uma cópia desta conta como nova entrada pendente"
+                  className="py-2.5 px-4 rounded-xl border border-[#fb4d06] text-[#fb4d06] text-sm font-semibold hover:bg-[#fb4d06]/5 disabled:opacity-40 flex items-center gap-1.5 whitespace-nowrap">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Duplicar
+                </button>
+              )}
+              <button onClick={salvarConta} disabled={salvando || !form.dataVencimento || !form.fornecedor.trim() || !form.descricao.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-[#fb4d06] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40">
+                {salvando ? "Salvando..." : editando ? "Salvar Alterações" : "Adicionar Conta"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Drawer: Detalhe da Conta ── */}
+      {detalhe && (() => {
+        const st = statusEfetivo(detalhe);
+        const cfg = STATUS_CONFIG[st];
+        const dias = diasParaVencer(detalhe.dataVencimento);
+        return (
+          <>
+            <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={() => setDetalhe(null)} />
+            <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-gray-100 flex items-start justify-between gap-3 shrink-0">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold ${cfg.bg} ${cfg.text}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                      {cfg.label}
+                    </span>
+                    {detalhe.recorrente && (
+                      <span className="text-[10px] font-semibold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded">↻ {detalhe.periodicidade}</span>
+                    )}
+                  </div>
+                  <h2 className="text-base font-bold text-gray-900 truncate">{detalhe.fornecedor}</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">{detalhe.descricao}</p>
+                </div>
+                <button onClick={() => setDetalhe(null)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 shrink-0 mt-0.5">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              {/* Ações rápidas */}
+              <div className="px-6 py-3 border-b border-gray-100 flex gap-2 shrink-0">
+                <button onClick={() => { setDetalhe(null); abrirEditar(detalhe); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                  Editar
+                </button>
+                <button onClick={async () => {
+                    const payload = {
+                      fornecedor: detalhe.fornecedor, descricao: detalhe.descricao,
+                      dataVencimento: detalhe.dataVencimento, valor: detalhe.valor,
+                      modalidade: detalhe.modalidade, banco: detalhe.banco,
+                      area: detalhe.area, categoria: detalhe.categoria,
+                      obs: detalhe.obs, recorrente: detalhe.recorrente,
+                      periodicidade: detalhe.periodicidade,
+                    };
+                    const res = await fetch("/api/contas-a-pagar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+                    const nova = await res.json();
+                    setContas((prev) => [...prev, nova]);
+                    setDetalhe(null);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#fb4d06] bg-[#fb4d06]/8 hover:bg-[#fb4d06]/15 transition">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                  Duplicar
+                </button>
+              </div>
+
+              {/* Conteúdo rolável */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+                {/* Valor destacado */}
+                <div className="bg-gray-50 rounded-2xl p-5 text-center border border-gray-100">
+                  <p className="text-xs font-medium text-gray-500 mb-1">Valor</p>
+                  <p className={`text-3xl font-bold ${detalhe.valor === 0 ? "text-gray-400" : "text-red-600"}`}>
+                    {detalhe.valor === 0 ? "A confirmar" : fmt(detalhe.valor)}
+                  </p>
+                  {st === "vencido" && (
+                    <p className="text-xs text-red-500 font-semibold mt-1">{Math.abs(dias)} dia(s) em atraso</p>
+                  )}
+                  {st === "pendente" && dias >= 0 && dias <= 7 && (
+                    <p className="text-xs text-orange-500 font-semibold mt-1">{dias === 0 ? "Vence hoje!" : `Vence em ${dias} dia(s)`}</p>
+                  )}
+                </div>
+
+                {/* ── Seção de Pagamento ── */}
+                {st === "pago" ? (
+                  <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center shrink-0">
+                        <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                      </div>
+                      <p className="text-sm font-bold text-green-800">Pagamento Confirmado</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-[10px] font-medium text-green-600 uppercase mb-0.5">Data do Pagamento</p>
+                        <p className="text-sm font-semibold text-green-800">
+                          {detalhe.dataPagamento ? new Date(detalhe.dataPagamento + "T12:00:00").toLocaleDateString("pt-BR") : "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-medium text-green-600 uppercase mb-0.5">Modalidade</p>
+                        <p className="text-sm font-semibold text-green-800">{detalhe.modalidade}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-medium text-green-600 uppercase mb-0.5">Banco</p>
+                        <p className="text-sm font-semibold text-green-800">{detalhe.banco}</p>
+                      </div>
+                      {detalhe.fluxoCaixaId && (
+                        <div>
+                          <p className="text-[10px] font-medium text-green-600 uppercase mb-0.5">ID Fluxo de Caixa</p>
+                          <p className="text-xs font-mono text-green-700 truncate">{detalhe.fluxoCaixaId}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : st !== "cancelado" ? (
+                  <div className={`rounded-2xl border p-4 ${st === "vencido" ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"}`}>
+                    <div className="flex items-center gap-2 mb-4">
+                      <svg className={`w-4 h-4 shrink-0 ${st === "vencido" ? "text-red-500" : "text-gray-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      <p className={`text-sm font-bold ${st === "vencido" ? "text-red-800" : "text-gray-700"}`}>Registrar Pagamento</p>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Data do Pagamento</label>
+                        <input type="date" value={formPagar.dataPagamento}
+                          onChange={(e) => setFormPagar((f) => ({ ...f, dataPagamento: e.target.value }))}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">Modalidade</label>
+                          <select value={formPagar.modalidade}
+                            onChange={(e) => setFormPagar((f) => ({ ...f, modalidade: e.target.value }))}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
+                            {MODALIDADES.map((m) => <option key={m}>{m}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">Banco</label>
+                          <select value={formPagar.banco}
+                            onChange={(e) => setFormPagar((f) => ({ ...f, banco: e.target.value }))}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
+                            {BANCOS.map((b) => <option key={b}>{b}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="bg-white/70 rounded-lg px-3 py-2 border border-gray-200">
+                        <p className="text-[10px] text-gray-500">
+                          Lançará <strong className="text-gray-700">{fmt(detalhe.valor)}</strong> no Fluxo de Caixa como <strong className="text-gray-700">{detalhe.categoria}</strong> — <strong className="text-gray-700">{detalhe.area}</strong>
+                        </p>
+                      </div>
+                      <button onClick={confirmarPagamentoDrawer} disabled={pagando || !formPagar.dataPagamento}
+                        className={`w-full py-2.5 rounded-xl text-white text-sm font-bold transition flex items-center justify-center gap-2 disabled:opacity-40 ${st === "vencido" ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}`}>
+                        {pagando
+                          ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Registrando...</>
+                          : <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg> Confirmar Pagamento</>
+                        }
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* ── Dados de Pagamento (PIX / TED) ── */}
+                {(formPagar.modalidade === "PIX" || formPagar.modalidade === "TED") && (
+                  <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                    <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200">
+                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      </svg>
+                      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                        Dados de Pagamento — {formPagar.modalidade}
+                      </p>
+                    </div>
+                    <div className="px-4 py-4 flex flex-col gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Nome completo</label>
+                        <input value={dadosBancariosForm.nome}
+                          onChange={(e) => setDadosBancariosForm((f) => ({ ...f, nome: e.target.value }))}
+                          placeholder="Nome do favorecido"
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Banco</label>
+                        <input value={dadosBancariosForm.banco}
+                          onChange={(e) => setDadosBancariosForm((f) => ({ ...f, banco: e.target.value }))}
+                          placeholder={formPagar.modalidade === "PIX" ? "Ex: Nubank, C6 Bank, Itaú..." : "Ex: Itaú, Bradesco, Santander..."}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                      </div>
+                      {formPagar.modalidade === "PIX" ? (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">Chave PIX</label>
+                          <input value={dadosBancariosForm.chavePix}
+                            onChange={(e) => setDadosBancariosForm((f) => ({ ...f, chavePix: e.target.value }))}
+                            placeholder="CPF, e-mail, telefone ou chave aleatória"
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Agência</label>
+                            <input value={dadosBancariosForm.agencia}
+                              onChange={(e) => setDadosBancariosForm((f) => ({ ...f, agencia: e.target.value }))}
+                              placeholder="0000"
+                              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Conta</label>
+                            <input value={dadosBancariosForm.conta}
+                              onChange={(e) => setDadosBancariosForm((f) => ({ ...f, conta: e.target.value }))}
+                              placeholder="00000-0"
+                              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                          </div>
+                        </div>
+                      )}
+                      <button onClick={salvarDadosBancarios}
+                        className="w-full py-2 rounded-xl bg-gray-800 text-white text-xs font-semibold hover:bg-gray-700 transition">
+                        Salvar dados de pagamento
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Grid de informações */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Detalhes</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Vencimento</p>
+                      <p className="text-sm font-semibold text-gray-800">
+                        {new Date(detalhe.dataVencimento + "T12:00:00").toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Modalidade</p>
+                      <p className="text-sm font-semibold text-gray-800">{detalhe.modalidade}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Banco</p>
+                      <p className="text-sm font-semibold text-gray-800">{detalhe.banco}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Área</p>
+                      <p className="text-sm font-semibold text-gray-800">{detalhe.area}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Criado em</p>
+                      <p className="text-sm font-semibold text-gray-800">
+                        {new Date(detalhe.createdAt + "T12:00:00").toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Categoria */}
+                <div>
+                  <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Categoria DRE</p>
+                  <p className="text-sm font-semibold text-gray-700 bg-gray-50 rounded-xl px-3 py-2.5">{detalhe.categoria}</p>
+                </div>
+
+                {/* Obs */}
+                {detalhe.obs && (
+                  <div>
+                    <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Observação</p>
+                    <p className="text-sm text-gray-600 bg-gray-50 rounded-xl px-3 py-2.5 italic">{detalhe.obs}</p>
+                  </div>
+                )}
+
+                {/* Documentos / Google Drive */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Documentos</p>
+                  </div>
+
+                  {detalhe.driveLink ? (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <svg className="w-4 h-4 text-blue-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6.28 3l5.72 9.9L17.72 3H6.28zm-1.54.83L1.5 10.5h8.1L6.74 3.83zm13 0L14.4 10.5H22.5L17.74 3.83zM1.5 12l4.5 7.8 4.5-7.8H1.5zm7.62 0l4.5 7.8 4.5-7.8H9.12zm7.62 0l4.5 7.8L22.5 12h-5.76z"/>
+                          </svg>
+                          <a href={detalhe.driveLink} target="_blank" rel="noopener noreferrer"
+                            className="text-sm text-blue-600 font-medium hover:underline truncate">
+                            Abrir no Google Drive
+                          </a>
+                        </div>
+                        <button onClick={() => setDriveInput(detalhe.driveLink ?? "")}
+                          className="text-[10px] text-blue-500 hover:text-blue-700 shrink-0 font-medium">Editar</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 mb-3 italic">Nenhum documento vinculado.</p>
+                  )}
+
+                  <div className="flex gap-2">
+                    <input
+                      value={driveInput}
+                      onChange={(e) => setDriveInput(e.target.value)}
+                      placeholder="Cole o link do Google Drive..."
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                    />
+                    <button
+                      onClick={salvarDriveLink}
+                      disabled={salvandoLink || driveInput.trim() === (detalhe.driveLink ?? "")}
+                      className="px-3 py-2 rounded-lg bg-[#fb4d06] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 whitespace-nowrap">
+                      {salvandoLink ? "..." : "Salvar"}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1.5">Cole o link de uma pasta ou arquivo do Google Drive para fácil acesso.</p>
+                </div>
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
+      {/* ── Modal: Confirmar Pagamento ── */}
+      {modalPagar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setModalPagar(null)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-5 border-b border-gray-100">
+              <h2 className="text-base font-bold text-gray-800">Confirmar Pagamento</h2>
+              <p className="text-xs text-gray-400 mt-0.5">O lançamento será criado automaticamente no Fluxo de Caixa.</p>
+            </div>
+
+            {/* Resumo da conta */}
+            <div className="px-6 pt-5 pb-3">
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 mb-4">
+                <p className="text-xs text-gray-500 mb-0.5">Fornecedor</p>
+                <p className="font-semibold text-gray-800">{modalPagar.fornecedor}</p>
+                <p className="text-sm text-gray-500 mt-0.5">{modalPagar.descricao}</p>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-xs text-gray-500">{modalPagar.categoria}</span>
+                  <span className="text-lg font-bold text-red-600">{fmt(modalPagar.valor)}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Data do Pagamento</label>
+                  <input type="date" value={formPagar.dataPagamento}
+                    onChange={(e) => setFormPagar((f) => ({ ...f, dataPagamento: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Modalidade</label>
+                    <select value={formPagar.modalidade} onChange={(e) => setFormPagar((f) => ({ ...f, modalidade: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
+                      {MODALIDADES.map((m) => <option key={m}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Banco</label>
+                    <select value={formPagar.banco} onChange={(e) => setFormPagar((f) => ({ ...f, banco: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
+                      {BANCOS.map((b) => <option key={b}>{b}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-green-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-xs text-green-700 font-medium">
+                    Será lançado no Fluxo de Caixa como <strong>{modalPagar.categoria}</strong> — <strong>{modalPagar.area}</strong> com valor de <strong>{fmt(modalPagar.valor)}</strong>.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 pb-6 pt-2 flex gap-3">
+              <button onClick={() => setModalPagar(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+              <button onClick={confirmarPagamento} disabled={pagando || !formPagar.dataPagamento}
+                className="flex-[2] py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:opacity-40 flex items-center justify-center gap-2">
+                {pagando
+                  ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Registrando...</>
+                  : <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg> Confirmar Pagamento</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </WorkspaceLayout>
+  );
+}

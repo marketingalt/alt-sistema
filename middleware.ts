@@ -2,7 +2,12 @@ import { clerkMiddleware, createRouteMatcher, clerkClient } from "@clerk/nextjs/
 import { NextResponse } from "next/server";
 
 const DOMINIO_PERMITIDO = "@altmkt.com.br";
-const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)", "/acesso-negado"]);
+const isPublicRoute = createRouteMatcher([
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/acesso-negado",
+  "/boas-vindas",
+]);
 
 export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) return;
@@ -24,6 +29,18 @@ export default clerkMiddleware(async (auth, req) => {
     if (!temDominio) {
       console.log(`Acesso negado: ${emailPrincipal}`);
       return NextResponse.redirect(new URL("/acesso-negado", req.url));
+    }
+
+    // ── Onboarding ─────────────────────────────────────
+    // Se o usuário não completou o onboarding, redireciona para /boas-vindas
+    // Exceto se já está na página de boas-vindas ou chamando a API de onboarding
+    const onboarding = user.publicMetadata?.onboarding;
+    if (
+      !onboarding &&
+      !req.nextUrl.pathname.startsWith("/api/admin/onboarding") &&
+      !req.nextUrl.pathname.startsWith("/_next")
+    ) {
+      return NextResponse.redirect(new URL("/boas-vindas", req.url));
     }
   }
 });

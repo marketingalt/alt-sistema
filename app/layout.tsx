@@ -4,8 +4,8 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { ptBR } from "@clerk/localizations";
 
 export const metadata: Metadata = {
-  title: "Alt Marketing — Orçamentos",
-  description: "Sistema de orçamentos Alt Marketing",
+  title: "Omini Alt",
+  description: "Sistema interno de gestão — Omini Alt",
 };
 
 export default function RootLayout({

@@ -152,6 +152,16 @@ export default function ClienteForm({ dados, onChange }: Props) {
             </div>
           </div>
 
+          {/* Prazo de pagamento padrão */}
+          <div className="col-span-2 sm:col-span-1">
+            <Campo
+              label="Prazo de Pagamento (padrão deste cliente)"
+              value={v("prazoPagamento")}
+              onChange={(val) => onChange("prazoPagamento", val)}
+              placeholder="Ex: 30 dias, 50% entrada + 50% na entrega..."
+            />
+          </div>
+
           {/* Status */}
           <div className="col-span-2 sm:col-span-1">
             <label className="block text-xs font-medium text-gray-500 mb-2">Status do Cliente</label>

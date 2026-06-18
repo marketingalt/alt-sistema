@@ -15,7 +15,7 @@ function totalOrcamento(o: Orcamento) {
 function custoTotalOrcamento(o: Orcamento) {
   return o.itens.reduce((a, i) => {
     const qty = i.quantidade || 1;
-    return a + (i.custoUnitario || 0) * qty + (i.freteProducao || 0) + (i.custoArte || 0);
+    return a + (i.custoUnitario || 0) * qty + (i.freteProducao || 0) + (i.custoPersonalizacao || 0);
   }, 0);
 }
 
@@ -200,6 +200,8 @@ export default function ListaOrcamentos() {
                   <th className="px-4 py-3 text-left">Cliente</th>
                   <th className="px-4 py-3 text-left">Data</th>
                   <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3 text-center">PO</th>
+                  <th className="px-4 py-3 text-center">OS</th>
                   <th className="px-4 py-3 text-right">Total</th>
                   <th className="px-4 py-3 text-right">Margem</th>
                   <th className="px-4 py-3 text-center">Ações</th>
@@ -227,6 +229,41 @@ export default function ListaOrcamentos() {
                           statusAtual={o.status || "Em andamento"}
                           onChange={(novo) => atualizarStatus(o.id, novo)}
                         />
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {o.documentos && o.documentos.length > 0 ? (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <a
+                              href={`/api/orcamentos/${o.id}/documentos/${o.documentos[0].id}?inline=1`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-[10px] font-semibold text-blue-500 hover:text-blue-700 hover:underline transition"
+                            >
+                              disponível
+                            </a>
+                          </div>
+                        ) : (
+                          <span className="text-gray-300 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <a
+                          href={`/api/pdf/${o.id}?tipo=os`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-lg transition"
+                          title="Baixar Ordem de Serviço"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          OS
+                        </a>
                       </td>
                       <td className="px-4 py-3 text-right font-bold text-[#fb4d06] whitespace-nowrap">
                         {fmt(total)}
@@ -264,7 +301,7 @@ export default function ListaOrcamentos() {
               {filtrados.length > 1 && (
                 <tfoot>
                   <tr className="bg-gray-800 text-white">
-                    <td colSpan={4} className="px-4 py-3 text-xs font-semibold uppercase text-right">Total geral</td>
+                    <td colSpan={6} className="px-4 py-3 text-xs font-semibold uppercase text-right">Total geral</td>
                     <td className="px-4 py-3 text-right font-bold text-yellow-400 whitespace-nowrap">{fmt(totalGeralReceita)}</td>
                     <td className="px-4 py-3 text-right font-bold text-green-400">
                       {margemGeral !== null ? `${margemGeral.toFixed(1)}%` : "—"}

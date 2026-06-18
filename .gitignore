@@ -1,6 +1,4 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
+# ─── Dependencies ───
 /node_modules
 /.pnp
 .pnp.*
@@ -10,32 +8,48 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# ─── Testing ───
 /coverage
 
-# next.js
+# ─── Next.js ───
 /.next/
 /out/
-
-# production
 /build
 
-# misc
+# ─── OS files ───
 .DS_Store
 *.pem
+Thumbs.db
 
-# debug
+# ─── Debug logs ───
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# ─── Environment variables ───
+.env
+.env*.local
+.env.development
+.env.production
 
-# vercel
+# ─── Vercel ───
 .vercel
 
-# typescript
+# ─── TypeScript ───
 *.tsbuildinfo
 next-env.d.ts
+
+# ══════════════════════════════════════════
+# 🔒 DADOS SENSÍVEIS — NÃO COMMITAR 🔒
+# ══════════════════════════════════════════
+
+# Banco de dados da aplicação (JSON flat-file)
+# Contém orçamentos, clientes, produtos, configurações,
+# dados financeiros e demais informações operacionais.
+/data/
+
+# Claude Code — memórias, planos, transcrições de sessão
+# Contém contexto de desenvolvimento, instruções personalizadas
+# e registros de conversas anteriores.
+/.claude/

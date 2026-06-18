@@ -1,11 +1,36 @@
 [
   {
+    "nomeFantasia": "RBM RELOGIOS LTDA",
+    "razaoSocial": "RBM RELOGIOS LTDA",
+    "cnpj": "45.965.326/0001-91 ",
+    "nomeContato": "",
+    "whatsapp": "",
+    "id": "ndz5dc6i",
+    "inscricaoEstadual": "",
+    "emailCorporativo": "",
+    "categoria": "",
+    "produtos": "",
+    "pedidoMinimo": "",
+    "prazoEntregaDias": "",
+    "endereco": "",
+    "cidade": "",
+    "estado": "",
+    "condicoesPagamento": "",
+    "dadosBancarios": "",
+    "status": "Ativo",
+    "createdAt": "2026-05-03T21:31:15.152Z",
+    "userId": "user_3CghLh5lX2o4ZJ5d5CwGJD3IPtQ",
+    "userName": "Thiemy Moretti"
+  },
+  {
     "status": "Ativo",
     "nomeFantasia": "XBZ",
     "razaoSocial": "XBZ Brindes",
     "id": "8a90nt8y",
     "createdAt": "2026-04-22T00:45:38.954Z",
     "userId": "user_3CghLh5lX2o4ZJ5d5CwGJD3IPtQ",
-    "userName": "Thiemy Moretti"
+    "userName": "Thiemy Moretti",
+    "prazoEntregaDias": "3",
+    "estado": "SP"
   }
 ]

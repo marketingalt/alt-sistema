@@ -1,0 +1,575 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import type { ClerkUserWithRole, SystemSettings } from "@/lib/admin";
+
+type Aba = "usuarios" | "registros" | "configuracoes";
+
+// ── Ícones SVG inline (consistente com o resto do projeto) ──
+
+function Icone(props: { d: string; className?: string }) {
+  return (
+    <svg className={props.className || "w-5 h-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={props.d} />
+    </svg>
+  );
+}
+
+const ICONES = {
+  usuarios: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
+  registros: "M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+  configuracoes: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+};
+
+// ── Badge ──
+
+function BadgeAdmin() {
+  return (
+    <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-[#fb4d06]/10 text-[#fb4d06] border border-[#fb4d06]/20">
+      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+      Admin
+    </span>
+  );
+}
+
+function BadgeUsuario() {
+  return (
+    <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+      Usuário
+    </span>
+  );
+}
+
+// ── Componente principal ──
+
+export default function AdminPage() {
+  const [aba, setAba] = useState<Aba>("usuarios");
+
+  return (
+    <main className="px-8 py-8 max-w-7xl mx-auto">
+      {/* Cabeçalho */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Administração</h1>
+        <p className="text-gray-500 text-sm mt-1">Gerencie usuários, visualize dados do sistema e configure opções gerais.</p>
+      </div>
+
+      {/* Abas */}
+      <div className="flex gap-1 mb-8 border-b border-gray-200">
+        {(
+          [
+            { key: "usuarios" as Aba, label: "Usuários" },
+            { key: "registros" as Aba, label: "Registros" },
+            { key: "configuracoes" as Aba, label: "Configurações" },
+          ] as const
+        ).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setAba(key)}
+            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition ${
+              aba === key
+                ? "border-[#fb4d06] text-[#fb4d06]"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <Icone d={ICONES[key]} className="w-4 h-4" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Conteúdo */}
+      {aba === "usuarios" && <AbaUsuarios />}
+      {aba === "registros" && <AbaRegistros />}
+      {aba === "configuracoes" && <AbaConfiguracoes />}
+    </main>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// ABA: Usuários
+// ═══════════════════════════════════════════════════════════
+
+function AbaUsuarios() {
+  const [usuarios, setUsuarios] = useState<ClerkUserWithRole[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState("");
+  const [alterando, setAlterando] = useState<string | null>(null);
+
+  async function carregar() {
+    setCarregando(true);
+    setErro("");
+    try {
+      const res = await fetch("/api/admin/usuarios");
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erro ao carregar");
+      }
+      setUsuarios(await res.json());
+    } catch (err: any) {
+      setErro(err.message);
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  useEffect(() => { carregar(); }, []);
+
+  async function alternarRole(targetUserId: string, novaRole: "admin" | "user") {
+    const confirmar = novaRole === "user"
+      ? confirm("Tem certeza que deseja rebaixar este usuário? Ele perderá acesso ao painel de administração.")
+      : confirm("Tem certeza que deseja promover este usuário a administrador?");
+
+    if (!confirmar) return;
+
+    setAlterando(targetUserId);
+    try {
+      const res = await fetch("/api/admin/usuarios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId, role: novaRole }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Erro ao alterar permissão");
+      } else {
+        await carregar();
+      }
+    } catch {
+      alert("Erro de rede ao alterar permissão");
+    } finally {
+      setAlterando(null);
+    }
+  }
+
+  if (carregando) {
+    return <p className="text-gray-500 text-sm">Carregando usuários...</p>;
+  }
+
+  if (erro) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500 mb-2">{erro}</p>
+        <button onClick={carregar} className="text-sm text-[#fb4d06] hover:underline">Tentar novamente</button>
+      </div>
+    );
+  }
+
+  if (usuarios.length === 0) {
+    return (
+      <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
+        <Icone d={ICONES.usuarios} className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+        <p className="text-gray-500">Nenhum usuário encontrado.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50/50">
+              <th className="text-left px-5 py-3 font-semibold text-gray-600">Usuário</th>
+              <th className="text-left px-5 py-3 font-semibold text-gray-600">Email</th>
+              <th className="text-center px-5 py-3 font-semibold text-gray-600">Permissão</th>
+              <th className="text-right px-5 py-3 font-semibold text-gray-600">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {usuarios.map((u) => (
+              <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition">
+                <td className="px-5 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-[#fb4d06]/10 flex items-center justify-center text-xs font-bold text-[#fb4d06] shrink-0">
+                      {u.nome.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()}
+                    </div>
+                    <span className="font-medium text-gray-800">{u.nome}</span>
+                  </div>
+                </td>
+                <td className="px-5 py-3.5 text-gray-500">{u.email}</td>
+                <td className="px-5 py-3.5 text-center">
+                  {u.role === "admin" ? <BadgeAdmin /> : <BadgeUsuario />}
+                </td>
+                <td className="px-5 py-3.5 text-right">
+                  {u.role === "admin" ? (
+                    <button
+                      onClick={() => alternarRole(u.id, "user")}
+                      disabled={alterando === u.id}
+                      className="text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+                    >
+                      {alterando === u.id ? "Alterando..." : "Rebaixar"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => alternarRole(u.id, "admin")}
+                      disabled={alterando === u.id}
+                      className="text-xs font-medium text-[#fb4d06] hover:text-[#e04400] hover:bg-[#fb4d06]/5 px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+                    >
+                      {alterando === u.id ? "Alterando..." : "Promover a Admin"}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// ABA: Registros
+// ═══════════════════════════════════════════════════════════
+
+type DataCounts = Record<string, number>;
+
+const MODULOS: { chave: string; label: string; href: string; cor: string; icone: string }[] = [
+  { chave: "orcamentos", label: "Orçamentos", href: "/orcamentos", cor: "text-blue-600 bg-blue-50", icone: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
+  { chave: "orcamentosAprovados", label: "Aprovados", href: "/orcamentos", cor: "text-green-600 bg-green-50", icone: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
+  { chave: "orcamentosPendentes", label: "Pendentes", href: "/orcamentos", cor: "text-yellow-600 bg-yellow-50", icone: "M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
+  { chave: "clientes", label: "Clientes", href: "/clientes", cor: "text-purple-600 bg-purple-50", icone: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
+  { chave: "fornecedores", label: "Fornecedores", href: "/fornecedores", cor: "text-cyan-600 bg-cyan-50", icone: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" },
+  { chave: "produtos", label: "Produtos", href: "/produtos", cor: "text-amber-600 bg-amber-50", icone: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" },
+  { chave: "contasAPagar", label: "Contas a Pagar", href: "/financeiro/contas-a-pagar", cor: "text-red-600 bg-red-50", icone: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" },
+  { chave: "faturamentos", label: "Faturamentos", href: "/financeiro/faturamentos", cor: "text-indigo-600 bg-indigo-50", icone: "M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
+  { chave: "fluxoCaixaLancamentos", label: "Fluxo de Caixa", href: "/financeiro/fluxo-de-caixa", cor: "text-emerald-600 bg-emerald-50", icone: "M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" },
+];
+
+function AbaRegistros() {
+  const [counts, setCounts] = useState<DataCounts | null>(null);
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    async function carregar() {
+      try {
+        const res = await fetch("/api/admin/registros");
+        if (res.ok) {
+          setCounts(await res.json());
+        }
+      } catch {
+        // fallback silencioso
+      } finally {
+        setCarregando(false);
+      }
+    }
+    carregar();
+  }, []);
+
+  if (carregando) {
+    return <p className="text-gray-500 text-sm">Carregando dados do sistema...</p>;
+  }
+
+  if (!counts) {
+    return (
+      <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
+        <Icone d={ICONES.registros} className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+        <p className="text-gray-500">Não foi possível carregar os dados.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {MODULOS.map((mod) => {
+        const valor = counts[mod.chave];
+        if (valor === undefined) return null;
+        return (
+          <a
+            key={mod.chave}
+            href={mod.href}
+            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md hover:border-gray-200 transition group"
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">{mod.label}</p>
+                <p className="text-3xl font-bold text-gray-800 mt-1">{valor}</p>
+              </div>
+              <div className={`w-10 h-10 rounded-xl ${mod.cor} flex items-center justify-center group-hover:scale-110 transition`}>
+                <Icone d={mod.icone} className="w-5 h-5" />
+              </div>
+            </div>
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// ABA: Configurações
+// ═══════════════════════════════════════════════════════════
+
+const PRAZOS_PAGAMENTO = [
+  "À vista",
+  "7 dias",
+  "14 dias",
+  "21 dias",
+  "30 dias",
+  "45 dias",
+  "60 dias",
+  "30/60 dias",
+  "30/60/90 dias",
+];
+
+function AbaConfiguracoes() {
+  const [settings, setSettings] = useState<SystemSettings | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [salvo, setSalvo] = useState(false);
+  const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/configuracoes")
+      .then((r) => r.json())
+      .then((data) => setSettings(data))
+      .catch(() => setErro("Erro ao carregar configurações"))
+      .finally(() => setCarregando(false));
+  }, []);
+
+  function atualizar(caminho: string[], valor: number | string) {
+    if (!settings) return;
+    const novo = { ...settings };
+    let obj: any = novo;
+    for (let i = 0; i < caminho.length - 1; i++) {
+      obj = obj[caminho[i]];
+    }
+    obj[caminho[caminho.length - 1]] = valor;
+    setSalvo(false);
+    setSettings(novo);
+  }
+
+  async function salvar() {
+    if (!settings) return;
+    setSalvando(true);
+    setSalvo(false);
+    setErro("");
+    try {
+      const res = await fetch("/api/admin/configuracoes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      if (!res.ok) throw new Error("Erro ao salvar");
+      setSalvo(true);
+      setTimeout(() => setSalvo(false), 3000);
+    } catch {
+      setErro("Erro ao salvar configurações");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  if (carregando) {
+    return <p className="text-gray-500 text-sm">Carregando configurações...</p>;
+  }
+
+  if (!settings) {
+    return (
+      <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
+        <p className="text-gray-500">{erro || "Erro ao carregar configurações."}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl space-y-8">
+      {/* Taxas Padrão */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4">Taxas Padrão</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <Campo label="Honorários (%)" valor={settings.taxasPadrao.honorarios} onChange={(v) => atualizar(["taxasPadrao", "honorarios"], v)} />
+          <Campo label="Impostos (%)" valor={settings.taxasPadrao.impostos} onChange={(v) => atualizar(["taxasPadrao", "impostos"], v)} />
+          <Campo label="Comissão (%)" valor={settings.taxasPadrao.comissao} onChange={(v) => atualizar(["taxasPadrao", "comissao"], v)} />
+          <Campo label="Margem Padrão (%)" valor={settings.taxasPadrao.margemPadrao} onChange={(v) => atualizar(["taxasPadrao", "margemPadrao"], v)} />
+        </div>
+      </section>
+
+      {/* Frete */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4">Frete</h2>
+        <Campo
+          label="Valor por KM (R$)"
+          valor={settings.frete.valorKm}
+          onChange={(v) => atualizar(["frete", "valorKm"], v)}
+          step="0.01"
+        />
+      </section>
+
+      {/* Prazos */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4">Prazos</h2>
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Prazo de Pagamento Padrão</label>
+            <select
+              value={settings.prazos.pagamentoPadrao}
+              onChange={(e) => atualizar(["prazos", "pagamentoPadrao"], e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 focus:border-[#fb4d06]"
+            >
+              {PRAZOS_PAGAMENTO.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+          <CampoTexto
+            label="Prazo de Entrega Padrão"
+            valor={settings.prazos.entregaPadrao}
+            onChange={(v) => atualizar(["prazos", "entregaPadrao"], v)}
+          />
+        </div>
+      </section>
+
+      {/* Logo do Documento */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4">Logo do Documento</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Faça upload de uma logo que aparecerá no cabeçalho dos documentos (PDFs e previews).
+        </p>
+        <LogoUpload />
+      </section>
+
+      {/* Ações */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={salvar}
+          disabled={salvando}
+          className="bg-[#fb4d06] text-white font-semibold py-2.5 px-6 rounded-xl hover:opacity-90 transition disabled:opacity-50"
+        >
+          {salvando ? "Salvando..." : "Salvar Configurações"}
+        </button>
+        {salvo && (
+          <span className="text-sm text-green-600 font-medium flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Configurações salvas!
+          </span>
+        )}
+        {erro && <span className="text-sm text-red-500">{erro}</span>}
+      </div>
+    </div>
+  );
+}
+
+function LogoUpload() {
+  const [logo, setLogo] = useState<string | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/logo")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.logoBase64) setLogo(data.logoBase64);
+      })
+      .catch(() => {})
+      .finally(() => setCarregando(false));
+  }, []);
+
+  async function uploadLogo(file: File) {
+    const reader = new FileReader();
+    setEnviando(true);
+    reader.onload = async () => {
+      const b64 = reader.result as string;
+      try {
+        const res = await fetch("/api/admin/logo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ logoBase64: b64 }),
+        });
+        if (res.ok) setLogo(b64);
+        else alert("Erro ao salvar logo");
+      } catch {
+        alert("Erro ao salvar logo");
+      } finally {
+        setEnviando(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function removerLogo() {
+    setEnviando(true);
+    try {
+      const res = await fetch("/api/admin/logo", { method: "DELETE" });
+      if (res.ok) setLogo(null);
+    } catch {
+      alert("Erro ao remover logo");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  if (carregando) return <p className="text-sm text-gray-400">Carregando...</p>;
+
+  return (
+    <div className="flex items-center gap-6">
+      {logo ? (
+        <div className="relative group">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logo} alt="Logo" className="h-20 w-auto rounded-lg border border-gray-200 p-2 bg-white" />
+          <button
+            onClick={removerLogo}
+            disabled={enviando}
+            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-md hover:bg-red-600 transition disabled:opacity-50"
+          >
+            ×
+          </button>
+        </div>
+      ) : (
+        <div className="h-20 w-40 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center text-gray-400 text-xs">
+          Nenhuma logo
+        </div>
+      )}
+      <label className="cursor-pointer bg-white border border-gray-200 text-sm font-semibold text-gray-700 px-4 py-2 rounded-xl hover:border-[#fb4d06]/30 hover:text-[#fb4d06] transition">
+        {enviando ? "Enviando..." : logo ? "Trocar Logo" : "Selecionar Imagem"}
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          disabled={enviando}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) uploadLogo(file);
+          }}
+        />
+      </label>
+    </div>
+  );
+}
+
+
+// ── Campos reutilizáveis ──
+
+function Campo({ label, valor, onChange, step }: { label: string; valor: number; onChange: (v: number) => void; step?: string }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <input
+        type="number"
+        value={valor}
+        step={step || "1"}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 focus:border-[#fb4d06]"
+      />
+    </div>
+  );
+}
+
+function CampoTexto({ label, valor, onChange }: { label: string; valor: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <input
+        type="text"
+        value={valor}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 focus:border-[#fb4d06]"
+      />
+    </div>
+  );
+}
