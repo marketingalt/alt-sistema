@@ -33,11 +33,11 @@ export default clerkMiddleware(async (auth, req) => {
 
     // ── Onboarding ─────────────────────────────────────
     // Se o usuário não completou o onboarding, redireciona para /boas-vindas
-    // Exceto se já está na página de boas-vindas ou chamando a API de onboarding
+    // Exceto se já está na página de boas-vindas, chamando uma API, ou assets
     const onboarding = user.publicMetadata?.onboarding;
     if (
       !onboarding &&
-      !req.nextUrl.pathname.startsWith("/api/admin/onboarding") &&
+      !req.nextUrl.pathname.startsWith("/api/") &&
       !req.nextUrl.pathname.startsWith("/_next")
     ) {
       return NextResponse.redirect(new URL("/boas-vindas", req.url));

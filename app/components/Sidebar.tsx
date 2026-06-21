@@ -125,7 +125,10 @@ export default function Sidebar() {
   const { user } = useUser();
   const { signOut } = useClerk();
 
-  const isAdmin = user?.publicMetadata?.role === "admin";
+  const emailPrincipal = user?.emailAddresses?.find(
+    (e) => e.id === user.primaryEmailAddressId
+  )?.emailAddress || "";
+  const isAdmin = emailPrincipal === "thiemy@altmkt.com.br" || user?.publicMetadata?.role === "admin";
 
   // Permissões do usuário (admins têm todas)
   const permissoes = useMemo<Set<Permissao>>(() => {

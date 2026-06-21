@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getAllUsers, setAdminRole, checkIsAdmin } from "@/lib/admin";
+import { getAllUsers, setAdminRole, setUserPermissions, checkIsAdmin } from "@/lib/admin";
 
 export async function GET() {
   try {
@@ -35,37 +35,60 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { targetUserId, role } = body;
+    const { targetUserId, role, permissoes } = body;
 
-    if (!targetUserId || !role) {
+    if (!targetUserId) {
       return NextResponse.json(
-        { error: "targetUserId e role são obrigatórios" },
+        { error: "targetUserId é obrigatório" },
         { status: 400 }
       );
     }
 
-    if (role !== "admin" && role !== "user") {
-      return NextResponse.json(
-        { error: "role deve ser 'admin' ou 'user'" },
-        { status: 400 }
-      );
-    }
-
-    // Não permitir que um admin se rebaixe (evita zero admins)
-    if (targetUserId === userId && role === "user") {
-      const admins = (await getAllUsers()).filter((u) => u.role === "admin");
-      if (admins.length <= 1) {
+    // ── Atualizar role ──
+    if (role) {
+      if (role !== "admin" && role !== "user") {
         return NextResponse.json(
-          { error: "Você é o único administrador. Promova outro antes de se rebaixar." },
+          { error: "role deve ser 'admin' ou 'user'" },
           { status: 400 }
         );
       }
+
+      // Não permitir que um admin se rebaixe (evita zero admins)
+      if (targetUserId === userId && role === "user") {
+        const admins = (await getAllUsers()).filter((u) => u.role === "admin");
+        if (admins.length <= 1) {
+          return NextResponse.json(
+            { error: "Você é o único administrador. Promova outro antes de se rebaixar." },
+            { status: 400 }
+          );
+        }
+      }
+
+      await setAdminRole(targetUserId, role);
+      return NextResponse.json({ ok: true, role });
     }
 
-    await setAdminRole(targetUserId, role);
-    return NextResponse.json({ ok: true, role });
+    // ── Atualizar permissões ──
+    if (permissoes) {
+      const VALIDAS = ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro"];
+      const invalidas = permissoes.filter((p: string) => !VALIDAS.includes(p));
+      if (invalidas.length > 0) {
+        return NextResponse.json(
+          { error: `Permissões inválidas: ${invalidas.join(", ")}` },
+          { status: 400 }
+        );
+      }
+
+      await setUserPermissions(targetUserId, permissoes);
+      return NextResponse.json({ ok: true, permissoes });
+    }
+
+    return NextResponse.json(
+      { error: "Envie 'role' ou 'permissoes' para atualizar" },
+      { status: 400 }
+    );
   } catch (err) {
-    console.error("Erro ao alterar role:", err);
+    console.error("Erro ao alterar usuário:", err);
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });
   }
 }

@@ -167,55 +167,202 @@ function AbaUsuarios() {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50/50">
-              <th className="text-left px-5 py-3 font-semibold text-gray-600">Usuário</th>
-              <th className="text-left px-5 py-3 font-semibold text-gray-600">Email</th>
-              <th className="text-center px-5 py-3 font-semibold text-gray-600">Permissão</th>
-              <th className="text-right px-5 py-3 font-semibold text-gray-600">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {usuarios.map((u) => (
-              <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition">
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#fb4d06]/10 flex items-center justify-center text-xs font-bold text-[#fb4d06] shrink-0">
-                      {u.nome.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()}
-                    </div>
-                    <span className="font-medium text-gray-800">{u.nome}</span>
-                  </div>
-                </td>
-                <td className="px-5 py-3.5 text-gray-500">{u.email}</td>
-                <td className="px-5 py-3.5 text-center">
-                  {u.role === "admin" ? <BadgeAdmin /> : <BadgeUsuario />}
-                </td>
-                <td className="px-5 py-3.5 text-right">
-                  {u.role === "admin" ? (
-                    <button
-                      onClick={() => alternarRole(u.id, "user")}
-                      disabled={alterando === u.id}
-                      className="text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+    <div className="space-y-4">
+      {usuarios.map((u) => (
+        <UsuarioRow
+          key={u.id}
+          usuario={u}
+          alterando={alterando === u.id}
+          onAlterarRole={(novaRole) => alternarRole(u.id, novaRole)}
+          onAlterarPermissoes={(novasPerms) => {
+            setAlterando(u.id);
+            fetch("/api/admin/usuarios", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ targetUserId: u.id, permissoes: novasPerms }),
+            })
+              .then((r) => {
+                if (!r.ok) throw new Error();
+                return carregar();
+              })
+              .catch(() => alert("Erro ao alterar permissões"))
+              .finally(() => setAlterando(null));
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Componente individual de usuário com permissões editáveis
+// ═══════════════════════════════════════════════════════════
+
+const MODULOS_INFO = [
+  { key: "orcamentos" as const, label: "Orçamentos", cor: "text-blue-600 bg-blue-50 border-blue-200" },
+  { key: "clientes" as const, label: "Clientes", cor: "text-purple-600 bg-purple-50 border-purple-200" },
+  { key: "fornecedores" as const, label: "Fornecedores", cor: "text-cyan-600 bg-cyan-50 border-cyan-200" },
+  { key: "produtos" as const, label: "Produtos", cor: "text-amber-600 bg-amber-50 border-amber-200" },
+  { key: "financeiro" as const, label: "Financeiro", cor: "text-emerald-600 bg-emerald-50 border-emerald-200" },
+];
+
+function UsuarioRow({
+  usuario,
+  alterando,
+  onAlterarRole,
+  onAlterarPermissoes,
+}: {
+  usuario: ClerkUserWithRole;
+  alterando: boolean;
+  onAlterarRole: (role: "admin" | "user") => void;
+  onAlterarPermissoes: (permissoes: string[]) => void;
+}) {
+  const [editandoPerms, setEditandoPerms] = useState(false);
+  const [pendingPerms, setPendingPerms] = useState<string[]>(usuario.permissoes);
+  const ehAdmin = usuario.role === "admin";
+
+  function togglePerm(key: string) {
+    setPendingPerms((prev) =>
+      prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]
+    );
+  }
+
+  function salvarPerms() {
+    onAlterarPermissoes(pendingPerms);
+    setEditandoPerms(false);
+  }
+
+  function cancelarPerms() {
+    setPendingPerms(usuario.permissoes);
+    setEditandoPerms(false);
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+      <div className="flex items-start justify-between gap-4">
+        {/* Info do usuário */}
+        <div className="flex items-center gap-3 min-w-0 shrink-0">
+          <div className="w-9 h-9 rounded-full bg-[#fb4d06]/10 flex items-center justify-center text-xs font-bold text-[#fb4d06] shrink-0">
+            {usuario.nome.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-800 text-sm">{usuario.nome}</span>
+              {ehAdmin ? <BadgeAdmin /> : <BadgeUsuario />}
+            </div>
+            <p className="text-xs text-gray-400 mt-0.5">{usuario.email}</p>
+          </div>
+        </div>
+
+        {/* Ações role */}
+        <div className="shrink-0">
+          {ehAdmin ? (
+            <button
+              onClick={() => onAlterarRole("user")}
+              disabled={alterando}
+              className="text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+            >
+              {alterando ? "Alterando..." : "Rebaixar"}
+            </button>
+          ) : (
+            <button
+              onClick={() => onAlterarRole("admin")}
+              disabled={alterando}
+              className="text-xs font-medium text-[#fb4d06] hover:text-[#e04400] hover:bg-[#fb4d06]/5 px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+            >
+              {alterando ? "Alterando..." : "Promover a Admin"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Permissões de módulos */}
+      <div className="mt-4 pt-3 border-t border-gray-100">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Acesso aos módulos
+          </span>
+          {!editandoPerms && !ehAdmin && (
+            <button
+              onClick={() => setEditandoPerms(true)}
+              className="text-[11px] font-medium text-[#fb4d06] hover:underline"
+            >
+              Editar permissões
+            </button>
+          )}
+          {ehAdmin && (
+            <span className="text-[11px] text-gray-400 italic">Admin tem acesso total</span>
+          )}
+        </div>
+
+        {editandoPerms ? (
+          <div>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {MODULOS_INFO.map((mod) => {
+                const ativo = pendingPerms.includes(mod.key);
+                return (
+                  <button
+                    key={mod.key}
+                    type="button"
+                    onClick={() => togglePerm(mod.key)}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${
+                      ativo
+                        ? `${mod.cor}`
+                        : "bg-white text-gray-400 border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    {mod.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={salvarPerms}
+                disabled={alterando}
+                className="text-xs font-semibold bg-[#fb4d06] text-white px-4 py-1.5 rounded-lg hover:opacity-90 transition disabled:opacity-50"
+              >
+                {alterando ? "Salvando..." : "Salvar"}
+              </button>
+              <button
+                onClick={cancelarPerms}
+                className="text-xs font-medium text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {ehAdmin
+              ? MODULOS_INFO.map((mod) => (
+                  <span
+                    key={mod.key}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-md border ${mod.cor}`}
+                  >
+                    {mod.label}
+                  </span>
+                ))
+              : MODULOS_INFO.map((mod) => {
+                  const ativo = usuario.permissoes.includes(mod.key);
+                  return ativo ? (
+                    <span
+                      key={mod.key}
+                      className={`text-xs font-semibold px-2.5 py-1 rounded-md border ${mod.cor}`}
                     >
-                      {alterando === u.id ? "Alterando..." : "Rebaixar"}
-                    </button>
+                      {mod.label}
+                    </span>
                   ) : (
-                    <button
-                      onClick={() => alternarRole(u.id, "admin")}
-                      disabled={alterando === u.id}
-                      className="text-xs font-medium text-[#fb4d06] hover:text-[#e04400] hover:bg-[#fb4d06]/5 px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+                    <span
+                      key={mod.key}
+                      className="text-xs px-2.5 py-1 rounded-md border border-dashed border-gray-200 text-gray-300"
                     >
-                      {alterando === u.id ? "Alterando..." : "Promover a Admin"}
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      {mod.label}
+                    </span>
+                  );
+                })}
+          </div>
+        )}
       </div>
     </div>
   );

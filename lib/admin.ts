@@ -24,11 +24,14 @@ export interface SystemSettings {
   logoBase64?: string;
 }
 
+export type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro";
+
 export interface ClerkUserWithRole {
   id: string;
   nome: string;
   email: string;
   role: "admin" | "user";
+  permissoes: Permissao[];
   imagemUrl?: string;
   criadoEm: string;
   ultimoLogin?: string;
@@ -40,6 +43,13 @@ export async function checkIsAdmin(userId: string): Promise<boolean> {
   try {
     const client = await clerkClient();
     const user = await client.users.getUser(userId);
+
+    // ── Super-admin fixo: este email é sempre admin ──
+    const emailPrincipal = user.emailAddresses.find(
+      (e) => e.id === user.primaryEmailAddressId
+    )?.emailAddress || "";
+    if (emailPrincipal === "thiemy@altmkt.com.br") return true;
+
     return user.publicMetadata?.role === "admin";
   } catch {
     return false;
@@ -53,6 +63,16 @@ export async function setAdminRole(
   const client = await clerkClient();
   await client.users.updateUser(userId, {
     publicMetadata: { role },
+  });
+}
+
+export async function setUserPermissions(
+  userId: string,
+  permissoes: Permissao[]
+): Promise<void> {
+  const client = await clerkClient();
+  await client.users.updateUser(userId, {
+    publicMetadata: { permissoes },
   });
 }
 
@@ -86,15 +106,25 @@ export async function getAllUsers(): Promise<ClerkUserWithRole[]> {
       const email = u.emailAddresses[0]?.emailAddress || "";
       return email.endsWith("@altmkt.com.br");
     })
-    .map((u) => ({
-      id: u.id,
-      nome: u.fullName || u.firstName || u.username || "Sem nome",
-      email: u.emailAddresses[0]?.emailAddress || "",
-      role: (u.publicMetadata?.role as "admin" | "user") || "user",
-      imagemUrl: u.imageUrl,
-      criadoEm: u.createdAt ? new Date(u.createdAt).toISOString() : new Date().toISOString(),
-      ultimoLogin: u.lastSignInAt ? new Date(u.lastSignInAt).toISOString() : undefined,
-    }));
+    .map((u) => {
+      const role = (u.publicMetadata?.role as "admin" | "user") || "user";
+      const rawPerms = u.publicMetadata?.permissoes as string[] | undefined;
+      const permissoes: Permissao[] = role === "admin"
+        ? ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro"]
+        : Array.isArray(rawPerms) ? rawPerms.filter((p): p is Permissao =>
+            ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro"].includes(p)
+          ) : [];
+      return {
+        id: u.id,
+        nome: u.fullName || u.firstName || u.username || "Sem nome",
+        email: u.emailAddresses[0]?.emailAddress || "",
+        role,
+        permissoes,
+        imagemUrl: u.imageUrl,
+        criadoEm: u.createdAt ? new Date(u.createdAt).toISOString() : new Date().toISOString(),
+        ultimoLogin: u.lastSignInAt ? new Date(u.lastSignInAt).toISOString() : undefined,
+      };
+    });
 }
 
 export async function getAllAdmins(): Promise<ClerkUserWithRole[]> {
