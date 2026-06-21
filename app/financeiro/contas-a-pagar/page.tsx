@@ -109,6 +109,15 @@ export default function ContasAPagarPage() {
   const [formPagar, setFormPagar] = useState({ dataPagamento: "", modalidade: "PIX", banco: "C6 BANK" });
   const [pagando, setPagando] = useState(false);
 
+  // Importar planilha
+  const [showModalImportar, setShowModalImportar] = useState(false);
+  const [importPreview, setImportPreview] = useState<{
+    total: number; validas: number; erros: number;
+    linhas: { linha: number; erros: string[]; mapeado: Record<string, string> | null }[];
+    totalExibido: number; haMais: boolean;
+  } | null>(null);
+  const [importando, setImportando] = useState(false);
+
   // Painel de detalhe
   const [detalhe, setDetalhe] = useState<Conta | null>(null);
   const [driveInput, setDriveInput] = useState("");
@@ -365,10 +374,16 @@ export default function ContasAPagarPage() {
             <h1 className="text-2xl font-bold text-gray-800">Contas a Pagar</h1>
             <p className="text-gray-500 text-sm mt-0.5">Gerencie obrigações e pagamentos. Ao confirmar o pagamento, o lançamento vai automaticamente para o Fluxo de Caixa.</p>
           </div>
-          <button onClick={abrirNovo} className="bg-[#fb4d06] text-white font-semibold py-2 px-5 rounded-xl hover:opacity-90 transition flex items-center gap-2 text-sm">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
-            Nova Conta
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={abrirNovo} className="bg-[#fb4d06] text-white font-semibold py-2 px-5 rounded-xl hover:opacity-90 transition flex items-center gap-2 text-sm">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+              Nova Conta
+            </button>
+            <button onClick={() => setShowModalImportar(true)} className="border border-gray-200 text-gray-600 font-semibold py-2 px-5 rounded-xl hover:bg-gray-50 transition flex items-center gap-2 text-sm">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+              Importar Planilha
+            </button>
+          </div>
         </div>
 
         {/* Navegação de mês */}
@@ -1117,6 +1132,288 @@ export default function ContasAPagarPage() {
           </div>
         </div>
       )}
+      {/* ── Modal: Importar Planilha ── */}
+      {showModalImportar && (
+        <ModalImportarPlanilha
+          onClose={() => { setShowModalImportar(false); setImportPreview(null); }}
+          preview={importPreview}
+          setPreview={setImportPreview}
+          importando={importando}
+          setImportando={setImportando}
+          onImportado={() => {
+            fetch("/api/contas-a-pagar")
+              .then((r) => r.json())
+              .then((d) => setContas(d.contas ?? []));
+            setShowModalImportar(false);
+            setImportPreview(null);
+          }}
+        />
+      )}
     </WorkspaceLayout>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// COMPONENTE: Modal de Importação de Planilha
+// ═══════════════════════════════════════════════════════════
+
+function ModalImportarPlanilha({
+  onClose, preview, setPreview, importando, setImportando, onImportado,
+}: {
+  onClose: () => void;
+  preview: typeof importPreview;
+  setPreview: (v: typeof importPreview) => void;
+  importando: boolean;
+  setImportando: (v: boolean) => void;
+  onImportado: () => void;
+}) {
+  const [dragOver, setDragOver] = useState(false);
+  const [arquivoNome, setArquivoNome] = useState("");
+
+  async function handleFile(file: File) {
+    if (!file.name.endsWith(".csv") && !file.name.endsWith(".CSV") && !file.name.endsWith(".tsv")) {
+      alert("Apenas arquivos CSV são aceitos.");
+      return;
+    }
+    setArquivoNome(file.name);
+    setImportando(true);
+    const formData = new FormData();
+    formData.append("arquivo", file);
+    try {
+      const res = await fetch("/api/contas-a-pagar/importar", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "Erro ao processar arquivo.");
+        return;
+      }
+      const data = await res.json();
+      setPreview(data);
+    } catch {
+      alert("Erro ao enviar arquivo.");
+    } finally {
+      setImportando(false);
+    }
+  }
+
+  async function confirmarImportacao() {
+    if (!arquivoNome) return;
+    setImportando(true);
+    const input = document.querySelector<HTMLInputElement>("#csv-import-input");
+    const file = input?.files?.[0];
+    if (!file) { setImportando(false); return; }
+
+    const formData = new FormData();
+    formData.append("arquivo", file);
+    formData.append("confirmar", "true");
+    try {
+      const res = await fetch("/api/contas-a-pagar/importar", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "Erro ao importar.");
+        return;
+      }
+      const data = await res.json();
+      alert(`${data.importadas} conta(s) importada(s) com sucesso!${data.erros > 0 ? `\n${data.erros} linha(s) ignoradas por erros.` : ""}`);
+      onImportado();
+    } catch {
+      alert("Erro ao importar.");
+    } finally {
+      setImportando(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 shrink-0">
+          <div>
+            <h2 className="text-base font-bold text-gray-800">Importar Planilha</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Faça upload de um arquivo <strong>CSV</strong> com os dados das contas a pagar.
+            </p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-6 py-5">
+          {/* Exemplo de formato */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="text-xs text-blue-800">
+                <p className="font-semibold mb-1">Formato esperado do CSV:</p>
+                <code className="block bg-white/70 rounded-lg p-2.5 text-[10px] leading-relaxed">
+                  Vencimento;Fornecedor;Descrição;Valor;Modalidade;Banco;Área;Categoria;Obs
+                </code>
+                <p className="mt-1">
+                  Use <strong>;</strong> como separador. A primeira linha deve ser o cabeçalho com os nomes das colunas.
+                  Colunas opcionais: <em>Modalidade</em>, <em>Banco</em>, <em>Área</em>, <em>Categoria</em>, <em>Obs</em>, <em>Recorrente</em>, <em>Periodicidade</em>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Upload area */}
+          {!preview && (
+            <label
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+              className={`cursor-pointer flex flex-col items-center gap-4 border-2 border-dashed rounded-xl p-10 transition ${
+                dragOver ? "border-[#fb4d06] bg-[#fb4d06]/5" : "border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-600">Clique para selecionar ou arraste o arquivo CSV</p>
+                <p className="text-xs text-gray-400 mt-1">Arquivo exportado do Excel, Google Sheets ou similar</p>
+              </div>
+              <input
+                id="csv-import-input"
+                type="file"
+                accept=".csv,.tsv,.txt"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+              />
+            </label>
+          )}
+
+          {/* Carregando */}
+          {importando && !preview && (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 border-2 border-[#fb4d06] border-t-transparent rounded-full animate-spin" />
+              <span className="ml-3 text-sm text-gray-500">Processando arquivo...</span>
+            </div>
+          )}
+
+          {/* Preview */}
+          {preview && (
+            <div>
+              {/* Resumo */}
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                  <p className="text-2xl font-bold text-gray-700">{preview.total}</p>
+                  <p className="text-xs text-gray-500">Total de linhas</p>
+                </div>
+                <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
+                  <p className="text-2xl font-bold text-green-600">{preview.validas}</p>
+                  <p className="text-xs text-green-600">Válidas</p>
+                </div>
+                <div className={`rounded-xl p-3 text-center border ${preview.erros > 0 ? "bg-red-50 border-red-100" : "bg-gray-50 border-gray-100"}`}>
+                  <p className={`text-2xl font-bold ${preview.erros > 0 ? "text-red-600" : "text-gray-400"}`}>{preview.erros}</p>
+                  <p className={`text-xs ${preview.erros > 0 ? "text-red-500" : "text-gray-400"}`}>Com erros</p>
+                </div>
+              </div>
+
+              {/* Tabela de preview */}
+              {preview.linhas.length > 0 && (
+                <div className="overflow-x-auto border border-gray-100 rounded-xl">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100">
+                        <th className="text-left px-3 py-2 font-semibold text-gray-500">#</th>
+                        <th className="text-left px-3 py-2 font-semibold text-gray-500">Vencimento</th>
+                        <th className="text-left px-3 py-2 font-semibold text-gray-500">Fornecedor</th>
+                        <th className="text-left px-3 py-2 font-semibold text-gray-500">Descrição</th>
+                        <th className="text-right px-3 py-2 font-semibold text-gray-500">Valor</th>
+                        <th className="text-left px-3 py-2 font-semibold text-gray-500">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.linhas.map((linha) => (
+                        <tr key={linha.linha} className={`border-b border-gray-50 ${linha.erros.length > 0 ? "bg-red-50/30" : ""}`}>
+                          <td className="px-3 py-2 text-gray-400">{linha.linha}</td>
+                          <td className="px-3 py-2 text-gray-700">{linha.mapeado?.dataVencimento || "—"}</td>
+                          <td className="px-3 py-2 font-medium text-gray-800">{linha.mapeado?.fornecedor || "—"}</td>
+                          <td className="px-3 py-2 text-gray-600 max-w-[200px] truncate">{linha.mapeado?.descricao || "—"}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-gray-700">
+                            {linha.mapeado?.valor ? fmt(parseFloat(linha.mapeado.valor)) : "—"}
+                          </td>
+                          <td className="px-3 py-2">
+                            {linha.erros.length > 0 ? (
+                              <span className="text-red-600 text-[10px] font-medium" title={linha.erros.join("; ")}>
+                                ⚠ {linha.erros[0].substring(0, 40)}{linha.erros[0].length > 40 ? "..." : ""}
+                              </span>
+                            ) : (
+                              <span className="text-green-600 text-[10px] font-medium flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                OK
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {preview.haMais && (
+                <p className="text-xs text-gray-400 mt-2 text-center">
+                  Mostrando as primeiras {preview.totalExibido} de {preview.total} linhas.
+                </p>
+              )}
+
+              {preview.validas === 0 && (
+                <p className="text-sm text-red-600 mt-4 text-center font-medium">
+                  Nenhuma linha válida. Verifique o formato e tente novamente.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 shrink-0 flex items-center justify-between gap-3">
+          {preview ? (
+            <>
+              <button
+                onClick={() => {
+                  setPreview(null);
+                  setArquivoNome("");
+                }}
+                className="py-2.5 px-4 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition"
+              >
+                Escolher outro arquivo
+              </button>
+              <div className="flex gap-2">
+                <button onClick={onClose} className="py-2.5 px-4 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmarImportacao}
+                  disabled={importando || preview.validas === 0}
+                  className="py-2.5 px-6 rounded-xl bg-[#fb4d06] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition flex items-center gap-2"
+                >
+                  {importando ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Importando...</>
+                  ) : (
+                    <>Importar {preview.validas} conta(s) válida(s)</>
+                  )}
+                </button>
+              </div>
+            </>
+          ) : (
+            <button onClick={onClose} className="py-2.5 px-4 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">
+              Cancelar
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
