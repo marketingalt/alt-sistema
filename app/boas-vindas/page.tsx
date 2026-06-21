@@ -54,6 +54,14 @@ export default function BoasVindasPage() {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
 
+  // ── Se já completou onboarding, redireciona ──
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (user?.publicMetadata?.onboarding) {
+      router.replace("/");
+    }
+  }, [isLoaded, user, router]);
+
   // Pré-selecionar todos os módulos para admins
   useEffect(() => {
     if (!isLoaded || !user) return;
@@ -108,8 +116,20 @@ export default function BoasVindasPage() {
         return;
       }
 
-      // Recarrega a página para forçar o Clerk a atualizar os metadados
-      // e o middleware redirecionar para o dashboard
+      // ── Aguarda a propagação dos metadados no Clerk ──
+      setErro("Salvo! Aguardando confirmação...");
+
+      for (let tentativa = 0; tentativa < 10; tentativa++) {
+        await user?.reload();
+        if (user?.publicMetadata?.onboarding === true) {
+          window.location.href = "/";
+          return;
+        }
+        // Espera 500ms antes da próxima tentativa
+        await new Promise((r) => setTimeout(r, 500));
+      }
+
+      // Se após 10 tentativas (~5s) ainda não propagou, redireciona mesmo assim
       window.location.href = "/";
     } catch {
       setErro("Erro de rede. Tente novamente.");
