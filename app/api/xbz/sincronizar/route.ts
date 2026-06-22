@@ -54,7 +54,7 @@ async function executarSync() {
   if (!res.ok) throw new Error(`Erro na API XBZ: ${res.status}`);
 
   const produtosXbz: ProdutoXbz[] = await res.json();
-  const existentes = listarProdutos();
+  const existentes = await listarProdutos();
   const porXbzId = new Map(existentes.filter((p) => p.xbzId).map((p) => [p.xbzId!, p]));
 
   const novos: Produto[] = [];
@@ -96,7 +96,7 @@ async function executarSync() {
     }
   }
 
-  sincronizarProdutosBulk(novos, atualizacoes);
+  await sincronizarProdutosBulk(novos, atualizacoes);
   salvarUltimaSync();
 
   return { criados: novos.length, atualizados: atualizacoes.length, total: produtosXbz.length };

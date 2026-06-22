@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { buscarOrcamento, salvarOrcamento } from "@/lib/storage";
+import { uploadFile } from "@/lib/storage-file-adapter";
 import type { DocumentoFornecedor } from "@/app/types";
-import fs from "fs";
 import path from "path";
-
-function dirUpload(id: string) {
-  const dir = path.join(process.cwd(), "data", "uploads", "orcamentos", id);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  return dir;
-}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const orcamento = buscarOrcamento(id);
+  const orcamento = await buscarOrcamento(id);
   if (!orcamento) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
 
   const user = await currentUser();
@@ -26,8 +20,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const docId = Math.random().toString(36).substring(2, 10);
   const ext = path.extname(arquivo.name);
   const nomeArquivo = `${docId}${ext}`;
-  const dir = dirUpload(id);
-  fs.writeFileSync(path.join(dir, nomeArquivo), buffer);
+
+  await uploadFile("orcamentos", id, nomeArquivo, buffer);
 
   const doc: DocumentoFornecedor = {
     id: docId,
@@ -39,7 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     uploadedBy: user?.fullName || user?.firstName || user?.emailAddresses[0]?.emailAddress,
   };
 
-  salvarOrcamento({ ...orcamento, documentos: [...(orcamento.documentos || []), doc] });
+  await salvarOrcamento({ ...orcamento, documentos: [...(orcamento.documentos || []), doc] });
 
   return NextResponse.json(doc);
 }

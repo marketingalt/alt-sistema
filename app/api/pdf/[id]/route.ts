@@ -11,7 +11,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const tipo = req.nextUrl.searchParams.get("tipo") || "valores";
   const preview = req.nextUrl.searchParams.get("preview") === "1";
 
-  const orcamento = buscarOrcamento(id);
+  const orcamento = await buscarOrcamento(id);
   if (!orcamento) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
 
   // Carrega configurações para obter a logo

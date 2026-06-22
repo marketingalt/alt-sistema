@@ -2,6 +2,6 @@ import { NextResponse } from "next/server";
 import { gerarNumeroOrcamento } from "@/lib/storage";
 
 export async function GET() {
-  const numero = gerarNumeroOrcamento();
+  const numero = await gerarNumeroOrcamento();
   return NextResponse.json({ numero });
 }

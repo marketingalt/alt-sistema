@@ -3,6 +3,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { buscarProduto, salvarProduto } from "@/lib/storage";
+import { uploadFile, deleteFile } from "@/lib/storage-file-adapter";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "produtos");
 
@@ -13,38 +14,52 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const arquivo = form.get("imagem") as File | null;
   if (!arquivo) return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 });
 
-  if (!existsSync(UPLOAD_DIR)) await mkdir(UPLOAD_DIR, { recursive: true });
-
   const ext = arquivo.name.split(".").pop() || "jpg";
   const nomeArquivo = `${id}.${ext}`;
-  const caminho = path.join(UPLOAD_DIR, nomeArquivo);
   const buffer = Buffer.from(await arquivo.arrayBuffer());
-  await writeFile(caminho, buffer);
 
-  const imagemUrl = `/uploads/produtos/${nomeArquivo}`;
+  // Try file adapter first (works in both prod and dev)
+  // In dev, also write to public/ for static serving
+  await uploadFile("produtos", id, nomeArquivo, buffer);
+
+  // In dev, also write to public/ for backward compatibility with <img> tags
+  if (process.env.VERCEL !== "1") {
+    if (!existsSync(UPLOAD_DIR)) await mkdir(UPLOAD_DIR, { recursive: true });
+    await writeFile(path.join(UPLOAD_DIR, nomeArquivo), buffer);
+  }
+
+  const imagemUrl = process.env.VERCEL === "1"
+    ? nomeArquivo // stored in blob, use URL returned from adapter
+    : `/uploads/produtos/${nomeArquivo}`;
 
   // Atualiza no storage só se o produto já existir (no caso de edição)
-  const produto = buscarProduto(id);
-  if (produto) salvarProduto({ ...produto, imagemUrl });
+  const produto = await buscarProduto(id);
+  if (produto) await salvarProduto({ ...produto, imagemUrl });
 
   return NextResponse.json({ imagemUrl });
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const produto = buscarProduto(id);
+  const produto = await buscarProduto(id);
   if (!produto) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
 
   if (produto.imagemUrl) {
-    const caminho = path.join(process.cwd(), "public", produto.imagemUrl);
-    try {
-      const { unlink } = await import("fs/promises");
-      await unlink(caminho);
-    } catch {
-      // arquivo já removido
+    const nomeArquivo = path.basename(produto.imagemUrl);
+    await deleteFile("produtos", id, nomeArquivo);
+
+    // In dev, also remove from public/
+    if (process.env.VERCEL !== "1") {
+      const caminho = path.join(process.cwd(), "public", produto.imagemUrl);
+      try {
+        const { unlink } = await import("fs/promises");
+        await unlink(caminho);
+      } catch {
+        // arquivo já removido
+      }
     }
   }
 
-  salvarProduto({ ...produto, imagemUrl: undefined });
+  await salvarProduto({ ...produto, imagemUrl: undefined });
   return NextResponse.json({ ok: true });
 }

@@ -26,7 +26,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Email é obrigatório" }, { status: 400 });
     }
 
-    const removido = removerDocumento(email, docId);
+    const removido = await removerDocumento(email, docId);
     if (!removido) {
       return NextResponse.json({ error: "Documento não encontrado" }, { status: 404 });
     }

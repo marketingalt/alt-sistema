@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { checkIsAdmin } from "@/lib/admin";
-import { getDocumentos, adicionarDocumento, downloadPath } from "@/lib/documentos-rh";
+import { getDocumentos, adicionarDocumento } from "@/lib/documentos-rh";
+import { readFile } from "@/lib/storage-file-adapter";
 
 export async function GET(req: NextRequest) {
   try {
@@ -24,21 +25,23 @@ export async function GET(req: NextRequest) {
       if (!isAdmin && targetEmail !== email) {
         return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
       }
-      const filePath = downloadPath(targetEmail, downloadId);
-      if (!filePath) {
-        return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
-      }
-      const fs = await import("fs");
-      const buffer = fs.readFileSync(filePath);
       const docs = getDocumentos(targetEmail);
       const doc = docs.find((d) => d.id === downloadId);
+      if (!doc) {
+        return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
+      }
 
-      return new NextResponse(buffer, {
-        headers: {
-          "Content-Type": doc?.tipo || "application/octet-stream",
-          "Content-Disposition": `attachment; filename="${doc?.nome || downloadId}"`,
-        },
-      });
+      const safe = targetEmail.replace(/[^a-zA-Z0-9]/g, "_");
+      try {
+        const buffer = await readFile("rh", safe, doc.caminho);
+        return new Response(new Blob([buffer], { type: doc.tipo || "application/octet-stream" }), {
+          headers: {
+            "Content-Disposition": `attachment; filename="${doc?.nome || downloadId}"`,
+          },
+        });
+      } catch {
+        return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
+      }
     }
 
     // Listar documentos

@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { buscarCliente, salvarCliente } from "@/lib/storage";
+import { uploadFile } from "@/lib/storage-file-adapter";
 import type { DocumentoFornecedor } from "@/app/types";
-import fs from "fs";
 import path from "path";
-
-function dirUpload(id: string) {
-  const dir = path.join(process.cwd(), "data", "uploads", "clientes", id);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  return dir;
-}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const cliente = buscarCliente(id);
+  const cliente = await buscarCliente(id);
   if (!cliente) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
 
   const user = await currentUser();
@@ -22,10 +16,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!arquivo) return NextResponse.json({ error: "Arquivo não enviado" }, { status: 400 });
 
   const bytes = await arquivo.arrayBuffer();
+  const buffer = Buffer.from(bytes);
   const docId = Math.random().toString(36).substring(2, 10);
   const ext = path.extname(arquivo.name);
   const nomeArquivo = `${docId}${ext}`;
-  fs.writeFileSync(path.join(dirUpload(id), nomeArquivo), Buffer.from(bytes));
+
+  await uploadFile("clientes", id, nomeArquivo, buffer);
 
   const doc: DocumentoFornecedor = {
     id: docId, nome: arquivo.name, tipo: arquivo.type,
@@ -34,6 +30,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     uploadedBy: user?.fullName || user?.firstName || user?.emailAddresses[0]?.emailAddress,
   };
 
-  salvarCliente({ ...cliente, documentos: [...(cliente.documentos || []), doc] });
+  await salvarCliente({ ...cliente, documentos: [...(cliente.documentos || []), doc] });
   return NextResponse.json(doc);
 }

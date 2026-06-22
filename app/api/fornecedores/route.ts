@@ -3,14 +3,14 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { listarFornecedores, salvarFornecedor } from "@/lib/storage";
 
 export async function GET() {
-  return NextResponse.json(listarFornecedores());
+  return NextResponse.json(await listarFornecedores());
 }
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   const user = await currentUser();
   const body = await req.json();
-  const salvo = salvarFornecedor({
+  const salvo = await salvarFornecedor({
     ...body,
     userId: userId || undefined,
     userName: user?.fullName || user?.firstName || undefined,

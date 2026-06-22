@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { uploadFile, deleteFile, readFile } from "@/lib/storage-file-adapter";
 
 const DB_PATH = path.join(process.cwd(), "data", "documentos-rh.json");
 
@@ -33,11 +34,8 @@ function salvarBase(data: DocumentosPorEmail) {
   fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 }
 
-function dirUpload(email: string) {
-  const safe = email.replace(/[^a-zA-Z0-9]/g, "_");
-  const dir = path.join(process.cwd(), "data", "uploads", "rh", safe);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  return dir;
+function emailToDir(email: string): string {
+  return email.replace(/[^a-zA-Z0-9]/g, "_");
 }
 
 export function getDocumentos(email: string): DocumentoRH[] {
@@ -52,12 +50,13 @@ export async function adicionarDocumento(
   uploadedBy: string
 ): Promise<DocumentoRH> {
   const bytes = await arquivo.arrayBuffer();
+  const buffer = Buffer.from(bytes);
   const docId = Math.random().toString(36).substring(2, 10);
   const ext = path.extname(arquivo.name);
   const nomeArquivo = `${docId}${ext}`;
 
-  const uploadDir = dirUpload(email);
-  fs.writeFileSync(path.join(uploadDir, nomeArquivo), Buffer.from(bytes));
+  const safe = emailToDir(email);
+  await uploadFile("rh", safe, nomeArquivo, buffer);
 
   const doc: DocumentoRH = {
     id: docId,
@@ -78,7 +77,7 @@ export async function adicionarDocumento(
   return doc;
 }
 
-export function removerDocumento(email: string, docId: string): boolean {
+export async function removerDocumento(email: string, docId: string): Promise<boolean> {
   const base = lerBase();
   if (!base[email]) return false;
 
@@ -86,20 +85,27 @@ export function removerDocumento(email: string, docId: string): boolean {
   if (idx === -1) return false;
 
   const doc = base[email][idx];
-  const safe = email.replace(/[^a-zA-Z0-9]/g, "_");
-  const caminho = path.join(process.cwd(), "data", "uploads", "rh", safe, doc.caminho);
-  try { fs.unlinkSync(caminho); } catch { /* arquivo já pode ter sido removido */ }
+  const safe = emailToDir(email);
+  await deleteFile("rh", safe, doc.caminho);
 
   base[email].splice(idx, 1);
   salvarBase(base);
   return true;
 }
 
-export function downloadPath(email: string, docId: string): string | null {
+export async function downloadPath(email: string, docId: string): Promise<string | null> {
   const base = lerBase();
   if (!base[email]) return null;
   const doc = base[email].find((d) => d.id === docId);
   if (!doc) return null;
-  const safe = email.replace(/[^a-zA-Z0-9]/g, "_");
+
+  // In production, return blob URL by reading the file from blob storage
+  // In dev, return the local filesystem path
+  if (process.env.VERCEL === "1" || process.env.BLOB_READ_WRITE_TOKEN) {
+    // Return a route path that streams from blob storage instead
+    return null;
+  }
+
+  const safe = emailToDir(email);
   return path.join(process.cwd(), "data", "uploads", "rh", safe, doc.caminho);
 }
