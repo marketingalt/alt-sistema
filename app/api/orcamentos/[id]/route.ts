@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buscarOrcamento, salvarOrcamento, deletarOrcamento } from "@/lib/storage";
+import { buscarOrcamento, salvarOrcamento, deletarOrcamento, listarOrcamentos } from "@/lib/storage";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -34,7 +34,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     deletarOrcamento(id);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("Erro ao deletar orçamento:", err);
-    return NextResponse.json({ error: "Erro interno ao deletar" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : "";
+    console.error("Erro ao deletar orçamento:", msg, stack);
+    return NextResponse.json({ error: `Erro ao deletar: ${msg}`, detalhes: msg }, { status: 500 });
   }
 }

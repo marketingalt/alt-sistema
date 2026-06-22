@@ -179,7 +179,8 @@ export default function ListaOrcamentos() {
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Erro ao excluir orçamento.");
+        const msg = err.detalhes || err.error || "Erro ao excluir orçamento.";
+        alert(msg);
         return;
       }
       setOrcamentos((prev) => prev.filter((o) => o.id !== id));
