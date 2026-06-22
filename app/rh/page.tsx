@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 
 interface ClerkUser {
   id: string;
@@ -137,35 +138,36 @@ export default function RhPage() {
   }
 
   return (
-    <main className="px-8 py-8 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Recursos Humanos</h1>
-        <p className="text-gray-500 text-sm mt-1">Gerencie os documentos dos colaboradores.</p>
-      </div>
+    <WorkspaceLayout>
+      <main className="px-8 py-8 max-w-6xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Recursos Humanos</h1>
+          <p className="text-gray-500 text-sm mt-1">Gerencie os documentos dos colaboradores.</p>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ── Lista de usuários ── */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Colaboradores</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* ── Lista de usuários ── */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Colaboradores</h2>
 
-            {carregando ? (
-              <p className="text-sm text-gray-400">Carregando...</p>
-            ) : usuarios.length === 0 ? (
-              <p className="text-sm text-gray-400">Nenhum usuário encontrado.</p>
-            ) : (
-              <div className="space-y-1">
-                {usuarios.map((u) => (
-                  <button
-                    key={u.id}
-                    onClick={() => selecionarUsuario(u)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-left transition ${
-                      usuarioSelecionado?.id === u.id
-                        ? "bg-[#fb4d06]/10 text-[#fb4d06] font-semibold"
-                        : "text-gray-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0">
+              {carregando ? (
+                <p className="text-sm text-gray-400">Carregando...</p>
+              ) : usuarios.length === 0 ? (
+                <p className="text-sm text-gray-400">Nenhum usuário encontrado.</p>
+              ) : (
+                <div className="space-y-1">
+                  {usuarios.map((u) => (
+                    <button
+                      key={u.id}
+                      onClick={() => selecionarUsuario(u)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-left transition ${
+                        usuarioSelecionado?.id === u.id
+                          ? "bg-[#fb4d06]/10 text-[#fb4d06] font-semibold"
+                          : "text-gray-600 hover:bg-gray-50"
+                      }`}
+                    >
+                      <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0">
                       {u.nome.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()}
                     </div>
                     <div className="min-w-0">
@@ -292,5 +294,6 @@ export default function RhPage() {
         </div>
       </div>
     </main>
+    </WorkspaceLayout>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 
 interface DocumentoRH {
   id: string;
@@ -120,20 +121,23 @@ export default function PerfilPage() {
 
   if (!isLoaded) {
     return (
-      <main className="flex items-center justify-center min-h-screen bg-gray-950">
-        <p className="text-gray-400">Carregando...</p>
-      </main>
+      <WorkspaceLayout>
+        <main className="flex items-center justify-center min-h-screen">
+          <p className="text-gray-400">Carregando...</p>
+        </main>
+      </WorkspaceLayout>
     );
   }
 
   return (
-    <main className="px-8 py-8 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-800 mb-2">Meu Perfil</h1>
-      <p className="text-gray-500 text-sm mb-8">Gerencie suas informações e veja seus documentos.</p>
+    <WorkspaceLayout>
+      <main className="px-8 py-8 max-w-3xl mx-auto">
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">Meu Perfil</h1>
+        <p className="text-gray-500 text-sm mb-8">Gerencie suas informações e veja seus documentos.</p>
 
-      <div className="space-y-6">
-        {/* ── Foto + Nome ── */}
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="space-y-6">
+          {/* ── Foto + Nome ── */}
+          <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-5">Informações Pessoais</h2>
 
           <div className="flex items-center gap-6 mb-6">
@@ -238,5 +242,6 @@ export default function PerfilPage() {
         </section>
       </div>
     </main>
+    </WorkspaceLayout>
   );
 }

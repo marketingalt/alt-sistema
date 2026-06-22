@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 
 type Aba = "reembolsos" | "entregas";
 
@@ -143,80 +144,82 @@ export default function LogisticaPage() {
   }
 
   return (
-    <main className="px-8 py-8 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Logística</h1>
-        <p className="text-gray-500 text-sm mt-1">Gerencie entregas e reembolsos dos motoristas.</p>
-      </div>
-
-      {/* ── Cabeçalho Motorista ── */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Responsável / Motorista</h2>
-          <button
-            onClick={() => setEditandoMotorista(!editandoMotorista)}
-            className="text-xs font-medium text-[#fb4d06] hover:underline"
-          >
-            {editandoMotorista ? "Cancelar" : "Editar"}
-          </button>
+    <WorkspaceLayout>
+      <main className="px-8 py-8 max-w-7xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Logística</h1>
+          <p className="text-gray-500 text-sm mt-1">Gerencie entregas e reembolsos dos motoristas.</p>
         </div>
 
-        {editandoMotorista ? (
-          <MotoristaForm dados={motorista} onSave={salvarMotorista} />
-        ) : (
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-gray-400">Nome:</span>
-              <span className="font-medium text-gray-800">{motorista.nome || "—"}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-400">Email:</span>
-              <span className="text-gray-600">{motorista.email || "—"}</span>
-            </div>
-            {motorista.chavePix && (
-              <div className="flex items-center gap-2">
-                <span className="text-gray-400">Pix:</span>
-                <span className="text-gray-600">{motorista.chavePix}</span>
-              </div>
-            )}
-            {motorista.banco && motorista.banco !== "C6 BANK" && (
-              <div className="flex items-center gap-2">
-                <span className="text-gray-400">Banco:</span>
-                <span className="text-gray-600">{motorista.banco}</span>
-              </div>
-            )}
-            {(motorista.agencia || motorista.conta) && (
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <span>Ag: {motorista.agencia || "—"} CC: {motorista.conta || "—"}</span>
-              </div>
-            )}
+        {/* ── Cabeçalho Motorista ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Responsável / Motorista</h2>
+            <button
+              onClick={() => setEditandoMotorista(!editandoMotorista)}
+              className="text-xs font-medium text-[#fb4d06] hover:underline"
+            >
+              {editandoMotorista ? "Cancelar" : "Editar"}
+            </button>
           </div>
-        )}
-      </div>
 
-      {/* Abas */}
-      <div className="flex gap-1 mb-6 border-b border-gray-200">
-        {[
-          { key: "reembolsos" as Aba, label: "Reembolsos" },
-          { key: "entregas" as Aba, label: "Minhas Entregas" },
-        ].map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setAba(key)}
-            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition ${
-              aba === key
-                ? "border-[#fb4d06] text-[#fb4d06]"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+          {editandoMotorista ? (
+            <MotoristaForm dados={motorista} onSave={salvarMotorista} />
+          ) : (
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-400">Nome:</span>
+                <span className="font-medium text-gray-800">{motorista.nome || "—"}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-400">Email:</span>
+                <span className="text-gray-600">{motorista.email || "—"}</span>
+              </div>
+              {motorista.chavePix && (
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400">Pix:</span>
+                  <span className="text-gray-600">{motorista.chavePix}</span>
+                </div>
+              )}
+              {motorista.banco && motorista.banco !== "C6 BANK" && (
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400">Banco:</span>
+                  <span className="text-gray-600">{motorista.banco}</span>
+                </div>
+              )}
+              {(motorista.agencia || motorista.conta) && (
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>Ag: {motorista.agencia || "—"} CC: {motorista.conta || "—"}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
-      {aba === "reembolsos" && <AbaReembolsos motorista={motorista} />}
-      {aba === "entregas" && <AbaEntregas />}
-    </main>
+        {/* Abas */}
+        <div className="flex gap-1 mb-6 border-b border-gray-200">
+          {[
+            { key: "reembolsos" as Aba, label: "Reembolsos" },
+            { key: "entregas" as Aba, label: "Minhas Entregas" },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setAba(key)}
+              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition ${
+                aba === key
+                  ? "border-[#fb4d06] text-[#fb4d06]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {aba === "reembolsos" && <AbaReembolsos motorista={motorista} />}
+        {aba === "entregas" && <AbaEntregas />}
+      </main>
+    </WorkspaceLayout>
   );
 }
 
