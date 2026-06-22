@@ -46,6 +46,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     );
     salvarCP(dadosCP);
 
+    // ── Se for reembolso, sincroniza status ──
+    if (conta.reembolsoId) {
+      try {
+        const { marcarComoPago } = await import("@/lib/reembolsos");
+        marcarComoPago(conta.reembolsoId, dataPagamento);
+      } catch {
+        // Silencioso — não trava o pagamento por causa do sync
+      }
+    }
+
     return NextResponse.json({ ok: true, fluxoCaixaId: novoLancamento.id });
   }
 

@@ -204,6 +204,7 @@ const MODULOS_INFO = [
   { key: "fornecedores" as const, label: "Fornecedores", cor: "text-cyan-600 bg-cyan-50 border-cyan-200" },
   { key: "produtos" as const, label: "Produtos", cor: "text-amber-600 bg-amber-50 border-amber-200" },
   { key: "financeiro" as const, label: "Financeiro", cor: "text-emerald-600 bg-emerald-50 border-emerald-200" },
+  { key: "logistica" as const, label: "Logística", cor: "text-orange-600 bg-orange-50 border-orange-200" },
 ];
 
 function UsuarioRow({
@@ -384,6 +385,7 @@ const MODULOS: { chave: string; label: string; href: string; cor: string; icone:
   { chave: "contasAPagar", label: "Contas a Pagar", href: "/financeiro/contas-a-pagar", cor: "text-red-600 bg-red-50", icone: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" },
   { chave: "faturamentos", label: "Faturamentos", href: "/financeiro/faturamentos", cor: "text-indigo-600 bg-indigo-50", icone: "M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
   { chave: "fluxoCaixaLancamentos", label: "Fluxo de Caixa", href: "/financeiro/fluxo-de-caixa", cor: "text-emerald-600 bg-emerald-50", icone: "M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" },
+  { chave: "logistica", label: "Logística", href: "/logistica", cor: "text-orange-600 bg-orange-50", icone: "M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" },
 ];
 
 function AbaRegistros() {
