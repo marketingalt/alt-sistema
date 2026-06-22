@@ -173,10 +173,18 @@ export default function ListaOrcamentos() {
   async function deletarOrcamento(id: string, numero: string) {
     if (!confirm(`Excluir orçamento #${numero} permanentemente?`)) return;
     try {
-      await fetch(`/api/orcamentos/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/orcamentos/${id}`, {
+        method: "DELETE",
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "Erro ao excluir orçamento.");
+        return;
+      }
       setOrcamentos((prev) => prev.filter((o) => o.id !== id));
     } catch {
-      alert("Erro ao excluir orçamento.");
+      alert("Erro ao excluir orçamento. Verifique sua conexão.");
     }
   }
 
