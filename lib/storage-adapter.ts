@@ -43,10 +43,10 @@ export type DbKey =
 // ── Detecta ambiente ──
 
 function isProduction(): boolean {
-  return (
-    typeof process !== "undefined" &&
-    (process.env.VERCEL === "1" || process.env.KV_URL !== undefined)
-  );
+  // Só usa KV se as env vars estiverem configuradas —
+  // no Vercel sem KV criado, VERCEL=1 mas KV_URL não existe,
+  // então usamos filesystem (pelo menos leituras funcionam)
+  return process.env.KV_URL !== undefined;
 }
 
 // ── KV backend ──

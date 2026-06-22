@@ -2,10 +2,8 @@ import fs from "fs";
 import path from "path";
 
 function isProduction(): boolean {
-  return (
-    typeof process !== "undefined" &&
-    (process.env.VERCEL === "1" || process.env.BLOB_READ_WRITE_TOKEN !== undefined)
-  );
+  // Só usa Vercel Blob se o token estiver configurado
+  return process.env.BLOB_READ_WRITE_TOKEN !== undefined;
 }
 
 // ---- Local filesystem helpers ----
