@@ -6,7 +6,7 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import Image from "next/image";
 import { useState, useMemo } from "react";
 
-type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica";
+type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "rh";
 
 interface NavItem {
   label: string;
@@ -72,6 +72,16 @@ const NAV: NavItem[] = [
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+      </svg>
+    ),
+  },
+  {
+    label: "RH",
+    href: "/rh",
+    permKey: "rh",
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
     ),
   },
@@ -158,7 +168,7 @@ export default function Sidebar() {
 
   // Permissões do usuário (admins têm todas)
   const permissoes = useMemo<Set<Permissao>>(() => {
-    if (isAdmin) return new Set(["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica"]);
+    if (isAdmin) return new Set(["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "rh"]);
     const raw = user?.publicMetadata?.permissoes;
     if (Array.isArray(raw)) return new Set(raw as Permissao[]);
     return new Set();
@@ -278,20 +288,6 @@ export default function Sidebar() {
         {isAdmin && (
           <>
             {!recolhido && <div className="mt-1" />}
-            <div className={recolhido ? "" : "mt-1"}>
-              <Link href="/rh" title={recolhido ? "RH" : undefined}>
-                <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
-                  pathname.startsWith("/rh")
-                    ? "bg-[#fb4d06] text-white"
-                    : "text-gray-400 hover:bg-white/5 hover:text-white"
-                }`}>
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  {!recolhido && <span>RH</span>}
-                </div>
-              </Link>
-            </div>
             <div className={recolhido ? "" : "mt-1"}>
               <Link href="/admin" title={recolhido ? "Administração" : undefined}>
                 <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${

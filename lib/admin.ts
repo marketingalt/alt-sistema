@@ -24,7 +24,7 @@ export interface SystemSettings {
   logoBase64?: string;
 }
 
-export type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica";
+export type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "rh";
 
 export interface ClerkUserWithRole {
   id: string;
@@ -110,9 +110,9 @@ export async function getAllUsers(): Promise<ClerkUserWithRole[]> {
       const role = (u.publicMetadata?.role as "admin" | "user") || "user";
       const rawPerms = u.publicMetadata?.permissoes as string[] | undefined;
       const permissoes: Permissao[] = role === "admin"
-        ? ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica"]
+        ? ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "rh"]
         : Array.isArray(rawPerms) ? rawPerms.filter((p): p is Permissao =>
-            ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica"].includes(p)
+            ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "rh"].includes(p)
           ) : [];
       return {
         id: u.id,

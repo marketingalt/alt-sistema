@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validar que as permissões são valores conhecidos
-    const VALIDAS = ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica"];
+    const VALIDAS = ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "rh"];
     const invalidas = permissoes.filter((p: string) => !VALIDAS.includes(p));
     if (invalidas.length > 0) {
       return NextResponse.json(
@@ -34,7 +34,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Se for admin, garantir que todas as permissões estão ativas
     const isAdmin = await checkIsAdmin(userId);
     const permissoesFinais = isAdmin ? VALIDAS : permissoes;
 
