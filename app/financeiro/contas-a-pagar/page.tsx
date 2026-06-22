@@ -52,6 +52,12 @@ const AREAS = ["PROJETOS", "DIGITAL", "MISTO", "ESTORNO"];
 const PERIODICIDADES = ["mensal", "quinzenal", "semanal", "anual"];
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
+type ImportPreview = {
+  total: number; validas: number; erros: number;
+  linhas: { linha: number; erros: string[]; mapeado: Record<string, string> | null }[];
+  totalExibido: number; haMais: boolean;
+} | null;
+
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -111,11 +117,7 @@ export default function ContasAPagarPage() {
 
   // Importar planilha
   const [showModalImportar, setShowModalImportar] = useState(false);
-  const [importPreview, setImportPreview] = useState<{
-    total: number; validas: number; erros: number;
-    linhas: { linha: number; erros: string[]; mapeado: Record<string, string> | null }[];
-    totalExibido: number; haMais: boolean;
-  } | null>(null);
+  const [importPreview, setImportPreview] = useState<ImportPreview>(null);
   const [importando, setImportando] = useState(false);
 
   // Painel de detalhe
@@ -1161,8 +1163,8 @@ function ModalImportarPlanilha({
   onClose, preview, setPreview, importando, setImportando, onImportado,
 }: {
   onClose: () => void;
-  preview: typeof importPreview;
-  setPreview: (v: typeof importPreview) => void;
+  preview: ImportPreview;
+  setPreview: (v: ImportPreview) => void;
   importando: boolean;
   setImportando: (v: boolean) => void;
   onImportado: () => void;

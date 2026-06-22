@@ -214,7 +214,7 @@ export async function POST(req: Request) {
     }
 
     const base = lerBase();
-    const criadas: Record<string, string>[] = [];
+    const criadas: Record<string, unknown>[] = [];
 
     for (const v of validas) {
       if (!v.mapeado) continue;
