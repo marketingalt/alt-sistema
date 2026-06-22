@@ -131,7 +131,12 @@ export default function BoasVindasPage() {
       // ── Aguarda a propagação dos metadados no Clerk ──
       setErro("Salvo! Aguardando confirmação...");
 
-      for (let tentativa = 0; tentativa < 10; tentativa++) {
+      // Cookie de fallback para o middleware enquanto o Clerk propaga
+      try {
+        document.cookie = "onboarding_complete=true; path=/; max-age=31536000; SameSite=Lax";
+      } catch {}
+
+      for (let tentativa = 0; tentativa < 30; tentativa++) {
         await user?.reload();
         if (user?.publicMetadata?.onboarding === true) {
           window.location.href = "/";
@@ -141,7 +146,8 @@ export default function BoasVindasPage() {
         await new Promise((r) => setTimeout(r, 500));
       }
 
-      // Se após 10 tentativas (~5s) ainda não propagou, redireciona mesmo assim
+      // Se após 30 tentativas (~15s) ainda não propagou, redireciona mesmo assim
+      // O middleware vai usar o cookie como fallback
       window.location.href = "/";
     } catch {
       setErro("Erro de rede. Tente novamente.");

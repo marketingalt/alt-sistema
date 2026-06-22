@@ -46,11 +46,20 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({
+    // Cookie como fallback para o middleware (evita loop de redirecionamento
+    // enquanto o Clerk propaga os metadados)
+    const response = NextResponse.json({
       ok: true,
       nomeExibicao: nomeExibicao.trim(),
       permissoes: permissoesFinais,
     });
+    response.cookies.set("onboarding_complete", "true", {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365, // 1 ano
+    });
+    return response;
   } catch (err) {
     console.error("Erro ao salvar onboarding:", err);
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });

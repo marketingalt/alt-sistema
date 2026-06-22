@@ -32,11 +32,13 @@ export default clerkMiddleware(async (auth, req) => {
     }
 
     // ── Onboarding ─────────────────────────────────────
-    // Se o usuário não completou o onboarding, redireciona para /boas-vindas
-    // Exceto se já está na página de boas-vindas, chamando uma API, ou assets
+    // Verifica pelo metadata do Clerk OU por cookie como fallback
     const onboarding = user.publicMetadata?.onboarding;
+    const onboardingCookie = req.cookies.get("onboarding_complete")?.value === "true";
+
     if (
       !onboarding &&
+      !onboardingCookie &&
       !req.nextUrl.pathname.startsWith("/api/") &&
       !req.nextUrl.pathname.startsWith("/_next")
     ) {
