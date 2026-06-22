@@ -94,7 +94,11 @@ export default function RevisarOrcamento() {
   useEffect(() => {
     fetch("/api/numero")
       .then((r) => r.json())
-      .then(({ numero }) => setOrcamento((prev) => ({ ...prev, numero })));
+      .then(({ numero }) => setOrcamento((prev) => ({ ...prev, numero })))
+      .catch(() => {
+        // fallback: gera um número no cliente caso a API falhe
+        setOrcamento((prev) => ({ ...prev, numero: String(Date.now()).slice(-6) }));
+      });
 
     const rascunho = sessionStorage.getItem("orcamento_rascunho");
     if (rascunho) {

@@ -110,20 +110,15 @@ export async function sincronizarProdutosBulk(
 
 export async function gerarNumeroOrcamento(): Promise<string> {
   const lista = await getOrcamentos();
-  const numerosExistentes = new Set(lista.map((o) => o.numero));
 
-  let counter = { seq: 1669 };
-  try {
-    counter = await dbGet<{ seq: number }>("contador", { seq: 1669 });
-  } catch { /* usa padrão */ }
+  // Encontra o maior número existente
+  let maxNum = 1669; // começa a partir de 1670
+  for (const o of lista) {
+    const n = parseInt(o.numero, 10);
+    if (!isNaN(n) && n > maxNum) maxNum = n;
+  }
 
-  let numero: string;
-  do {
-    counter.seq += 1;
-    numero = String(counter.seq);
-  } while (numerosExistentes.has(numero));
-
-  await dbSet("contador", counter);
+  const numero = String(maxNum + 1);
   return numero;
 }
 
