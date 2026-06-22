@@ -1,18 +1,23 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { dbGet, dbSet } from "@/lib/storage-adapter";
 
-const FILE = path.join(process.cwd(), "data", "faturamentos.json");
-function ler() { return JSON.parse(fs.readFileSync(FILE, "utf-8")); }
-function salvar(d: unknown) { fs.writeFileSync(FILE, JSON.stringify(d, null, 2), "utf-8"); }
+interface FaturamentosDB {
+  registros: any[];
+}
+
+async function ler(): Promise<FaturamentosDB> {
+  return dbGet<FaturamentosDB>("faturamentos", { registros: [] });
+}
+async function salvar(d: FaturamentosDB) {
+  await dbSet("faturamentos", d);
+}
 
 export async function PUT(req: Request, { params }: { params: Promise<{ orcamentoId: string }> }) {
   const { orcamentoId } = await params;
   const body = await req.json();
-  const dados = ler();
+  const dados = await ler();
   const updatedAt = new Date().toISOString().split("T")[0];
 
-  // manual entries have an `id` field; orcamento-linked use `orcamentoId`
   const idx = dados.registros.findIndex(
     (r: { id?: string; orcamentoId?: string }) =>
       r.id === orcamentoId || r.orcamentoId === orcamentoId
@@ -24,17 +29,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ orcament
     dados.registros.push({ orcamentoId, ...body, updatedAt });
   }
 
-  salvar(dados);
+  await salvar(dados);
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ orcamentoId: string }> }) {
   const { orcamentoId } = await params;
-  const dados = ler();
+  const dados = await ler();
   dados.registros = dados.registros.filter(
     (r: { id?: string; orcamentoId?: string }) =>
       r.id !== orcamentoId && r.orcamentoId !== orcamentoId
   );
-  salvar(dados);
+  await salvar(dados);
   return NextResponse.json({ ok: true });
 }

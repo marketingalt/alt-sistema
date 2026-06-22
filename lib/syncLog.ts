@@ -1,23 +1,17 @@
-import fs from "fs";
-import path from "path";
-
-const LOG_PATH = path.join(process.cwd(), "data", "sync-log.json");
+import { dbGet, dbSet } from "./storage-adapter";
 
 interface SyncLog {
   ultimaSync: string | null;
 }
 
-export function lerUltimaSync(): SyncLog {
+export async function lerUltimaSync(): Promise<SyncLog> {
   try {
-    if (!fs.existsSync(LOG_PATH)) return { ultimaSync: null };
-    return JSON.parse(fs.readFileSync(LOG_PATH, "utf-8"));
+    return await dbGet<SyncLog>("sync-log", { ultimaSync: null });
   } catch {
     return { ultimaSync: null };
   }
 }
 
-export function salvarUltimaSync(): void {
-  const dir = path.dirname(LOG_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(LOG_PATH, JSON.stringify({ ultimaSync: new Date().toISOString() }, null, 2));
+export async function salvarUltimaSync(): Promise<void> {
+  await dbSet("sync-log", { ultimaSync: new Date().toISOString() });
 }

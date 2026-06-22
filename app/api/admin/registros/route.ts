@@ -14,7 +14,7 @@ export async function GET() {
       return NextResponse.json({ error: "Acesso restrito a administradores" }, { status: 403 });
     }
 
-    const counts = getDataCounts();
+    const counts = await getDataCounts();
     return NextResponse.json(counts);
   } catch (err) {
     console.error("Erro ao buscar registros:", err);

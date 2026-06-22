@@ -1,8 +1,6 @@
-import fs from "fs";
 import path from "path";
 import { uploadFile, deleteFile, readFile } from "@/lib/storage-file-adapter";
-
-const DB_PATH = path.join(process.cwd(), "data", "documentos-rh.json");
+import { dbGet, dbSet } from "@/lib/storage-adapter";
 
 export interface DocumentoRH {
   id: string;
@@ -19,27 +17,24 @@ interface DocumentosPorEmail {
   [email: string]: DocumentoRH[];
 }
 
-function lerBase(): DocumentosPorEmail {
+async function lerBase(): Promise<DocumentosPorEmail> {
   try {
-    if (!fs.existsSync(DB_PATH)) return {};
-    return JSON.parse(fs.readFileSync(DB_PATH, "utf-8"));
+    return await dbGet<DocumentosPorEmail>("documentos-rh", {});
   } catch {
     return {};
   }
 }
 
-function salvarBase(data: DocumentosPorEmail) {
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+async function salvarBase(data: DocumentosPorEmail) {
+  await dbSet("documentos-rh", data);
 }
 
 function emailToDir(email: string): string {
   return email.replace(/[^a-zA-Z0-9]/g, "_");
 }
 
-export function getDocumentos(email: string): DocumentoRH[] {
-  const base = lerBase();
+export async function getDocumentos(email: string): Promise<DocumentoRH[]> {
+  const base = await lerBase();
   return base[email] || [];
 }
 
@@ -69,16 +64,16 @@ export async function adicionarDocumento(
     categoria,
   };
 
-  const base = lerBase();
+  const base = await lerBase();
   if (!base[email]) base[email] = [];
   base[email].push(doc);
-  salvarBase(base);
+  await salvarBase(base);
 
   return doc;
 }
 
 export async function removerDocumento(email: string, docId: string): Promise<boolean> {
-  const base = lerBase();
+  const base = await lerBase();
   if (!base[email]) return false;
 
   const idx = base[email].findIndex((d) => d.id === docId);
@@ -89,20 +84,17 @@ export async function removerDocumento(email: string, docId: string): Promise<bo
   await deleteFile("rh", safe, doc.caminho);
 
   base[email].splice(idx, 1);
-  salvarBase(base);
+  await salvarBase(base);
   return true;
 }
 
 export async function downloadPath(email: string, docId: string): Promise<string | null> {
-  const base = lerBase();
+  const base = await lerBase();
   if (!base[email]) return null;
   const doc = base[email].find((d) => d.id === docId);
   if (!doc) return null;
 
-  // In production, return blob URL by reading the file from blob storage
-  // In dev, return the local filesystem path
   if (process.env.VERCEL === "1" || process.env.BLOB_READ_WRITE_TOKEN) {
-    // Return a route path that streams from blob storage instead
     return null;
   }
 

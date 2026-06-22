@@ -1,26 +1,32 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { dbGet, dbSet } from "@/lib/storage-adapter";
 
-const FILE = path.join(process.cwd(), "data", "fluxo-caixa.json");
-function ler() { return JSON.parse(fs.readFileSync(FILE, "utf-8")); }
-function salvar(d: unknown) { fs.writeFileSync(FILE, JSON.stringify(d, null, 2), "utf-8"); }
+interface FluxoCaixaDB {
+  lancamentos: any[];
+}
+
+async function ler(): Promise<FluxoCaixaDB> {
+  return dbGet<FluxoCaixaDB>("fluxo-caixa", { lancamentos: [] });
+}
+async function salvar(d: FluxoCaixaDB) {
+  await dbSet("fluxo-caixa", d);
+}
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const dados = ler();
+  const dados = await ler();
   const body = await req.json();
   dados.lancamentos = dados.lancamentos.map((l: { id: string }) =>
     l.id === id ? { ...l, ...body } : l
   );
-  salvar(dados);
+  await salvar(dados);
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const dados = ler();
+  const dados = await ler();
   dados.lancamentos = dados.lancamentos.filter((l: { id: string }) => l.id !== id);
-  salvar(dados);
+  await salvar(dados);
   return NextResponse.json({ ok: true });
 }

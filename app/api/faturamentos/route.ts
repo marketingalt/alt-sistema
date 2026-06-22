@@ -1,18 +1,24 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { dbGet, dbSet } from "@/lib/storage-adapter";
 
-const FILE = path.join(process.cwd(), "data", "faturamentos.json");
-function ler() { return JSON.parse(fs.readFileSync(FILE, "utf-8")); }
-function salvar(d: unknown) { fs.writeFileSync(FILE, JSON.stringify(d, null, 2), "utf-8"); }
+interface FaturamentosDB {
+  registros: any[];
+}
+
+async function ler(): Promise<FaturamentosDB> {
+  return dbGet<FaturamentosDB>("faturamentos", { registros: [] });
+}
+async function salvar(d: FaturamentosDB) {
+  await dbSet("faturamentos", d);
+}
 
 export async function GET() {
-  return NextResponse.json(ler());
+  return NextResponse.json(await ler());
 }
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const dados = ler();
+  const dados = await ler();
   const novo = {
     ...body,
     id: `fat${Date.now()}`,
@@ -20,6 +26,6 @@ export async function POST(req: Request) {
     createdAt: new Date().toISOString().split("T")[0],
   };
   dados.registros.push(novo);
-  salvar(dados);
+  await salvar(dados);
   return NextResponse.json(novo, { status: 201 });
 }

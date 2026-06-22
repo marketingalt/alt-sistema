@@ -1,4 +1,5 @@
 import { clerkClient } from "@clerk/nextjs/server";
+import { dbGet, dbSet } from "./storage-adapter";
 import fs from "fs";
 import path from "path";
 
@@ -134,8 +135,6 @@ export async function getAllAdmins(): Promise<ClerkUserWithRole[]> {
 
 // ── Settings helpers ──────────────────────────────
 
-const SETTINGS_PATH = path.join(process.cwd(), "data", "configuracoes.json");
-
 const CONFIGURACOES_PADRAO: SystemSettings = {
   taxasPadrao: {
     honorarios: 15,
@@ -155,37 +154,27 @@ const CONFIGURACOES_PADRAO: SystemSettings = {
   },
 };
 
-export function getSystemSettings(): SystemSettings {
+export async function getSystemSettings(): Promise<SystemSettings> {
   try {
-    if (!fs.existsSync(SETTINGS_PATH)) {
-      fs.writeFileSync(SETTINGS_PATH, JSON.stringify(CONFIGURACOES_PADRAO, null, 2));
-      return CONFIGURACOES_PADRAO;
-    }
-    return JSON.parse(fs.readFileSync(SETTINGS_PATH, "utf-8"));
+    const settings = await dbGet<SystemSettings>("configuracoes", CONFIGURACOES_PADRAO);
+    return settings;
   } catch {
     return CONFIGURACOES_PADRAO;
   }
 }
 
-export function saveSystemSettings(settings: SystemSettings): SystemSettings {
-  const dir = path.dirname(SETTINGS_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+export async function saveSystemSettings(settings: SystemSettings): Promise<SystemSettings> {
+  await dbSet("configuracoes", settings);
   return settings;
 }
 
 // ── Data overview helpers ──────────────────────────
 
-const DATA_DIR = path.join(process.cwd(), "data");
-
-export function getDataCounts() {
+export async function getDataCounts() {
   const counts: Record<string, number> = {};
 
-  // Orçamentos
   try {
-    const orcamentos = JSON.parse(
-      fs.readFileSync(path.join(DATA_DIR, "orcamentos.json"), "utf-8")
-    );
+    const orcamentos = await dbGet<any[]>("orcamentos", []);
     counts.orcamentos = Array.isArray(orcamentos) ? orcamentos.length : 0;
     if (Array.isArray(orcamentos)) {
       counts.orcamentosAprovados = orcamentos.filter(
@@ -199,64 +188,45 @@ export function getDataCounts() {
     counts.orcamentos = 0;
   }
 
-  // Clientes
   try {
-    const clientes = JSON.parse(
-      fs.readFileSync(path.join(DATA_DIR, "clientes.json"), "utf-8")
-    );
+    const clientes = await dbGet<any[]>("clientes", []);
     counts.clientes = Array.isArray(clientes) ? clientes.length : 0;
   } catch {
     counts.clientes = 0;
   }
 
-  // Fornecedores
   try {
-    const fornecedores = JSON.parse(
-      fs.readFileSync(path.join(DATA_DIR, "fornecedores.json"), "utf-8")
-    );
+    const fornecedores = await dbGet<any[]>("fornecedores", []);
     counts.fornecedores = Array.isArray(fornecedores) ? fornecedores.length : 0;
   } catch {
     counts.fornecedores = 0;
   }
 
-  // Produtos
   try {
-    const produtos = JSON.parse(
-      fs.readFileSync(path.join(DATA_DIR, "produtos.json"), "utf-8")
-    );
+    const produtos = await dbGet<any[]>("produtos", []);
     counts.produtos = Array.isArray(produtos) ? produtos.length : 0;
   } catch {
     counts.produtos = 0;
   }
 
-  // Contas a pagar
   try {
-    const cap = JSON.parse(
-      fs.readFileSync(path.join(DATA_DIR, "contas-a-pagar.json"), "utf-8")
-    );
+    const cap = await dbGet<any>("contas-a-pagar", { contas: [] });
     counts.contasAPagar = cap.contas?.length || 0;
   } catch {
     counts.contasAPagar = 0;
   }
 
-  // Contas a receber (not used yet, but let's keep structure)
   counts.contasAReceber = 0;
 
-  // Faturamentos
   try {
-    const fat = JSON.parse(
-      fs.readFileSync(path.join(DATA_DIR, "faturamentos.json"), "utf-8")
-    );
+    const fat = await dbGet<any>("faturamentos", { registros: [] });
     counts.faturamentos = fat.registros?.length || 0;
   } catch {
     counts.faturamentos = 0;
   }
 
-  // Fluxo de caixa
   try {
-    const fc = JSON.parse(
-      fs.readFileSync(path.join(DATA_DIR, "fluxo-caixa.json"), "utf-8")
-    );
+    const fc = await dbGet<any>("fluxo-caixa", { lancamentos: [] });
     counts.fluxoCaixaLancamentos = fc.lancamentos?.length || 0;
   } catch {
     counts.fluxoCaixaLancamentos = 0;

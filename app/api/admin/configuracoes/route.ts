@@ -14,7 +14,7 @@ export async function GET() {
       return NextResponse.json({ error: "Acesso restrito a administradores" }, { status: 403 });
     }
 
-    const settings = getSystemSettings();
+    const settings = await getSystemSettings();
     return NextResponse.json(settings);
   } catch (err) {
     console.error("Erro ao buscar configurações:", err);
@@ -35,7 +35,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const saved = saveSystemSettings(body);
+    const saved = await saveSystemSettings(body);
     return NextResponse.json(saved);
   } catch (err) {
     console.error("Erro ao salvar configurações:", err);

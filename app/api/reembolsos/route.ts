@@ -4,23 +4,14 @@ import {
   listarReembolsos,
   criarLoteReembolsos,
   vincularContaPagar,
-  downloadComprovantePath,
   listarReembolsosPorLote,
+  buscarReembolso,
 } from "@/lib/reembolsos";
-import fs from "fs";
-import path from "path";
+import { readFile } from "@/lib/storage-file-adapter";
+import { dbGet, dbSet } from "@/lib/storage-adapter";
 
-// ── helpers para criar contas a pagar diretamente ──
-const FILE_CP = path.join(process.cwd(), "data", "contas-a-pagar.json");
-
-function lerCP() {
-  return JSON.parse(fs.readFileSync(FILE_CP, "utf-8"));
-}
-function salvarCP(d: unknown) {
-  fs.writeFileSync(FILE_CP, JSON.stringify(d, null, 2), "utf-8");
-}
-
-function criarContaPagar(dados: {
+// ── helpers para criar contas a pagar via storage adapter ──
+async function criarContaPagar(dados: {
   dataVencimento: string;
   fornecedor: string;
   descricao: string;
@@ -31,8 +22,8 @@ function criarContaPagar(dados: {
   categoria: string;
   dadosBancarios: Record<string, string>;
   reembolsoId: string;
-}): string {
-  const db = lerCP();
+}): Promise<string> {
+  const db = await dbGet<any>("contas-a-pagar", { contas: [] });
   const id = `cp${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
   const nova = {
     ...dados,
@@ -41,7 +32,7 @@ function criarContaPagar(dados: {
     createdAt: new Date().toISOString().split("T")[0],
   };
   db.contas.push(nova);
-  salvarCP(db);
+  await dbSet("contas-a-pagar", db);
   return id;
 }
 
@@ -58,27 +49,25 @@ export async function GET(req: NextRequest) {
 
     // Download de comprovante
     if (downloadRebId) {
-      const { buscarReembolso } = await import("@/lib/reembolsos");
-      const reembolso = buscarReembolso(downloadRebId);
+      const reembolso = await buscarReembolso(downloadRebId);
       if (!reembolso || !reembolso.comprovante) {
         return NextResponse.json({ error: "Comprovante não encontrado" }, { status: 404 });
       }
-      const filePath = downloadComprovantePath(reembolso.loteId, reembolso.comprovante.caminho);
-      if (!fs.existsSync(filePath)) {
+      try {
+        const buffer = await readFile("reembolsos", reembolso.loteId, reembolso.comprovante.caminho);
+        return new Response(new Blob([buffer], { type: reembolso.comprovante.tipo || "application/octet-stream" }), {
+          headers: {
+            "Content-Disposition": `inline; filename="${reembolso.comprovante.nome}"`,
+          },
+        });
+      } catch {
         return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
       }
-      const buffer = fs.readFileSync(filePath);
-      return new NextResponse(buffer, {
-        headers: {
-          "Content-Type": reembolso.comprovante.tipo || "application/octet-stream",
-          "Content-Disposition": `inline; filename="${reembolso.comprovante.nome}"`,
-        },
-      });
     }
 
     const reembolsos = loteId
-      ? listarReembolsosPorLote(loteId)
-      : listarReembolsos();
+      ? await listarReembolsosPorLote(loteId)
+      : await listarReembolsos();
 
     // Ordenar do mais recente primeiro
     reembolsos.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -110,7 +99,7 @@ export async function POST(req: NextRequest) {
       // Criar contas a pagar automaticamente
       const contasCriadas: { reembolsoId: string; contaPagarId: string }[] = [];
       for (const reb of reembolsos) {
-        const contaPagarId = criarContaPagar({
+        const contaPagarId = await criarContaPagar({
           dataVencimento: reb.dataFinal,
           fornecedor: `Reembolso — ${reb.motorista}`,
           descricao: `${reb.motivo ? reb.motivo + " — " : ""}${reb.origem} → ${reb.destino} (${reb.distanciaKm} km)`,
@@ -122,7 +111,7 @@ export async function POST(req: NextRequest) {
           dadosBancarios: reb.dadosBancarios,
           reembolsoId: reb.id,
         });
-        vincularContaPagar(reb.id, contaPagarId);
+        await vincularContaPagar(reb.id, contaPagarId);
         contasCriadas.push({ reembolsoId: reb.id, contaPagarId });
       }
 

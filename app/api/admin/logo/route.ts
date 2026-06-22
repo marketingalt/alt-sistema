@@ -7,7 +7,7 @@ export async function GET() {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
-    const settings = getSystemSettings();
+    const settings = await getSystemSettings();
     return NextResponse.json({ logoBase64: settings.logoBase64 || null });
   } catch {
     return NextResponse.json({ error: "Erro ao carregar logo" }, { status: 500 });
@@ -27,9 +27,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Envie logoBase64 (base64 da imagem)" }, { status: 400 });
     }
 
-    const settings = getSystemSettings();
+    const settings = await getSystemSettings();
     settings.logoBase64 = logoBase64;
-    saveSystemSettings(settings);
+    await saveSystemSettings(settings);
 
     return NextResponse.json({ success: true, logoBase64 });
   } catch {
@@ -45,9 +45,9 @@ export async function DELETE() {
     const isAdmin = await checkIsAdmin(userId);
     if (!isAdmin) return NextResponse.json({ error: "Apenas administradores" }, { status: 403 });
 
-    const settings = getSystemSettings();
+    const settings = await getSystemSettings();
     delete settings.logoBase64;
-    saveSystemSettings(settings);
+    await saveSystemSettings(settings);
 
     return NextResponse.json({ success: true });
   } catch {

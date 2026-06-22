@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
       if (!isAdmin && targetEmail !== email) {
         return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
       }
-      const docs = getDocumentos(targetEmail);
+      const docs = await getDocumentos(targetEmail);
       const doc = docs.find((d) => d.id === downloadId);
       if (!doc) {
         return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     // Listar documentos
     // Admins podem ver de qualquer email; usuários só os próprios
     const listaEmail = isAdmin && targetEmail ? targetEmail : email;
-    const docs = getDocumentos(listaEmail);
+    const docs = await getDocumentos(listaEmail);
 
     return NextResponse.json({ email: listaEmail, documentos: docs });
   } catch (err) {

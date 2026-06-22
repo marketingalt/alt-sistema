@@ -97,7 +97,7 @@ async function executarSync() {
   }
 
   await sincronizarProdutosBulk(novos, atualizacoes);
-  salvarUltimaSync();
+  await salvarUltimaSync();
 
   return { criados: novos.length, atualizados: atualizacoes.length, total: produtosXbz.length };
 }
@@ -115,7 +115,7 @@ export async function POST() {
 
 // Chamada automática — só executa se passou mais de 1 hora
 export async function GET() {
-  const log = lerUltimaSync();
+  const log = await lerUltimaSync();
   const agora = Date.now();
   const UMA_HORA = 60 * 60 * 1000;
 

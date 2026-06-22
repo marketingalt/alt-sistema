@@ -36,7 +36,9 @@ export type DbKey =
   | "reembolsos"
   | "faturamentos"
   | "fluxo-caixa"
-  | "configuracoes";
+  | "configuracoes"
+  | "sync-log"
+  | "documentos-rh";
 
 // ── Detecta ambiente ──
 

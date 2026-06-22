@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!orcamento) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
 
   // Carrega configurações para obter a logo
-  const settings = getSystemSettings();
+  const settings = await getSystemSettings();
   const logoBase64 = settings.logoBase64;
 
   const template = (

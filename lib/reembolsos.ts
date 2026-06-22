@@ -1,7 +1,6 @@
-import fs from "fs";
 import path from "path";
-
-const DB_PATH = path.join(process.cwd(), "data", "reembolsos.json");
+import { dbGet, dbSet } from "./storage-adapter";
+import { uploadFile, deleteFile, readFile } from "./storage-file-adapter";
 
 export interface Reembolso {
   id: string;
@@ -44,43 +43,37 @@ interface ReembolsosDB {
   reembolsos: Reembolso[];
 }
 
-function lerBase(): ReembolsosDB {
+async function lerBase(): Promise<ReembolsosDB> {
   try {
-    if (!fs.existsSync(DB_PATH)) return { reembolsos: [] };
-    return JSON.parse(fs.readFileSync(DB_PATH, "utf-8"));
+    return await dbGet<ReembolsosDB>("reembolsos", { reembolsos: [] });
   } catch {
     return { reembolsos: [] };
   }
 }
 
-function salvarBase(data: ReembolsosDB) {
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+async function salvarBase(data: ReembolsosDB) {
+  await dbSet("reembolsos", data);
 }
 
-function dirUpload(loteId: string) {
-  const dir = path.join(process.cwd(), "data", "uploads", "reembolsos", loteId);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  return dir;
+export async function listarReembolsos(): Promise<Reembolso[]> {
+  const base = await lerBase();
+  return base.reembolsos;
 }
 
-export function listarReembolsos(): Reembolso[] {
-  return lerBase().reembolsos;
+export async function listarReembolsosPorLote(loteId: string): Promise<Reembolso[]> {
+  const base = await lerBase();
+  return base.reembolsos.filter((r) => r.loteId === loteId);
 }
 
-export function listarReembolsosPorLote(loteId: string): Reembolso[] {
-  return lerBase().reembolsos.filter((r) => r.loteId === loteId);
-}
-
-export function buscarReembolso(id: string): Reembolso | undefined {
-  return lerBase().reembolsos.find((r) => r.id === id);
+export async function buscarReembolso(id: string): Promise<Reembolso | undefined> {
+  const base = await lerBase();
+  return base.reembolsos.find((r) => r.id === id);
 }
 
 export async function criarReembolso(
   dados: Omit<Reembolso, "id" | "createdAt" | "status" | "comprovante" | "contaPagarId">
 ): Promise<Reembolso> {
-  const base = lerBase();
+  const base = await lerBase();
   const reembolso: Reembolso = {
     ...dados,
     id: `reb${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -90,7 +83,7 @@ export async function criarReembolso(
     createdAt: new Date().toISOString(),
   };
   base.reembolsos.push(reembolso);
-  salvarBase(base);
+  await salvarBase(base);
   return reembolso;
 }
 
@@ -98,7 +91,7 @@ export async function criarLoteReembolsos(
   itens: Omit<Reembolso, "id" | "loteId" | "createdAt" | "status" | "comprovante" | "contaPagarId">[],
   loteId: string
 ): Promise<Reembolso[]> {
-  const base = lerBase();
+  const base = await lerBase();
   const criados: Reembolso[] = [];
   for (const item of itens) {
     const reembolso: Reembolso = {
@@ -113,7 +106,7 @@ export async function criarLoteReembolsos(
     base.reembolsos.push(reembolso);
     criados.push(reembolso);
   }
-  salvarBase(base);
+  await salvarBase(base);
   return criados;
 }
 
@@ -121,35 +114,35 @@ export async function anexarComprovante(
   reembolsoId: string,
   arquivo: File
 ): Promise<Reembolso | null> {
-  const base = lerBase();
+  const base = await lerBase();
   const idx = base.reembolsos.findIndex((r) => r.id === reembolsoId);
   if (idx === -1) return null;
 
   const bytes = await arquivo.arrayBuffer();
+  const buffer = Buffer.from(bytes);
   const docId = Math.random().toString(36).substring(2, 10);
   const ext = path.extname(arquivo.name);
   const nomeArquivo = `${docId}${ext}`;
 
   const loteId = base.reembolsos[idx].loteId;
-  const uploadDir = dirUpload(loteId);
-  fs.writeFileSync(path.join(uploadDir, nomeArquivo), Buffer.from(bytes));
+  const storedPath = await uploadFile("reembolsos", loteId, nomeArquivo, buffer);
 
   base.reembolsos[idx] = {
     ...base.reembolsos[idx],
     comprovante: {
       id: docId,
       nome: arquivo.name,
-      caminho: nomeArquivo,
+      caminho: storedPath,
       tipo: arquivo.type,
       tamanho: arquivo.size,
     },
   };
-  salvarBase(base);
+  await salvarBase(base);
   return base.reembolsos[idx];
 }
 
-export function marcarComoPago(reembolsoId: string, dataPagamento: string): Reembolso | null {
-  const base = lerBase();
+export async function marcarComoPago(reembolsoId: string, dataPagamento: string): Promise<Reembolso | null> {
+  const base = await lerBase();
   const idx = base.reembolsos.findIndex((r) => r.id === reembolsoId);
   if (idx === -1) return null;
 
@@ -158,12 +151,12 @@ export function marcarComoPago(reembolsoId: string, dataPagamento: string): Reem
     status: "pago",
     dataPagamento,
   };
-  salvarBase(base);
+  await salvarBase(base);
   return base.reembolsos[idx];
 }
 
-export function vincularContaPagar(reembolsoId: string, contaPagarId: string): Reembolso | null {
-  const base = lerBase();
+export async function vincularContaPagar(reembolsoId: string, contaPagarId: string): Promise<Reembolso | null> {
+  const base = await lerBase();
   const idx = base.reembolsos.findIndex((r) => r.id === reembolsoId);
   if (idx === -1) return null;
 
@@ -171,10 +164,14 @@ export function vincularContaPagar(reembolsoId: string, contaPagarId: string): R
     ...base.reembolsos[idx],
     contaPagarId,
   };
-  salvarBase(base);
+  await salvarBase(base);
   return base.reembolsos[idx];
 }
 
-export function downloadComprovantePath(loteId: string, nomeArquivo: string): string {
+export async function downloadComprovantePath(loteId: string, nomeArquivo: string): Promise<string> {
+  // For local dev, return the filesystem path; for prod, the caller reads via readFile
+  if (process.env.VERCEL === "1" || process.env.BLOB_READ_WRITE_TOKEN) {
+    return nomeArquivo; // will be resolved by readFile in the route
+  }
   return path.join(process.cwd(), "data", "uploads", "reembolsos", loteId, nomeArquivo);
 }

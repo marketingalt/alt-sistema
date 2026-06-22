@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import fs from "fs";
-import path from "path";
+import { dbGet, dbSet } from "@/lib/storage-adapter";
 import { parseCSV } from "@/lib/csv-utils";
 
-const FILE = path.join(process.cwd(), "data", "contas-a-pagar.json");
-
-function lerBase() {
-  return JSON.parse(fs.readFileSync(FILE, "utf-8"));
+interface ContasPagarDB {
+  contas: any[];
 }
-function salvarBase(d: unknown) {
-  fs.writeFileSync(FILE, JSON.stringify(d, null, 2), "utf-8");
+
+async function lerBase(): Promise<ContasPagarDB> {
+  return dbGet<ContasPagarDB>("contas-a-pagar", { contas: [] });
+}
+async function salvarBase(d: ContasPagarDB) {
+  await dbSet("contas-a-pagar", d);
 }
 
 // ── Mapeamento de colunas (normalizadas) ──
@@ -37,39 +38,8 @@ const MAPA_COLUNAS: Record<string, string> = {
   periodicidade: "periodicidade",
 };
 
-const VALORES_VALIDOS = {
-  modalidade: ["PIX", "TED", "DÉBITO", "DEBITO", "BOLETO", "FATURA", "INVESTIMENTO", "TRANSFERENCIA"],
-  banco: ["C6 BANK", "BANCO ITAÚ", "ITAÚ", "ITAU", "NUBANK", "SANTANDER", "BRADESCO"],
-  area: ["PROJETOS", "DIGITAL", "MISTO", "ESTORNO"],
-};
-
-function normalizar(valor: string): string {
-  return valor
-    .toUpperCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .trim();
-}
-
-function encontrarColuna(linha: Record<string, string>, campo: string): string | undefined {
-  // Busca direta pela chave normalizada
-  for (const [chaveNormalizada, destino] of Object.entries(MAPA_COLUNAS)) {
-    if (destino === campo && linha[chaveNormalizada] !== undefined) {
-      return linha[chaveNormalizada];
-    }
-  }
-  return undefined;
-}
-
-interface LinhaImportada {
-  linha: number;
-  dados: Record<string, string>;
-  erros: string[];
-  mapeado: Record<string, string> | null;
-}
-
-const AREAS_VALIDAS = ["PROJETOS", "DIGITAL", "MISTO", "ESTORNO"];
 const MODALIDADES_VALIDAS = ["PIX", "TED", "DÉBITO", "BOLETO", "FATURA", "INVESTIMENTO", "TRANSFERENCIA"];
+const AREAS_VALIDAS = ["PROJETOS", "DIGITAL", "MISTO", "ESTORNO"];
 const CATEGORIAS_VALIDAS = [
   "RECEITA OPERACIONAL BRUTA",
   "CUSTOS DIRETOS DOS SERVIÇOS",
@@ -86,6 +56,30 @@ const CATEGORIAS_VALIDAS = [
   "ESTORNO",
 ];
 
+function normalizar(valor: string): string {
+  return valor
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim();
+}
+
+function encontrarColuna(linha: Record<string, string>, campo: string): string | undefined {
+  for (const [chaveNormalizada, destino] of Object.entries(MAPA_COLUNAS)) {
+    if (destino === campo && linha[chaveNormalizada] !== undefined) {
+      return linha[chaveNormalizada];
+    }
+  }
+  return undefined;
+}
+
+interface LinhaImportada {
+  linha: number;
+  dados: Record<string, string>;
+  erros: string[];
+  mapeado: Record<string, string> | null;
+}
+
 export async function POST(req: Request) {
   try {
     const { userId } = await auth();
@@ -101,7 +95,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Arquivo não enviado" }, { status: 400 });
     }
 
-    // Lê o conteúdo do arquivo
     const texto = await arquivo.text();
     const linhasRaw = parseCSV(texto);
 
@@ -109,12 +102,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "CSV vazio ou sem dados. Verifique se o arquivo tem cabeçalho e ao menos uma linha de dados." }, { status: 400 });
     }
 
-    // Processa cada linha
     const processadas: LinhaImportada[] = linhasRaw.map((linha, idx) => {
       const erros: string[] = [];
-      const numeroLinha = idx + 2; // +2 porque 1-indexed + header
+      const numeroLinha = idx + 2;
 
-      // Campos obrigatórios
       const vencimento = encontrarColuna(linha, "dataVencimento");
       const fornecedor = encontrarColuna(linha, "fornecedor");
       const descricao = encontrarColuna(linha, "descricao");
@@ -125,7 +116,6 @@ export async function POST(req: Request) {
       if (!descricao) erros.push("Descrição não encontrada");
       if (!valorRaw) erros.push("Valor não encontrado");
 
-      // Converte valor
       let valor = 0;
       if (valorRaw) {
         valor = parseFloat(valorRaw.replace(/\./g, "").replace(",", "."));
@@ -139,7 +129,6 @@ export async function POST(req: Request) {
         return { linha: numeroLinha, dados: linha, erros, mapeado: null };
       }
 
-      // Campos opcionais com normalização
       const modalidadeRaw = encontrarColuna(linha, "modalidade") || "PIX";
       const bancoRaw = encontrarColuna(linha, "banco") || "C6 BANK";
       const areaRaw = encontrarColuna(linha, "area") || "MISTO";
@@ -148,13 +137,11 @@ export async function POST(req: Request) {
       const recorrenteRaw = encontrarColuna(linha, "recorrente") || "";
       const periodicidade = encontrarColuna(linha, "periodicidade") || "mensal";
 
-      // Normaliza valores
       const modalidade = normalizar(modalidadeRaw);
       const banco = normalizar(bancoRaw);
       const area = normalizar(areaRaw);
       const categoria = normalizar(categoriaRaw);
 
-      // Valida campos controlados
       if (!MODALIDADES_VALIDAS.some((m) => normalizar(m) === modalidade)) {
         erros.push(`Modalidade inválida: "${modalidadeRaw}". Use: PIX, TED, DÉBITO, BOLETO, FATURA, INVESTIMENTO ou TRANSFERENCIA`);
       }
@@ -169,7 +156,6 @@ export async function POST(req: Request) {
         return { linha: numeroLinha, dados: linha, erros, mapeado: null };
       }
 
-      // Recorrente
       const recorrenteVal = ["sim", "true", "1", "s", "yes"].includes(recorrenteRaw.toLowerCase().trim());
 
       const mapeado: Record<string, string> = {
@@ -192,7 +178,6 @@ export async function POST(req: Request) {
     const validas = processadas.filter((p) => p.erros.length === 0 && p.mapeado);
     const comErro = processadas.filter((p) => p.erros.length > 0);
 
-    // Se é apenas preview (não confirmar), retorna preview
     if (!confirmar) {
       return NextResponse.json({
         total: processadas.length,
@@ -208,18 +193,17 @@ export async function POST(req: Request) {
       });
     }
 
-    // Confirma: salva todas as linhas válidas
     if (validas.length === 0) {
       return NextResponse.json({ error: "Nenhuma linha válida para importar." }, { status: 400 });
     }
 
-    const base = lerBase();
+    const base = await lerBase();
     const criadas: Record<string, unknown>[] = [];
 
     for (const v of validas) {
       if (!v.mapeado) continue;
       const m = v.mapeado;
-      const nova = {
+      const nova: Record<string, unknown> = {
         id: `cp${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         dataVencimento: m.dataVencimento,
         fornecedor: m.fornecedor,
@@ -239,7 +223,7 @@ export async function POST(req: Request) {
       criadas.push(nova);
     }
 
-    salvarBase(base);
+    await salvarBase(base);
 
     return NextResponse.json({
       importadas: criadas.length,

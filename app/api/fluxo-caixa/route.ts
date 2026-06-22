@@ -1,22 +1,25 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { dbGet, dbSet } from "@/lib/storage-adapter";
 
-const FILE = path.join(process.cwd(), "data", "fluxo-caixa.json");
-
-function ler() {
-  return JSON.parse(fs.readFileSync(FILE, "utf-8"));
+interface FluxoCaixaDB {
+  lancamentos: any[];
+  saldoInicial?: number;
+  saldoInicialData?: string;
 }
-function salvar(dados: unknown) {
-  fs.writeFileSync(FILE, JSON.stringify(dados, null, 2), "utf-8");
+
+async function ler(): Promise<FluxoCaixaDB> {
+  return dbGet<FluxoCaixaDB>("fluxo-caixa", { lancamentos: [] });
+}
+async function salvar(dados: FluxoCaixaDB) {
+  await dbSet("fluxo-caixa", dados);
 }
 
 export async function GET() {
-  return NextResponse.json(ler());
+  return NextResponse.json(await ler());
 }
 
 export async function POST(req: Request) {
-  const dados = ler();
+  const dados = await ler();
   const body = await req.json();
   const novo = {
     ...body,
@@ -24,17 +27,17 @@ export async function POST(req: Request) {
     createdAt: new Date().toISOString().split("T")[0],
   };
   dados.lancamentos.push(novo);
-  salvar(dados);
+  await salvar(dados);
   return NextResponse.json(novo, { status: 201 });
 }
 
 export async function PUT(req: Request) {
-  const dados = ler();
+  const dados = await ler();
   const body = await req.json();
   if (body.saldoInicial !== undefined) {
     dados.saldoInicial = body.saldoInicial;
     dados.saldoInicialData = body.saldoInicialData;
-    salvar(dados);
+    await salvar(dados);
     return NextResponse.json({ ok: true });
   }
   return NextResponse.json({ error: "Nenhum campo válido" }, { status: 400 });
