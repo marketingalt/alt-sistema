@@ -42,10 +42,11 @@ export type DbKey =
 
 // ── Detecta ambiente ──
 
-function isProduction(): boolean {
-  // Só usa KV se as env vars estiverem configuradas —
-  // no Vercel sem KV criado, VERCEL=1 mas KV_URL não existe,
-  // então usamos filesystem (pelo menos leituras funcionam)
+function isVercel(): boolean {
+  return process.env.VERCEL === "1";
+}
+
+function canUseKV(): boolean {
   return process.env.KV_URL !== undefined;
 }
 
@@ -88,19 +89,60 @@ function fileSet<T>(key: DbKey, value: T): void {
   fs.writeFileSync(fp, JSON.stringify(value, null, 2));
 }
 
+// ── Cache em memória para Vercel sem KV ──
+
+/**
+ * Cache em memória para uso em Vercel sem KV.
+ * Dados persistem apenas enquanto a instância serverless está quente;
+ * em cold starts, os dados serão perdidos.
+ */
+const memoryCache = new Map<DbKey, unknown>();
+
+function memorySet<T>(key: DbKey, value: T): void {
+  memoryCache.set(key, value);
+  console.warn(`[storage] Dados salvos apenas em cache de memória para "${key}". Configure Vercel KV para persistência.`);
+}
+
+function memoryGet<T>(key: DbKey, fallback: T): T {
+  if (memoryCache.has(key)) return memoryCache.get(key) as T;
+  return fallback;
+}
+
 // ── API pública ──
 
+/**
+ * Lê dados do storage.
+ * - Vercel com KV: usa Redis
+ * - Vercel sem KV: tenta filesystem, depois cache de memória
+ * - Local: usa filesystem
+ */
 export async function dbGet<T>(key: DbKey, fallback: T): Promise<T> {
-  if (isProduction()) {
+  if (canUseKV()) {
     const val = await kvGet<T>(key);
     return val !== null ? val : fallback;
   }
-  return fileGet(key, fallback);
+  // Em Vercel (sem KV), tenta filesystem primeiro (dados deployados via git)
+  const fromFile = fileGet<T>(key, fallback as T);
+  // Se o filesystem não tinha dados, verifica cache de memória
+  if (fromFile === fallback && isVercel()) {
+    return memoryGet(key, fallback);
+  }
+  return fromFile;
 }
 
+/**
+ * Escreve dados no storage.
+ * - Vercel com KV: usa Redis (OK)
+ * - Vercel sem KV: usa cache de memória (dados não persistem após cold start)
+ * - Local: usa filesystem (OK)
+ */
 export async function dbSet<T>(key: DbKey, value: T): Promise<void> {
-  if (isProduction()) {
+  if (canUseKV()) {
     await kvSet(key, value);
+  } else if (isVercel()) {
+    // Sem KV no Vercel: salva em memória como fallback
+    // Dados serão perdidos em cold start, mas a operação não quebra
+    memorySet(key, value);
   } else {
     fileSet(key, value);
   }
