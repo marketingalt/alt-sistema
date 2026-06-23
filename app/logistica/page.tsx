@@ -311,6 +311,8 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
   const [showUploadModal, setShowUploadModal] = useState<string | null>(null);
   const [items, setItems] = useState<ItemLote[]>([itemLoteVazio()]);
   const [salvando, setSalvando] = useState(false);
+  const [editandoReb, setEditandoReb] = useState<Reembolso | null>(null);
+  const [editForm, setEditForm] = useState<Record<string, string | number>>({});
 
   function carregar() {
     setCarregando(true);
@@ -463,6 +465,58 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
     URL.revokeObjectURL(url);
   }
 
+  async function deletarReembolso(reb: Reembolso) {
+    if (!confirm(`Tem certeza que deseja excluir o reembolso de "${reb.motorista}" (${fmt(reb.total)})?`)) return;
+    try {
+      const res = await fetch(`/api/reembolsos/${reb.id}`, { method: "DELETE" });
+      if (res.ok) {
+        carregar();
+      } else {
+        alert("Erro ao excluir reembolso.");
+      }
+    } catch {
+      alert("Erro ao excluir reembolso.");
+    }
+  }
+
+  function abrirEdicao(reb: Reembolso) {
+    setEditForm({
+      motorista: reb.motorista,
+      email: reb.email,
+      origem: reb.origem,
+      destino: reb.destino,
+      distanciaKm: reb.distanciaKm,
+      valorKm: reb.valorKm,
+      total: reb.total,
+      dataInicial: reb.dataInicial,
+      dataFinal: reb.dataFinal,
+      odometroInicial: reb.odometroInicial,
+      odometroFinal: reb.odometroFinal,
+      motivo: reb.motivo || "",
+      observacao: reb.observacao || "",
+    });
+    setEditandoReb(reb);
+  }
+
+  async function salvarEdicao() {
+    if (!editandoReb) return;
+    try {
+      const res = await fetch(`/api/reembolsos/${editandoReb.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      if (res.ok) {
+        setEditandoReb(null);
+        carregar();
+      } else {
+        alert("Erro ao salvar alterações.");
+      }
+    } catch {
+      alert("Erro ao salvar alterações.");
+    }
+  }
+
   // Totais
   const totalPendente = reembolsos.filter((r) => r.status === "pendente").reduce((a, r) => a + r.total, 0);
   const totalPago = reembolsos.filter((r) => r.status === "pago").reduce((a, r) => a + r.total, 0);
@@ -514,12 +568,13 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Total</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Status</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Comprovante</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600">Ações</th>
               </tr>
             </thead>
             <tbody>
               {reembolsos.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-gray-400">
+                  <td colSpan={9} className="text-center py-12 text-gray-400">
                     Nenhum reembolso encontrado.
                   </td>
                 </tr>
@@ -588,6 +643,48 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
                       {reb.status === "pendente" && (
                         <span className="text-xs text-gray-300">—</span>
                       )}
+                    </td>
+                    <td className="px-2 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        {/* Editar */}
+                        <button
+                          onClick={() => abrirEdicao(reb)}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600 transition"
+                          title="Editar"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        {/* Baixar comprovante */}
+                        {reb.comprovante ? (
+                          <button
+                            onClick={() => baixarComprovante(reb)}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-green-600 transition"
+                            title="Baixar comprovante"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                          </button>
+                        ) : (
+                          <span className="p-1.5 text-gray-200 cursor-not-allowed" title="Sem comprovante">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                          </span>
+                        )}
+                        {/* Excluir */}
+                        <button
+                          onClick={() => deletarReembolso(reb)}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-red-600 transition"
+                          title="Excluir"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -781,6 +878,103 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
                   {salvando ? "Criando..." : `Criar Lote (${items.filter((i) => i.origem.trim() && i.destino.trim() && i.total > 0).length} itens)`}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Editar Reembolso ── */}
+      {editandoReb && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-12 pb-12 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full mx-4 p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-gray-800">Editar Reembolso</h2>
+              <button onClick={() => setEditandoReb(null)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Motorista</label>
+                  <input type="text" value={editForm.motorista as string} onChange={(e) => setEditForm((f) => ({ ...f, motorista: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Email</label>
+                  <input type="email" value={editForm.email as string} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Data Inicial</label>
+                  <input type="date" value={editForm.dataInicial as string} onChange={(e) => setEditForm((f) => ({ ...f, dataInicial: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Data Final</label>
+                  <input type="date" value={editForm.dataFinal as string} onChange={(e) => setEditForm((f) => ({ ...f, dataFinal: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Origem</label>
+                  <input type="text" value={editForm.origem as string} onChange={(e) => setEditForm((f) => ({ ...f, origem: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Destino</label>
+                  <input type="text" value={editForm.destino as string} onChange={(e) => setEditForm((f) => ({ ...f, destino: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Odômetro Inicial</label>
+                  <input type="number" value={editForm.odometroInicial as number} onChange={(e) => { const v = parseFloat(e.target.value) || 0; setEditForm((f) => { const dist = Math.max(0, (f.odometroFinal as number) - v); return { ...f, odometroInicial: v, distanciaKm: dist, total: dist * (f.valorKm as number) }; }); }} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Odômetro Final</label>
+                  <input type="number" value={editForm.odometroFinal as number} onChange={(e) => { const v = parseFloat(e.target.value) || 0; setEditForm((f) => { const dist = Math.max(0, v - (f.odometroInicial as number)); return { ...f, odometroFinal: v, distanciaKm: dist, total: dist * (f.valorKm as number) }; }); }} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Distância (km)</label>
+                  <input type="number" step="0.1" value={editForm.distanciaKm as number} onChange={(e) => { const v = parseFloat(e.target.value) || 0; setEditForm((f) => ({ ...f, distanciaKm: v, total: v * (f.valorKm as number) })); }} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-blue-50/30" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Valor Km (R$)</label>
+                  <input type="number" step="0.01" value={editForm.valorKm as number} onChange={(e) => { const v = parseFloat(e.target.value) || 0; setEditForm((f) => ({ ...f, valorKm: v, total: (f.distanciaKm as number) * v })); }} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Total</label>
+                  <div className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-700 font-semibold">
+                    {(editForm.total as number) > 0 ? fmt(editForm.total as number) : "—"}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Motivo</label>
+                  <input type="text" value={editForm.motivo as string} onChange={(e) => setEditForm((f) => ({ ...f, motivo: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" placeholder="Ex: Visita cliente..." />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Observação</label>
+                <textarea value={editForm.observacao as string} onChange={(e) => setEditForm((f) => ({ ...f, observacao: e.target.value }))} rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 resize-none" />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 mt-5">
+              <button onClick={() => setEditandoReb(null)} className="text-sm font-medium text-gray-500 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+                Cancelar
+              </button>
+              <button onClick={salvarEdicao} className="bg-[#fb4d06] text-white font-semibold text-sm px-6 py-2 rounded-xl hover:opacity-90 transition">
+                Salvar Alterações
+              </button>
             </div>
           </div>
         </div>

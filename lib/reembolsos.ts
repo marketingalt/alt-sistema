@@ -168,6 +168,42 @@ export async function vincularContaPagar(reembolsoId: string, contaPagarId: stri
   return base.reembolsos[idx];
 }
 
+export async function atualizarReembolso(
+  reembolsoId: string,
+  dados: Partial<Omit<Reembolso, "id" | "loteId" | "createdAt" | "status" | "comprovante" | "contaPagarId">>
+): Promise<Reembolso | null> {
+  const base = await lerBase();
+  const idx = base.reembolsos.findIndex((r) => r.id === reembolsoId);
+  if (idx === -1) return null;
+
+  base.reembolsos[idx] = {
+    ...base.reembolsos[idx],
+    ...dados,
+  };
+  await salvarBase(base);
+  return base.reembolsos[idx];
+}
+
+export async function removerReembolso(reembolsoId: string): Promise<boolean> {
+  const base = await lerBase();
+  const idx = base.reembolsos.findIndex((r) => r.id === reembolsoId);
+  if (idx === -1) return false;
+
+  // Remove arquivo de comprovante se existir
+  const reb = base.reembolsos[idx];
+  if (reb.comprovante?.caminho) {
+    try {
+      await deleteFile("reembolsos", reb.loteId, reb.comprovante.caminho);
+    } catch {
+      // Se falhar ao deletar o arquivo, continua mesmo assim
+    }
+  }
+
+  base.reembolsos.splice(idx, 1);
+  await salvarBase(base);
+  return true;
+}
+
 export async function downloadComprovantePath(loteId: string, nomeArquivo: string): Promise<string> {
   // For local dev, return the filesystem path; for prod, the caller reads via readFile
   if (process.env.VERCEL === "1" || process.env.BLOB_READ_WRITE_TOKEN) {
