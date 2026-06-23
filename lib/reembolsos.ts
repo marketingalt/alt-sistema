@@ -199,6 +199,31 @@ export async function removerReembolso(reembolsoId: string): Promise<boolean> {
     }
   }
 
+  // Remove a conta a pagar vinculada (se existir)
+  if (reb.contaPagarId) {
+    try {
+      const cpDb = await dbGet<{ contas: any[] }>("contas-a-pagar", { contas: [] });
+      const contaRemovida = cpDb.contas.find((c) => c.id === reb.contaPagarId);
+
+      // Remove o lançamento do fluxo de caixa vinculado (se a conta foi paga)
+      if (contaRemovida?.fluxoCaixaId) {
+        try {
+          const fcDb = await dbGet<{ lancamentos: any[] }>("fluxo-caixa", { lancamentos: [] });
+          fcDb.lancamentos = fcDb.lancamentos.filter((l) => l.id !== contaRemovida.fluxoCaixaId);
+          await dbSet("fluxo-caixa", fcDb);
+        } catch {
+          // Silencioso
+        }
+      }
+
+      // Remove a conta a pagar
+      cpDb.contas = cpDb.contas.filter((c) => c.id !== reb.contaPagarId);
+      await dbSet("contas-a-pagar", cpDb);
+    } catch {
+      // Se falhar ao remover a conta, continua mesmo assim
+    }
+  }
+
   base.reembolsos.splice(idx, 1);
   await salvarBase(base);
   return true;
