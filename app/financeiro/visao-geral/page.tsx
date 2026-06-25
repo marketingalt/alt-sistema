@@ -1,10 +1,28 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import Chart from "chart.js/auto";
 
-// ── Dados Estruturados de Faturamento ──
+// ── Tipos ──
+interface Lancamento {
+  id: string;
+  data: string; // YYYY-MM-DD
+  modalidade: string;
+  banco: string;
+  valor: number;
+  area: string;
+  categoria: string;
+  obs: string;
+  createdAt: string;
+}
+
+interface DadosCaixa {
+  saldoInicial: number;
+  saldoInicialData: string;
+  lancamentos: Lancamento[];
+}
+
 interface ClienteFat {
   nome: string;
   valor: number;
@@ -19,54 +37,219 @@ interface MesFat {
   clientes: ClienteFat[];
 }
 
-const revenueData: MesFat[] = [
-  { id: "25-05", mes: "Maio", ano: "2025", total: 68115, clientes: [{ nome: "Boleto (Não Ident.)", valor: 68115, corClass: "bg-slate-400" }] },
-  { id: "25-06", mes: "Junho", ano: "2025", total: 0, clientes: [] },
-  { id: "25-07", mes: "Julho", ano: "2025", total: 0, clientes: [] },
-  { id: "25-08", mes: "Agosto", ano: "2025", total: 2175, clientes: [{ nome: "BEX Eventos", valor: 1174, corClass: "bg-slate-400" }, { nome: "Outros", valor: 1001, corClass: "bg-slate-400" }] },
-  { id: "25-09", mes: "Setembro", ano: "2025", total: 1482, clientes: [{ nome: "BEX Eventos", valor: 1482, corClass: "bg-slate-400" }] },
-  { id: "25-10", mes: "Outubro", ano: "2025", total: 69677, clientes: [{ nome: "MR Brindes", valor: 52744, corClass: "bg-purple-500" }, { nome: "Widi Care", valor: 15495, corClass: "bg-slate-400" }, { nome: "Outros", valor: 1438, corClass: "bg-slate-400" }] },
-  { id: "25-11", mes: "Novembro", ano: "2025", total: 5995, clientes: [{ nome: "MR Brindes", valor: 4300, corClass: "bg-purple-500" }, { nome: "VCI Vanguard", valor: 1695, corClass: "bg-slate-400" }] },
-  { id: "25-12", mes: "Dezembro", ano: "2025", total: 318164, clientes: [{ nome: "Blue Cosmetics", valor: 255753, corClass: "bg-indigo-500" }, { nome: "TEDs Diversos", valor: 62411, corClass: "bg-slate-400" }] },
-  { id: "26-01", mes: "Janeiro", ano: "2026", total: 45080, clientes: [{ nome: "TEDs Diversos", valor: 39869, corClass: "bg-slate-400" }, { nome: "Aramis", valor: 3710, corClass: "bg-slate-400" }, { nome: "SBT Dist.", valor: 1500, corClass: "bg-slate-400" }] },
-  { id: "26-02", mes: "Fevereiro", ano: "2026", total: 547490, clientes: [{ nome: "Wella Brasil", valor: 546430, corClass: "bg-sky-500" }, { nome: "Canecas CN", valor: 1060, corClass: "bg-slate-400" }] },
-  { id: "26-03", mes: "Março", ano: "2026", total: 237157, clientes: [{ nome: "MR Brindes", valor: 192872, corClass: "bg-purple-500" }, { nome: "Aramis", valor: 37812, corClass: "bg-slate-400" }, { nome: "Outros", valor: 6473, corClass: "bg-slate-400" }] },
-  { id: "26-04", mes: "Abril", ano: "2026", total: 25037, clientes: [{ nome: "Mastercard", valor: 20805, corClass: "bg-slate-400" }, { nome: "Outros", valor: 4232, corClass: "bg-slate-400" }] },
-  { id: "26-05", mes: "Maio", ano: "2026", total: 170208, clientes: [{ nome: "Sephoria / D&G", valor: 166056, corClass: "bg-fuchsia-500" }, { nome: "Outros", valor: 4152, corClass: "bg-slate-400" }] },
-  { id: "26-06", mes: "Junho", ano: "2026", total: 713899, clientes: [{ nome: "Daiichi Sankyo", valor: 415107, corClass: "bg-blue-600" }, { nome: "Moroccanoil", valor: 102279, corClass: "bg-slate-400" }, { nome: "SBT (Pend.)", valor: 72101, corClass: "bg-slate-400" }, { nome: "Outros", valor: 124412, corClass: "bg-slate-400" }] },
-  { id: "26-07", mes: "Julho", ano: "2026", total: 319296, clientes: [{ nome: "Wella (Pend.)", valor: 297129, corClass: "bg-sky-500" }, { nome: "SBT (Pend.)", valor: 22167, corClass: "bg-slate-400" }] },
-];
-
 // ── Utilitários ──
 const fmt = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
-// Mapa de cor → nome para a legenda de clientes recorrentes
-const COR_POR_CLIENTE: Record<string, string> = {
-  "Wella Brasil": "bg-sky-500",
-  "Wella (Pend.)": "bg-sky-500",
-  "Daiichi Sankyo": "bg-blue-600",
-  "Blue Cosmetics": "bg-indigo-500",
-  "MR Brindes": "bg-purple-500",
-  "Sephoria / D&G": "bg-fuchsia-500",
-};
+const MESES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+/** Paleta de cores para clientes — cíclica, mas consistente por nome */
+const CORES_CLIENTE = [
+  "bg-sky-500",
+  "bg-blue-600",
+  "bg-indigo-500",
+  "bg-purple-500",
+  "bg-fuchsia-500",
+  "bg-pink-500",
+  "bg-rose-500",
+  "bg-orange-500",
+  "bg-amber-500",
+  "bg-yellow-500",
+  "bg-lime-500",
+  "bg-green-500",
+  "bg-teal-500",
+  "bg-cyan-500",
+];
+
+function corPorNome(nome: string): string {
+  let hash = 0;
+  for (let i = 0; i < nome.length; i++) {
+    hash = (hash * 31 + nome.charCodeAt(i)) | 0;
+  }
+  return CORES_CLIENTE[Math.abs(hash) % CORES_CLIENTE.length];
+}
+
+/**
+ * Tenta extrair um nome de cliente legível do campo `obs` de uma receita.
+ * Estratégia: procura padrões com "—", "–" (emdash/hífen) ou nomes conhecidos.
+ * Se não identificar, retorna "Não identificado".
+ */
+function extrairCliente(obs: string): string {
+  if (!obs) return "Não identificado";
+
+  // Tenta padrão "— Nome" ou "Nome —"
+  const emDash = obs.match(/—\s*(.+?)(?:\s*\(|,\s|$|\.)/);
+  if (emDash) {
+    const nome = emDash[1].trim();
+    if (nome && nome.length > 2 && nome.length < 80) return nome;
+  }
+
+  // Tenta padrão "Nome —" (antes do —)
+  const antes = obs.match(/^(.+?)\s*—/);
+  if (antes) {
+    const nome = antes[1].trim();
+    // Ignora padrões genéricos como "Recebimento TED", "Crédito cobrança", etc.
+    const genericos = [
+      /^recebimento/i, /^cr[eé]dito/i, /^boleto/i, /^pagamento/i,
+      /^transfer[eê]ncia/i, /^pix/i, /^ted/i, /^dep[óo]sito/i,
+    ];
+    const isGenerico = genericos.some((g) => g.test(nome));
+    if (!isGenerico && nome.length > 2 && nome.length < 80) return nome;
+  }
+
+  // Palavras-chave conhecidas no texto
+  const conhecidos: [RegExp, string][] = [
+    [/wella/i, "Wella Brasil"],
+    [/aramis/i, "Aramis"],
+    [/mr brindes|brindes mr/i, "MR Brindes"],
+    [/sbt/i, "SBT"],
+    [/ever.?gym|estefania/i, "Ever Gym"],
+    [/luiza.?baião|dra\. luiza/i, "Dra. Luiza Baião"],
+    [/vo?e?sky/i, "VoeSky"],
+    [/revaiah/i, "Revaiah"],
+    [/ponto.?suprimentos/i, "Ponto Suprimentos"],
+    [/mastercard/i, "Mastercard"],
+    [/canecas.?cn/i, "Canecas CN"],
+    [/blue.?cosmetics/i, "Blue Cosmetics"],
+    [/daiichi|daichii/i, "Daiichi Sankyo"],
+    [/sephoria/i, "Sephoria"],
+    [/moroccanoil/i, "Moroccanoil"],
+    [/widi.?care/i, "Widi Care"],
+    [/bev.?eventos|bex/i, "BEX Eventos"],
+  ];
+
+  for (const [regex, nome] of conhecidos) {
+    if (regex.test(obs)) return nome;
+  }
+
+  // Último recurso: se a obs tem algo que parece nome (palavras com maiúsculas)
+  const palavras = obs.split(/\s+/).filter(
+    (p) => p.length > 3 && /^[A-ZÀ-Ű][a-zà-ÿ]/.test(p) && !/^(Recebimento|Crédito|Boleto|Pagamento|Ted|Pix)$/i.test(p)
+  );
+  if (palavras.length >= 2) {
+    return palavras.slice(0, 3).join(" ");
+  }
+
+  return "Não identificado";
+}
 
 // ── Componente Principal ──
 export default function VisaoGeralFinanceiro() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
 
-  useEffect(() => {
-    if (!canvasRef.current) return;
+  const [dados, setDados] = useState<DadosCaixa | null>(null);
+  const [loading, setLoading] = useState(true);
 
-    // Destroi gráfico anterior se existir
+  // Busca dados do fluxo de caixa
+  useEffect(() => {
+    setLoading(true);
+    fetch("/api/fluxo-caixa")
+      .then((r) => r.json())
+      .then((data: DadosCaixa) => {
+        setDados(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Erro ao buscar fluxo de caixa:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  // Processa os dados mensalmente
+  const meses = useMemo<MesFat[]>(() => {
+    if (!dados) return [];
+
+    // Filtra apenas receitas operacionais
+    const receitas = dados.lancamentos.filter(
+      (l) => l.categoria === "RECEITA OPERACIONAL BRUTA" && l.valor > 0
+    );
+
+    // Agrupa por mês
+    const grupos = new Map<string, Lancamento[]>();
+    for (const r of receitas) {
+      const chave = r.data.substring(0, 7); // YYYY-MM
+      if (!grupos.has(chave)) grupos.set(chave, []);
+      grupos.get(chave)!.push(r);
+    }
+
+    const resultado: MesFat[] = [];
+
+    // Determina range de meses: do primeiro ao último mês com dados
+    const chaves = [...grupos.keys()].sort();
+    if (chaves.length === 0) return [];
+
+    const primeiro = chaves[0];
+    const ultimo = chaves[chaves.length - 1];
+    const [anoIni, mesIni] = primeiro.split("-").map(Number);
+    const [anoFim, mesFim] = ultimo.split("-").map(Number);
+
+    // Itera mês a mês do primeiro ao último
+    let ano = anoIni;
+    let mes = mesIni;
+    while (ano < anoFim || (ano === anoFim && mes <= mesFim)) {
+      const chave = `${ano}-${String(mes).padStart(2, "0")}`;
+      const chaveId = `${String(ano).slice(-2)}-${String(mes).padStart(2, "0")}`;
+
+      if (grupos.has(chave)) {
+        // Agrupa receitas por cliente dentro do mês
+        const clientes = new Map<string, number>();
+        for (const r of grupos.get(chave)!) {
+          const nome = extrairCliente(r.obs);
+          clientes.set(nome, (clientes.get(nome) || 0) + r.valor);
+        }
+
+        const total = [...clientes.values()].reduce((s, v) => s + v, 0);
+
+        resultado.push({
+          id: chaveId,
+          mes: MESES[mes - 1],
+          ano: String(ano),
+          total: Math.round(total),
+          clientes: [...clientes.entries()]
+            .map(([nome, valor]) => ({
+              nome,
+              valor: Math.round(valor),
+              corClass: corPorNome(nome),
+            }))
+            .sort((a, b) => b.valor - a.valor),
+        });
+      } else {
+        // Mês sem receita
+        resultado.push({
+          id: chaveId,
+          mes: MESES[mes - 1],
+          ano: String(ano),
+          total: 0,
+          clientes: [],
+        });
+      }
+
+      // Avança para o próximo mês
+      mes++;
+      if (mes > 12) {
+        mes = 1;
+        ano++;
+      }
+    }
+
+    return resultado;
+  }, [dados]);
+
+  // Renderiza/atualiza o gráfico quando os meses mudam
+  useEffect(() => {
+    if (!canvasRef.current || meses.length === 0) return;
+
     if (chartRef.current) chartRef.current.destroy();
 
     const ctx = canvasRef.current.getContext("2d");
     if (!ctx) return;
 
-    const labels = revenueData.map((d) => `${d.mes.substring(0, 3)}/${d.ano.substring(2)}`);
-    const totals = revenueData.map((d) => d.total);
+    const labels = meses.map((m) => `${m.mes.substring(0, 3)}/${m.ano.substring(2)}`);
+    const totals = meses.map((m) => m.total);
 
     chartRef.current = new Chart(ctx, {
       type: "line",
@@ -74,7 +257,7 @@ export default function VisaoGeralFinanceiro() {
         labels,
         datasets: [
           {
-            label: "Faturamento Total (R$)",
+            label: "Faturamento (R$)",
             data: totals,
             borderColor: "#fb4d06",
             backgroundColor: "rgba(251, 77, 6, 0.08)",
@@ -121,7 +304,23 @@ export default function VisaoGeralFinanceiro() {
     return () => {
       if (chartRef.current) chartRef.current.destroy();
     };
-  }, []);
+  }, [meses]);
+
+  // ── Loading ──
+  if (loading) {
+    return (
+      <WorkspaceLayout>
+        <main className="px-6 py-6 max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <div className="w-10 h-10 border-4 border-[#fb4d06] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-gray-500">Carregando dados do Fluxo de Caixa...</p>
+            </div>
+          </div>
+        </main>
+      </WorkspaceLayout>
+    );
+  }
 
   return (
     <WorkspaceLayout>
@@ -133,7 +332,7 @@ export default function VisaoGeralFinanceiro() {
               Painel de Volatilidade de Receita
             </h1>
             <p className="text-gray-500 mt-1 text-sm">
-              Análise da dependência de clientes e flutuação financeira (2025–2026)
+              Análise da dependência de clientes e flutuação financeira — dados alimentados pelo Fluxo de Caixa
             </p>
           </div>
           <button
@@ -158,57 +357,67 @@ export default function VisaoGeralFinanceiro() {
           <p className="text-sm text-gray-400 mb-6">
             Disparidade entre os meses de pico e os vales de faturamento.
           </p>
-          <div className="relative h-72 w-full">
-            <canvas ref={canvasRef} />
-          </div>
+          {meses.length === 0 ? (
+            <div className="flex items-center justify-center h-72 text-gray-400">
+              Nenhum dado de receita encontrado no Fluxo de Caixa.
+            </div>
+          ) : (
+            <div className="relative h-72 w-full">
+              <canvas ref={canvasRef} />
+            </div>
+          )}
         </div>
 
         {/* ── KPI Cards Resumo ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {(() => {
-            const mesesComReceita = revenueData.filter((d) => d.total > 0);
-            const totalGeral = revenueData.reduce((s, d) => s + d.total, 0);
-            const media = totalGeral / mesesComReceita.length;
-            const maximo = Math.max(...revenueData.map((d) => d.total));
-            const mesesZerados = revenueData.filter((d) => d.total === 0).length;
-            return (
-              <>
-                <KpiCard
-                  label="Faturamento Total (período)"
-                  value={fmt(totalGeral)}
-                  cor="text-gray-900"
-                />
-                <KpiCard
-                  label="Média Mensal (c/ receita)"
-                  value={fmt(Math.round(media))}
-                  cor="text-[#fb4d06]"
-                />
-                <KpiCard
-                  label="Maior Mês"
-                  value={fmt(maximo)}
-                  cor="text-green-700"
-                />
-                <KpiCard
-                  label="Meses sem Receita"
-                  value={String(mesesZerados)}
-                  cor={mesesZerados > 0 ? "text-red-600" : "text-gray-900"}
-                />
-              </>
-            );
-          })()}
-        </div>
+        {meses.length > 0 && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {(() => {
+              const mesesComReceita = meses.filter((d) => d.total > 0);
+              const totalGeral = meses.reduce((s, d) => s + d.total, 0);
+              const media = mesesComReceita.length > 0 ? totalGeral / mesesComReceita.length : 0;
+              const maximo = Math.max(...meses.map((d) => d.total));
+              const mesesZerados = meses.filter((d) => d.total === 0).length;
+              return (
+                <>
+                  <KpiCard label="Receita Total (período)" value={fmt(totalGeral)} cor="text-gray-900" />
+                  <KpiCard label="Média Mensal (c/ receita)" value={fmt(Math.round(media))} cor="text-[#fb4d06]" />
+                  <KpiCard label="Maior Mês" value={fmt(maximo)} cor="text-green-700" />
+                  <KpiCard
+                    label="Meses sem Receita"
+                    value={String(mesesZerados)}
+                    cor={mesesZerados > 0 ? "text-red-600" : "text-gray-900"}
+                  />
+                </>
+              );
+            })()}
+          </div>
+        )}
 
         {/* ── Cartões Mensais ── */}
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 border-l-4 border-[#fb4d06] pl-3">
-            Composição Mensal: Quem pagou a conta?
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {revenueData.map((data) => (
-              <MonthCard key={data.id} data={data} />
-            ))}
+        {meses.length > 0 && (
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 border-l-4 border-[#fb4d06] pl-3">
+              Composição Mensal: Quem pagou a conta?
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {meses.map((m) => (
+                <MonthCard key={m.id} data={m} />
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+
+        {meses.length === 0 && !loading && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
+            <p className="text-gray-400 text-lg">
+              Nenhum lançamento de{" "}
+              <span className="font-semibold text-gray-600">Receita Operacional Bruta</span> encontrado.
+            </p>
+            <p className="text-gray-400 text-sm mt-2">
+              Cadastre receitas no <span className="font-medium">Fluxo de Caixa</span> para começar a visualizar o painel.
+            </p>
+          </div>
+        )}
       </main>
 
       {/* ── Estilos de Impressão ── */}
@@ -243,7 +452,15 @@ export default function VisaoGeralFinanceiro() {
 
 // ── Componentes Internos ──
 
-function KpiCard({ label, value, cor }: { label: string; value: string; cor: string }) {
+function KpiCard({
+  label,
+  value,
+  cor,
+}: {
+  label: string;
+  value: string;
+  cor: string;
+}) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
       <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">{label}</p>
@@ -253,7 +470,6 @@ function KpiCard({ label, value, cor }: { label: string; value: string; cor: str
 }
 
 function MonthCard({ data }: { data: MesFat }) {
-  // Mês sem receita
   if (data.total === 0) {
     return (
       <div className="month-card bg-white rounded-2xl border border-red-200 shadow-sm p-5 relative overflow-hidden">
@@ -273,7 +489,6 @@ function MonthCard({ data }: { data: MesFat }) {
     );
   }
 
-  // Ordenar clientes por valor (decrescente)
   const clientesOrd = [...data.clientes].sort((a, b) => b.valor - a.valor);
   const topClientePct = (clientesOrd[0].valor / data.total) * 100;
   const isHighlyDependent = topClientePct > 80;
@@ -319,9 +534,7 @@ function MonthCard({ data }: { data: MesFat }) {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="text-gray-400 text-xs font-mono w-10 text-right">{pct}%</span>
-                <span className="text-gray-900 font-semibold w-24 text-right text-xs">
-                  {fmt(c.valor)}
-                </span>
+                <span className="text-gray-900 font-semibold w-24 text-right text-xs">{fmt(c.valor)}</span>
               </div>
             </div>
           );
