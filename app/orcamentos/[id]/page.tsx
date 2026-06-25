@@ -234,18 +234,28 @@ export default function VisualizarOrcamento() {
     setGerandoPdf(true);
     try {
       const res = await fetch(`/api/pdf/${id}?tipo=${tipo}`);
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `Erro HTTP ${res.status}` }));
+        throw new Error(err.error || `Erro HTTP ${res.status}`);
+      }
       const blob = await res.blob();
+      if (blob.type !== "application/pdf" || blob.size < 100) {
+        throw new Error("PDF gerado é inválido");
+      }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = tipo === "os"
         ? `os-${orcamento?.numero}.pdf`
         : `orcamento-${orcamento?.numero}-${tipo}.pdf`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      alert("Erro ao gerar PDF.");
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao gerar PDF.";
+      alert(msg);
+      console.error("[PDF CLIENT]", msg);
     } finally {
       setGerandoPdf(false);
     }
