@@ -1,0 +1,16 @@
+name: Sincronizar XBZ
+
+on:
+  schedule:
+    - cron: "0 */3 * * *"   # A cada 3 horas (8x ao dia)
+  workflow_dispatch:         # Permite executar manualmente pelo GitHub
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar sincronização XBZ
+        run: |
+          curl -s -X POST "${{ secrets.XBZ_SYNC_URL }}" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json"
