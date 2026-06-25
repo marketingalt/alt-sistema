@@ -1,13 +1,16 @@
 /**
- * Adaptador de storage — usa Vercel KV em produção e arquivos locais em desenvolvimento.
+ * Adaptador de storage — usa Upstash Redis em produção e arquivos locais em desenvolvimento.
  *
  * Em produção (Vercel serverless), o filesystem é read-only, então precisamos
- * do KV (Redis) para leitura e escrita de dados.
+ * de um banco externo (Redis) para leitura e escrita persistente.
  *
- * Para ativar o KV no Vercel:
- *   1. Vercel Dashboard → Storage → Criar KV Database
- *   2. As env vars (KV_URL, KV_REST_API_URL, etc.) são injetadas automaticamente
- *   3. Redeploy
+ * O projeto usa @vercel/kv (Upstash Redis) — plano gratuito, sem cartão de crédito:
+ *   1. Criar conta grátis em https://upstash.com
+ *   2. Criar um Redis database → copiar REST URL e Token
+ *   3. Configurar no Vercel (ou .env.local para testes):
+ *        KV_REST_API_URL=https://xxxx.upstash.io
+ *        KV_REST_API_TOKEN=xxxx
+ *   4. Redeploy
  */
 
 import type { Orcamento, Fornecedor, Cliente, Produto } from "@/app/types";
@@ -47,7 +50,10 @@ function isVercel(): boolean {
 }
 
 function canUseKV(): boolean {
-  return process.env.KV_URL !== undefined;
+  return (
+    process.env.KV_REST_API_URL !== undefined &&
+    process.env.KV_REST_API_TOKEN !== undefined
+  );
 }
 
 // ── KV backend ──
