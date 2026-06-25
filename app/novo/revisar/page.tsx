@@ -305,7 +305,8 @@ export default function RevisarOrcamento() {
         }
       }
 
-      router.push(`/orcamentos/${salvo.id}`);
+      router.refresh();
+      setTimeout(() => router.push(`/orcamentos/${salvo.id}`), 50);
     } catch {
       alert("Erro ao salvar. Tente novamente.");
     } finally {

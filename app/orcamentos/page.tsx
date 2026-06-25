@@ -155,15 +155,41 @@ function DownloadDropdown({ orcamentoId }: { orcamentoId: string }) {
 export default function ListaOrcamentos() {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
 
-  useEffect(() => {
-    fetch("/api/orcamentos")
-      .then((r) => r.json())
+  function carregarOrcamentos() {
+    setCarregando(true);
+    setErro(null);
+    fetch("/api/orcamentos", { cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) throw new Error("Erro HTTP " + r.status);
+        return r.json();
+      })
       .then((data) => {
         setOrcamentos(data.map((o: Orcamento) => ({ ...o, status: o.status || "Em andamento" })));
         setCarregando(false);
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar orçamentos:", err);
+        setErro("Não foi possível carregar a lista de orçamentos.");
+        setCarregando(false);
       });
+  }
+
+  useEffect(() => {
+    carregarOrcamentos();
+
+    function aoFocar() {
+      carregarOrcamentos();
+    }
+    window.addEventListener("focus", aoFocar);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") carregarOrcamentos();
+    });
+    return () => {
+      window.removeEventListener("focus", aoFocar);
+    };
   }, []);
 
   function atualizarStatus(id: string, novo: StatusOrcamento) {
@@ -259,6 +285,19 @@ export default function ListaOrcamentos() {
         {/* Tabela */}
         {carregando ? (
           <div className="text-center text-gray-400 py-20">Carregando...</div>
+        ) : erro ? (
+          <div className="flex flex-col items-center gap-4 py-20">
+            <svg className="w-12 h-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+            </svg>
+            <p className="text-gray-500">{erro}</p>
+            <button
+              onClick={carregarOrcamentos}
+              className="bg-[#fb4d06] text-white text-sm font-semibold py-2 px-5 rounded-xl hover:opacity-90 transition"
+            >
+              Tentar novamente
+            </button>
+          </div>
         ) : orcamentos.length === 0 ? (
           <div className="text-center text-gray-400 py-20">
             <p className="text-lg mb-2">Nenhum orçamento ainda.</p>
