@@ -70,6 +70,7 @@ const GRUPOS_DRE: { label: string; cats: string[]; cor: string }[] = [
 export default function FluxoDeCaixaPage() {
   const [dados, setDados] = useState<DadosCaixa | null>(null);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
 
   // Filtros
   const hoje = new Date();
@@ -92,30 +93,47 @@ export default function FluxoDeCaixaPage() {
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
+    setLoading(true);
+    setErro(null);
     fetch("/api/fluxo-caixa")
-      .then((r) => r.json())
-      .then(setDados)
-      .finally(() => setLoading(false));
+      .then((r) => {
+        if (!r.ok) throw new Error(`Erro HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data) => {
+        setDados(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar fluxo de caixa:", err);
+        setErro(err.message || "Erro ao carregar dados");
+        setDados(null);
+        setLoading(false);
+      });
   }, []);
 
   // Lançamentos do mês selecionado
   const lancamentosMes = useMemo(() => {
-    if (!dados) return [];
+    if (!dados || !Array.isArray(dados.lancamentos)) return [];
     return dados.lancamentos.filter((l) => {
+      if (!l || !l.data) return false;
       const d = new Date(l.data + "T12:00:00");
-      return d.getMonth() === mesSel && d.getFullYear() === anoSel;
+      return !isNaN(d.getTime()) && d.getMonth() === mesSel && d.getFullYear() === anoSel;
     });
   }, [dados, mesSel, anoSel]);
 
   // Saldo acumulado até início do mês
   const saldoAnteMes = useMemo(() => {
-    if (!dados) return 0;
+    if (!dados || !Array.isArray(dados.lancamentos)) return 0;
     const limite = new Date(anoSel, mesSel, 1);
-    const saldoInicialDt = new Date(dados.saldoInicialData + "T12:00:00");
-    let acc = dados.saldoInicial;
+    const saldoInicialDt = new Date((dados.saldoInicialData || "") + "T12:00:00");
+    const hasValidDate = !isNaN(saldoInicialDt.getTime());
+    let acc = typeof dados.saldoInicial === "number" ? dados.saldoInicial : 0;
     for (const l of dados.lancamentos) {
-      const d = new Date(l.data + "T12:00:00");
-      if (d >= saldoInicialDt && d < limite) acc += l.valor;
+      if (!l || typeof l.valor !== "number") continue;
+      const d = new Date((l.data || "") + "T12:00:00");
+      if (isNaN(d.getTime())) continue;
+      if (!hasValidDate || (d >= saldoInicialDt && d < limite)) acc += l.valor;
     }
     return acc;
   }, [dados, mesSel, anoSel]);
@@ -225,6 +243,28 @@ export default function FluxoDeCaixaPage() {
     <WorkspaceLayout>
       <div className="flex items-center justify-center h-96">
         <div className="w-6 h-6 border-2 border-[#fb4d06] border-t-transparent rounded-full animate-spin" />
+      </div>
+    </WorkspaceLayout>
+  );
+
+  if (erro) return (
+    <WorkspaceLayout>
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center max-w-md">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
+            <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold text-gray-800 mb-2">Erro ao carregar dados</h2>
+          <p className="text-gray-500 text-sm mb-4">{erro}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-[#fb4d06] text-white font-semibold py-2 px-5 rounded-xl hover:opacity-90 transition text-sm"
+          >
+            Tentar novamente
+          </button>
+        </div>
       </div>
     </WorkspaceLayout>
   );
