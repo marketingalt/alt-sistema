@@ -340,6 +340,11 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                         placeholder="Cor"
                       />
                     </div>
+                    {item.ncm && (
+                      <span className="text-[6px] text-gray-400 font-mono mt-0.5 block">
+                        NCM: {item.ncm}
+                      </span>
+                    )}
                     {item.descricao && (
                       <textarea
                         className={`${INPUT_CLS} text-gray-500 w-full resize-none leading-tight mt-0.5`}

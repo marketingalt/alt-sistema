@@ -13,7 +13,8 @@
     "id": "mo1y59xb",
     "createdAt": "2026-05-03T21:31:36.301Z",
     "userId": "user_3CghLh5lX2o4ZJ5d5CwGJD3IPtQ",
-    "userName": "Thiemy Moretti"
+    "userName": "Thiemy Moretti",
+    "ncm": "9102.11.00"
   },
   {
     "nome": "Carteira de Couro Legítimo",
@@ -28,7 +29,8 @@
     "id": "82ae159i",
     "createdAt": "2026-05-03T21:13:44.360Z",
     "userId": "user_3CghLh5lX2o4ZJ5d5CwGJD3IPtQ",
-    "userName": "Thiemy Moretti"
+    "userName": "Thiemy Moretti",
+    "ncm": "4202.31.00"
   },
   {
     "nome": "CAIXA 3 ANDARES PERSONALIZADA\t",
@@ -43,7 +45,8 @@
     "id": "fekt5vwn",
     "createdAt": "2026-05-03T21:02:37.494Z",
     "userId": "user_3CghLh5lX2o4ZJ5d5CwGJD3IPtQ",
-    "userName": "Thiemy Moretti"
+    "userName": "Thiemy Moretti",
+    "ncm": "4819.10.00"
   },
   {
     "id": "ddd6ug7l",
@@ -61,7 +64,8 @@
     "origemXbz": true,
     "status": "Ativo",
     "createdAt": "2026-04-22T01:09:38.773Z",
-    "cor": "AZUL"
+    "cor": "AZUL",
+    "ncm": "4202.31.00"
   },
   {
     "id": "0tg1njsy",
@@ -78,7 +82,8 @@
     "origemXbz": true,
     "status": "Ativo",
     "createdAt": "2026-04-22T01:09:38.682Z",
-    "cor": "CINZA"
+    "cor": "CINZA",
+    "ncm": "3926.90.90"
   },
   {
     "id": "9exez6wd",

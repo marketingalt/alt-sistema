@@ -30,7 +30,7 @@ function itemVazio(margem: number): ItemOrcamento {
   return {
     id: gerarId(), kit: "", referencia: "", item: "", acabamento: "Silk", descricao: "",
     quantidade: 0, custoUnitario: 0, freteProducao: 0, custoPersonalizacao: 0,
-    margem, valorUnitario: 0, valorAjustado: false, total: 0, diasProducao: undefined,
+    margem, valorUnitario: 0, valorAjustado: false, total: 0, diasProducao: undefined, ncm: "",
   };
 }
 
@@ -42,6 +42,7 @@ function migrarItem(i: Partial<ItemOrcamento>, margemPadrao: number): ItemOrcame
     fornecedorNome: i.fornecedorNome || "",
     item: i.item || "",
     cor: i.cor || "",
+    ncm: i.ncm || "",
     quantidadeMinima: i.quantidadeMinima ? Number(i.quantidadeMinima) : undefined,
     diasProducao: i.diasProducao ? Number(i.diasProducao) : undefined,
     acabamento: i.acabamento || "Silk", descricao: i.descricao || "",
@@ -699,6 +700,7 @@ export default function VisualizarOrcamento() {
                           <Campo label="Item / Produto" value={item.item} onChange={(v) => atualizarItem(item.id, "item", v)} />
                           <Campo label="Cor" value={item.cor || ""} onChange={(v) => atualizarItem(item.id, "cor", v)} />
                           <Campo label="Referência / SKU" value={item.referencia} onChange={(v) => atualizarItem(item.id, "referencia", v)} />
+                          <Campo label="NCM" value={item.ncm || ""} onChange={(v) => atualizarItem(item.id, "ncm", v)} />
                           <Campo label="Fornecedor" value={item.fornecedorNome || ""} onChange={(v) => atualizarItem(item.id, "fornecedorNome", v)} />
                           <div>
                             <label className="block text-xs font-medium text-gray-500 mb-1">Acabamento</label>

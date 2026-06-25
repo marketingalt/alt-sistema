@@ -338,7 +338,7 @@ export default function ListaProdutos() {
                           {p.status}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400 mb-1">SKU: {p.sku}{p.cor ? ` · ${p.cor}` : ""}</p>
+                      <p className="text-xs text-gray-400 mb-1">SKU: {p.sku}{p.cor ? ` · ${p.cor}` : ""}{p.ncm ? ` · NCM: ${p.ncm}` : ""}</p>
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         {p.estoque !== undefined ? badgeEstoque(p.estoque) : <span />}
                         <span className="text-sm font-bold text-gray-800">

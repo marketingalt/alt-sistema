@@ -30,6 +30,7 @@ export interface ItemOrcamento {
   fornecedorNome?: string;
   item: string;
   cor?: string;
+  ncm?: string;
   acabamento: TipoPersonalizacao | string;
   descricao: string;
   quantidade: number;
@@ -154,6 +155,7 @@ export interface Produto {
   imagemUrl?: string;
   informacaoTecnica?: string;
   jaPersonalizado: boolean;
+  ncm?: string;
   cor?: string;
   estoque?: number;
   xbzId?: string;

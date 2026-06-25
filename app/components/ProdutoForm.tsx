@@ -199,6 +199,9 @@ export default function ProdutoForm({ dados, onChange, produtoId, onImagemAtuali
               ))}
             </div>
           </Campo>
+          <Campo label="NCM (Nomenclatura Comum do Mercosul)">
+            <input className={INPUT} placeholder="Ex: 6505.00.00" value={dados.ncm || ""} onChange={(e) => onChange("ncm", e.target.value)} />
+          </Campo>
         </div>
       </div>
 

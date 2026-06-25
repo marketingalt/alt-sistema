@@ -30,7 +30,7 @@ function itemVazio(margem: number): ItemOrcamento {
     id: gerarId(),
     kit: "", referencia: "", item: "", acabamento: "Silk", descricao: "",
     quantidade: 0, custoUnitario: 0, freteProducao: 0, custoPersonalizacao: 0,
-    margem, valorUnitario: 0, valorAjustado: false, total: 0,
+    margem, valorUnitario: 0, valorAjustado: false, total: 0, ncm: "",
   };
 }
 
@@ -174,6 +174,7 @@ export default function RevisarOrcamento() {
           fornecedorNome: p.fornecedorNome || item.fornecedorNome,
           imagemReferencia: p.imagemUrl || item.imagemReferencia,
           cor: p.cor || item.cor,
+          ncm: p.ncm || item.ncm,
           custoUnitario: p.precoCusto || 0,
           descricao: p.informacaoTecnica || "",
         });
@@ -686,9 +687,10 @@ export default function RevisarOrcamento() {
                       </div>
                     </div>
 
-                    {/* Linha secundária: referência + fornecedor + cor + acabamento + quantidade + prazo prod */}
-                    <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+                    {/* Linha secundária: referência + NCM + fornecedor + cor + acabamento + quantidade + prazo prod */}
+                    <div className="grid grid-cols-2 sm:grid-cols-7 gap-3">
                       <Campo label="Referência / SKU" value={item.referencia} onChange={(v) => atualizarItem(item.id, "referencia", v)} />
+                      <Campo label="NCM" value={item.ncm || ""} onChange={(v) => atualizarItem(item.id, "ncm", v)} placeholder="Ex: 6505.00.00" />
                       <Campo label="Fornecedor" value={item.fornecedorNome || ""} onChange={(v) => atualizarItem(item.id, "fornecedorNome", v)} placeholder="Nome do fornecedor" />
                       <CampoCor
                         value={item.cor || ""}

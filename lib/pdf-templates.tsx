@@ -260,7 +260,10 @@ export function PdfEspecificacoes({ orcamento, logoBase64 }: { orcamento: Orcame
           {orcamento.itens.map((item, idx) => (
             <View key={item.id} style={[base.row, idx % 2 !== 0 ? base.rowAlt : {}]} wrap={false}>
               <Text style={base.tdKit}>{item.kit}</Text>
-              <Text style={base.tdItem}>{item.item}</Text>
+              <View style={base.tdItem}>
+                <Text>{item.item}</Text>
+                {item.ncm ? <Text style={{ fontSize: 6.5, color: "#9ca3af", marginTop: 1 }}>NCM: {item.ncm}</Text> : null}
+              </View>
               <Text style={base.tdAcab}>{item.acabamento}</Text>
               <Text style={base.tdDesc}>{item.descricao}</Text>
               <Text style={base.tdQtd}>{item.quantidade}</Text>
@@ -536,6 +539,9 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[v.td, { fontFamily: "Helvetica-Bold", color: "#111827" }]}>{item.item}</Text>
+                  {item.ncm ? (
+                    <Text style={{ fontSize: 6, color: "#9ca3af", marginTop: 1 }}>NCM: {item.ncm}</Text>
+                  ) : null}
                   {item.descricao ? (
                     <Text style={{ fontSize: 7, color: "#6b7280", marginTop: 2, lineHeight: 1.3 }}>{item.descricao}</Text>
                   ) : null}
@@ -753,7 +759,7 @@ export function PdfOrdemServico({ orcamento, logoBase64 }: { orcamento: Orcament
           {orcamento.itens.map((item, idx) => (
             <View key={item.id} style={[os.row, idx % 2 !== 0 ? os.rowAlt : {}]} wrap={false}>
               <Text style={os.tdKit}>{item.kit}</Text>
-              <Text style={os.tdRef}>{item.referencia}</Text>
+              <Text style={os.tdRef}>{item.referencia}{item.ncm ? ` · NCM ${item.ncm}` : ""}</Text>
               <Text style={os.tdItem}>{item.item}</Text>
               <Text style={os.tdAcab}>{item.acabamento}</Text>
               <Text style={os.tdDesc}>{item.descricao}</Text>
