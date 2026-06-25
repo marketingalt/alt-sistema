@@ -16,15 +16,31 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  const user = await currentUser();
+  try {
+    const { userId } = await auth();
+    const user = await currentUser();
 
-  const orcamento = await req.json();
-  const salvo = await salvarOrcamento({
-    ...orcamento,
-    userId: userId || undefined,
-    userEmail: user?.emailAddresses[0]?.emailAddress || undefined,
-    userName: user?.fullName || user?.firstName || undefined,
-  });
-  return NextResponse.json(salvo);
+    const orcamento = await req.json();
+    if (!orcamento || !orcamento.id) {
+      return NextResponse.json({ error: "Dados do orçamento inválidos" }, { status: 400 });
+    }
+
+    const salvo = await salvarOrcamento({
+      ...orcamento,
+      userId: userId || undefined,
+      userEmail: user?.emailAddresses[0]?.emailAddress || undefined,
+      userName: user?.fullName || user?.firstName || undefined,
+    });
+    return NextResponse.json(salvo, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[POST ORCAMENTO ERROR]", msg);
+    return NextResponse.json({ error: `Erro ao salvar: ${msg}` }, { status: 500 });
+  }
 }

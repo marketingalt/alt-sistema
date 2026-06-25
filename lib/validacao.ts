@@ -34,32 +34,20 @@ export function validarOrcamento(orcamento: OrcamentoInput): ErroValidacao[] {
     });
   }
 
-  // Responsável
-  if (!orcamento.responsavel || orcamento.responsavel.trim() === "") {
-    erros.push({
-      campo: "responsavel",
-      label: "Responsável",
-      mensagem: "Informe o responsável pela elaboração.",
-    });
-  }
+  // Responsável (opcional — preenchido automaticamente pelo perfil do usuário)
+  // if (!orcamento.responsavel || orcamento.responsavel.trim() === "") {
+  //   erros.push(...);
+  // }
 
-  // Data do orçamento
-  if (!orcamento.dataOrcamento || orcamento.dataOrcamento.trim() === "") {
-    erros.push({
-      campo: "dataOrcamento",
-      label: "Data do Orçamento",
-      mensagem: "Informe a data de elaboração do orçamento.",
-    });
-  }
+  // Data do orçamento (opcional — preenchida automaticamente)
+  // if (!orcamento.dataOrcamento || orcamento.dataOrcamento.trim() === "") {
+  //   erros.push(...);
+  // }
 
-  // Data da solicitação
-  if (!orcamento.dataSolicitacao || orcamento.dataSolicitacao.trim() === "") {
-    erros.push({
-      campo: "dataSolicitacao",
-      label: "Data da Solicitação",
-      mensagem: "Informe a data da solicitação.",
-    });
-  }
+  // Data da solicitação (opcional — preenchida automaticamente)
+  // if (!orcamento.dataSolicitacao || orcamento.dataSolicitacao.trim() === "") {
+  //   erros.push(...);
+  // }
 
   // Itens
   if (!orcamento.itens || orcamento.itens.length === 0) {

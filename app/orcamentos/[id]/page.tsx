@@ -281,8 +281,18 @@ export default function VisualizarOrcamento() {
 
   async function deletar() {
     if (!confirm("Deletar este orçamento permanentemente?")) return;
-    await fetch(`/api/orcamentos/${id}`, { method: "DELETE" });
-    router.push("/orcamentos");
+    try {
+      const res = await fetch(`/api/orcamentos/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Erro ao deletar" }));
+        alert(err.error);
+        return;
+      }
+      router.refresh();
+      router.push("/orcamentos");
+    } catch {
+      alert("Erro ao deletar. Verifique sua conexão.");
+    }
   }
 
   // ── Variáveis derivadas ──
