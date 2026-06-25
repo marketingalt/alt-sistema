@@ -31,7 +31,7 @@ function gerarId() {
 function itemVazio(margem: number): ItemOrcamento {
   return {
     id: gerarId(), kit: "", referencia: "", item: "", acabamento: "Silk", descricao: "",
-    quantidade: 0, custoUnitario: 0, freteProducao: 0, custoPersonalizacao: 0,
+    quantidade: 1, custoUnitario: 0, freteProducao: 0, custoPersonalizacao: 0,
     margem, valorUnitario: 0, valorAjustado: false, total: 0, diasProducao: undefined, ncm: "",
   };
 }

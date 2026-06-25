@@ -31,7 +31,7 @@ function itemVazio(margem: number): ItemOrcamento {
   return {
     id: gerarId(),
     kit: "", referencia: "", item: "", acabamento: "Silk", descricao: "",
-    quantidade: 0, custoUnitario: 0, freteProducao: 0, custoPersonalizacao: 0,
+    quantidade: 1, custoUnitario: 0, freteProducao: 0, custoPersonalizacao: 0,
     margem, valorUnitario: 0, valorAjustado: false, total: 0, ncm: "",
   };
 }
@@ -120,7 +120,7 @@ export default function RevisarOrcamento() {
               kit: i.kit || "", referencia: i.referencia || "",
               item: i.item || "", acabamento: i.acabamento || "Silk",
               descricao: i.descricao || "",
-              quantidade: Number(i.quantidade) || 0,
+              quantidade: Number(i.quantidade) || 1,
               custoUnitario: 0, freteProducao: 0, custoPersonalizacao: 0,
               margem: MARGEM_PADRAO,
               valorUnitario: 0, valorAjustado: false, total: 0,

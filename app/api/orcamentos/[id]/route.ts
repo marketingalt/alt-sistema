@@ -41,15 +41,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    console.log(`[DELETE /api/orcamentos/${id}] iniciando`);
+
     const orcamento = await buscarOrcamento(id);
     if (!orcamento) {
+      console.log(`[DELETE /api/orcamentos/${id}] orçamento não encontrado`);
       return NextResponse.json({ error: "Orçamento não encontrado" }, { status: 404 });
     }
+
     await deletarOrcamento(id);
+    console.log(`[DELETE /api/orcamentos/${id}] deletado com sucesso`);
+
     return NextResponse.json({ ok: true }, { headers: NO_CACHE_HEADERS });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("Erro ao deletar orçamento:", msg);
+    console.error("[DELETE /api/orcamentos] Erro ao deletar orçamento:", msg);
+    if (err instanceof Error) console.error(err.stack);
     return NextResponse.json({ error: `Erro ao deletar: ${msg}` }, { status: 500 });
   }
 }

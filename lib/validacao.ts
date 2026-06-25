@@ -57,20 +57,26 @@ export function validarOrcamento(orcamento: OrcamentoInput): ErroValidacao[] {
       mensagem: "Adicione pelo menos um item ao orçamento.",
     });
   } else {
+    // Pelo menos um item deve ter nome preenchido
+    const temItemValido = orcamento.itens.some((i) => i.item && i.item.trim() !== "");
+    if (!temItemValido) {
+      erros.push({
+        campo: "itens",
+        label: "Itens",
+        mensagem: "Preencha o nome de pelo menos um item (material ou operacional).",
+      });
+    }
+
+    // Verifica quantidade apenas em itens que já têm nome (ignora placeholders)
     orcamento.itens.forEach((item, idx) => {
-      if (!item.item || item.item.trim() === "") {
-        erros.push({
-          campo: `itens[${idx}].item`,
-          label: `Item #${idx + 1}`,
-          mensagem: `O item #${idx + 1} não tem nome. Preencha o nome do material ou operacional.`,
-        });
-      }
-      if (!item.quantidade || item.quantidade <= 0) {
-        erros.push({
-          campo: `itens[${idx}].quantidade`,
-          label: `Item #${idx + 1}`,
-          mensagem: `O item #${idx + 1} ("${item.item || "sem nome"}") não tem quantidade. Informe a quantidade.`,
-        });
+      if (item.item && item.item.trim() !== "") {
+        if (!item.quantidade || item.quantidade <= 0) {
+          erros.push({
+            campo: `itens[${idx}].quantidade`,
+            label: `Item #${idx + 1}`,
+            mensagem: `"${item.item}" não tem quantidade. Informe a quantidade.`,
+          });
+        }
       }
     });
   }

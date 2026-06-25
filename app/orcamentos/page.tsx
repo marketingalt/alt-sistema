@@ -177,18 +177,24 @@ export default function ListaOrcamentos() {
       });
   }
 
+  function recarregarSeVisivel() {
+    if (document.visibilityState === "visible") carregarOrcamentos();
+  }
+
   useEffect(() => {
     carregarOrcamentos();
 
-    function aoFocar() {
-      carregarOrcamentos();
-    }
-    window.addEventListener("focus", aoFocar);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") carregarOrcamentos();
+    window.addEventListener("focus", carregarOrcamentos);
+    document.addEventListener("visibilitychange", recarregarSeVisivel);
+
+    // BFCache: quando o usuário volta com o botão "voltar" do navegador
+    window.addEventListener("pageshow", (e) => {
+      if (e.persisted) carregarOrcamentos();
     });
+
     return () => {
-      window.removeEventListener("focus", aoFocar);
+      window.removeEventListener("focus", carregarOrcamentos);
+      document.removeEventListener("visibilitychange", recarregarSeVisivel);
     };
   }, []);
 
