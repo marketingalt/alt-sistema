@@ -19,39 +19,55 @@ export async function GET() {
     (!!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN) ||
     (!!process.env.KV_REST_API_URL && !!process.env.KV_REST_API_TOKEN);
 
-  // Teste real: tenta ler/write no Upstash
+  // Teste real: tenta ler/write no Upstash (via REST API v2 — comandos no body)
   let testResult = "não testado";
   if (canUseKV) {
     try {
       const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || "";
       const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || "";
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      };
 
-      // Write test
       const testKey = "_diagnostico_test";
-      await fetch(`${url}/set/${testKey}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ok: true, timestamp: Date.now() }),
-      });
+      const testValue = { ok: true, timestamp: Date.now() };
 
-      // Read test
-      const readRes = await fetch(`${url}/get/${testKey}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      // Write test: comando SET no body
+      const setRes = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(["SET", testKey, JSON.stringify(testValue)]),
+      });
+      const setJson = await setRes.json();
+
+      // Read test: comando GET no body
+      const getRes = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(["GET", testKey]),
         cache: "no-store",
       });
-      const readJson = await readRes.json();
+      const getJson = await getRes.json();
 
       // Cleanup
-      await fetch(`${url}/del/${testKey}`, {
+      await fetch(url, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
+        body: JSON.stringify(["DEL", testKey]),
       });
 
-      if (readJson.result) {
-        const parsed = JSON.parse(readJson.result);
-        testResult = parsed.ok ? "✅ FUNCIONANDO" : "⚠️ leitura falhou";
+      if (getJson.result) {
+        try {
+          const parsed = JSON.parse(getJson.result);
+          testResult = parsed.ok
+            ? `✅ FUNCIONANDO (SET retornou: ${JSON.stringify(setJson.result)}, GET retornou timestamp: ${parsed.timestamp})`
+            : "⚠️ leitura: valor inesperado";
+        } catch {
+          testResult = `⚠️ leitura: resultado não-JSON - ${String(getJson.result).slice(0, 50)}`;
+        }
       } else {
-        testResult = "❌ leitura retornou nulo";
+        testResult = `❌ leitura retornou nulo. SET retornou: ${JSON.stringify(setJson)}`;
       }
     } catch (err) {
       testResult = "❌ ERRO: " + (err instanceof Error ? err.message : String(err));

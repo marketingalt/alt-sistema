@@ -70,34 +70,52 @@ function kvToken(): string {
 // ── KV backend (Upstash Redis via REST API) ──
 
 async function kvGet<T>(key: DbKey): Promise<T | null> {
-  const url = `${kvUrl()}/get/${key}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${kvToken()}` },
-    next: { revalidate: 0 },
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
-  const json = await res.json();
-  // Upstash returns { result: "<json-string>" } — need to parse
-  if (json.result === null || json.result === undefined) return null;
   try {
-    return JSON.parse(json.result) as T;
-  } catch {
-    // In case the stored value isn't a JSON string (e.g. first time)
-    return json.result as T;
+    const res = await fetch(kvUrl(), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${kvToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(["GET", key]),
+      next: { revalidate: 0 },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      console.error(`[KV GET ERROR] ${key}: HTTP ${res.status}`);
+      return null;
+    }
+    const json = await res.json();
+    // Upstash returns { result: "<stringified-json>" } ou { result: null }
+    if (json.result === null || json.result === undefined) return null;
+    try {
+      return JSON.parse(json.result) as T;
+    } catch {
+      // valor simples (string pura)
+      return json.result as T;
+    }
+  } catch (err) {
+    console.error(`[KV GET ERROR] ${key}:`, err instanceof Error ? err.message : String(err));
+    return null;
   }
 }
 
 async function kvSet<T>(key: DbKey, value: T): Promise<void> {
-  const url = `${kvUrl()}/set/${key}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${kvToken()}` },
-    body: JSON.stringify(value),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "unknown");
-    console.error(`[KV SET ERROR] ${key}: HTTP ${res.status} — ${text}`);
+  try {
+    const res = await fetch(kvUrl(), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${kvToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(["SET", key, JSON.stringify(value)]),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "unknown");
+      console.error(`[KV SET ERROR] ${key}: HTTP ${res.status} — ${text}`);
+    }
+  } catch (err) {
+    console.error(`[KV SET ERROR] ${key}:`, err instanceof Error ? err.message : String(err));
   }
 }
 
