@@ -621,10 +621,7 @@ export default function RevisarOrcamento() {
                       <>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                           <Campo label="Item" value={item.item} onChange={(v) => atualizarItem(item.id, "item", v)} />
-                          <Campo label="Período / Dias" value={item.diasProducao ? `${item.diasProducao} dias` : ""} onChange={(v) => {
-                            const dias = parseInt(v) || 0;
-                            atualizarItem(item.id, "diasProducao", dias);
-                          }} />
+                          <CampoNumero label="Período (dias)" value={item.diasProducao || 0} onChange={(v) => atualizarItem(item.id, "diasProducao", v)} />
                           <CampoNumero label="Quantidade" value={item.quantidade} onChange={(v) => atualizarItem(item.id, "quantidade", v)} />
                         </div>
                         <div>
@@ -637,15 +634,35 @@ export default function RevisarOrcamento() {
                         </div>
                         <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
                           <p className="text-xs font-bold text-purple-600 uppercase tracking-wide mb-3">Valores do Serviço</p>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                             <div>
-                              <label className="block text-xs font-medium text-purple-600 mb-1">Valor Unitário (R$)</label>
+                              <label className="block text-xs font-medium text-purple-600 mb-1">Custo Unitário (R$)</label>
+                              <input type="number" min={0} step="0.01"
+                                className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm text-purple-700 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                                value={item.custoUnitario || ""}
+                                onChange={(e) => atualizarItem(item.id, "custoUnitario", Number(e.target.value))}
+                                placeholder="0,00"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-purple-600 mb-1">Margem (%)</label>
+                              <input type="number" min={0} max={99} step={0.5}
+                                className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm text-purple-700 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                                value={item.margem ?? orcamento.margemPadrao}
+                                onChange={(e) => atualizarItem(item.id, "margem", Number(e.target.value))}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-purple-600 mb-1">Valor Unit. Sugerido (R$)</label>
                               <input type="number" min={0} step="0.01"
                                 className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm text-purple-700 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
                                 value={item.valorUnitario || ""}
                                 onChange={(e) => atualizarItem(item.id, "valorUnitario", Number(e.target.value))}
                                 placeholder="0,00"
                               />
+                              {!item.valorAjustado && item.valorUnitario > 0 && (
+                                <p className="text-[10px] text-purple-400 mt-0.5">Automático</p>
+                              )}
                             </div>
                             <div>
                               <label className="block text-xs font-medium text-purple-600 mb-1">Valor Total (R$)</label>
