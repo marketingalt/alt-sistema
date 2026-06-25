@@ -59,41 +59,32 @@ function canUseKV(): boolean {
   );
 }
 
-function kvUrl(): string {
-  return process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || "";
-}
+// ── KV backend (Upstash Redis via SDK) ──
 
-function kvToken(): string {
-  return process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || "";
-}
+// ── KV backend (Upstash Redis) ──
 
-// ── KV backend (Upstash Redis via REST API) ──
+let kvClient: import("@upstash/redis").Redis | null = null;
+
+async function getKvClient(): Promise<import("@upstash/redis").Redis | null> {
+  if (kvClient) return kvClient;
+  try {
+    const { Redis } = await import("@upstash/redis");
+    const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || "";
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || "";
+    if (!url || !token) return null;
+    kvClient = new Redis({ url, token });
+    return kvClient;
+  } catch (err) {
+    console.error("[KV CLIENT ERROR]", err instanceof Error ? err.message : String(err));
+    return null;
+  }
+}
 
 async function kvGet<T>(key: DbKey): Promise<T | null> {
   try {
-    const res = await fetch(kvUrl(), {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${kvToken()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(["GET", key]),
-      next: { revalidate: 0 },
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      console.error(`[KV GET ERROR] ${key}: HTTP ${res.status}`);
-      return null;
-    }
-    const json = await res.json();
-    // Upstash returns { result: "<stringified-json>" } ou { result: null }
-    if (json.result === null || json.result === undefined) return null;
-    try {
-      return JSON.parse(json.result) as T;
-    } catch {
-      // valor simples (string pura)
-      return json.result as T;
-    }
+    const client = await getKvClient();
+    if (!client) return null;
+    return client.get<T>(key);
   } catch (err) {
     console.error(`[KV GET ERROR] ${key}:`, err instanceof Error ? err.message : String(err));
     return null;
@@ -102,18 +93,9 @@ async function kvGet<T>(key: DbKey): Promise<T | null> {
 
 async function kvSet<T>(key: DbKey, value: T): Promise<void> {
   try {
-    const res = await fetch(kvUrl(), {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${kvToken()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(["SET", key, JSON.stringify(value)]),
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "unknown");
-      console.error(`[KV SET ERROR] ${key}: HTTP ${res.status} — ${text}`);
-    }
+    const client = await getKvClient();
+    if (!client) return;
+    await client.set(key, value);
   } catch (err) {
     console.error(`[KV SET ERROR] ${key}:`, err instanceof Error ? err.message : String(err));
   }

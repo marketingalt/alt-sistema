@@ -6,11 +6,11 @@ export async function GET() {
   const vars = {
     VERCEL: process.env.VERCEL || "não definido",
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL
-      ? process.env.UPSTASH_REDIS_REST_URL.slice(0, 30) + "..." : "não definido",
+      ? process.env.UPSTASH_REDIS_REST_URL.slice(0, 40) + "..." : "não definido",
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN
       ? "definido (" + process.env.UPSTASH_REDIS_REST_TOKEN.length + " chars)" : "não definido",
     KV_REST_API_URL: process.env.KV_REST_API_URL
-      ? process.env.KV_REST_API_URL.slice(0, 30) + "..." : "não definido",
+      ? process.env.KV_REST_API_URL.slice(0, 40) + "..." : "não definido",
     KV_REST_API_TOKEN: process.env.KV_REST_API_TOKEN
       ? "definido (" + process.env.KV_REST_API_TOKEN.length + " chars)" : "não definido",
   };
@@ -19,58 +19,43 @@ export async function GET() {
     (!!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN) ||
     (!!process.env.KV_REST_API_URL && !!process.env.KV_REST_API_TOKEN);
 
-  // Teste real: tenta ler/write no Upstash (via REST API v2 — comandos no body)
   let testResult = "não testado";
   if (canUseKV) {
     try {
+      const { Redis } = await import("@upstash/redis");
+
       const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || "";
       const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || "";
-      const headers = {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      };
 
-      const testKey = "_diagnostico_test";
-      const testValue = { ok: true, timestamp: Date.now() };
+      console.log(`[DIAG] Criando cliente Redis com url=${url.slice(0, 30)}... token len=${token.length}`);
 
-      // Write test: comando SET no body
-      const setRes = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(["SET", testKey, JSON.stringify(testValue)]),
-      });
-      const setJson = await setRes.json();
+      const redis = new Redis({ url, token });
 
-      // Read test: comando GET no body
-      const getRes = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(["GET", testKey]),
-        cache: "no-store",
-      });
-      const getJson = await getRes.json();
+      // Testa PING primeiro
+      const pong = await redis.ping();
+      console.log(`[DIAG] PING retornou:`, pong);
+
+      // Testa SET
+      const setResult = await redis.set("_diag_test", { ok: true, ts: Date.now() });
+      console.log(`[DIAG] SET retornou:`, setResult);
+
+      // Testa GET
+      const getResult = await redis.get<{ ok: boolean; ts: number }>("_diag_test");
+      console.log(`[DIAG] GET retornou:`, getResult);
 
       // Cleanup
-      await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(["DEL", testKey]),
-      });
+      await redis.del("_diag_test");
 
-      if (getJson.result) {
-        try {
-          const parsed = JSON.parse(getJson.result);
-          testResult = parsed.ok
-            ? `✅ FUNCIONANDO (SET retornou: ${JSON.stringify(setJson.result)}, GET retornou timestamp: ${parsed.timestamp})`
-            : "⚠️ leitura: valor inesperado";
-        } catch {
-          testResult = `⚠️ leitura: resultado não-JSON - ${String(getJson.result).slice(0, 50)}`;
-        }
+      if (getResult?.ok) {
+        testResult = `✅ FUNCIONANDO (PING: ${pong}, GET: ok=true)`;
       } else {
-        testResult = `❌ leitura retornou nulo. SET retornou: ${JSON.stringify(setJson)}`;
+        testResult = `⚠️ SET funcionou mas GET retornou: ${JSON.stringify(getResult)}`;
       }
     } catch (err) {
-      testResult = "❌ ERRO: " + (err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? err.stack?.slice(0, 300) : "";
+      console.error("[DIAG ERROR]", msg, stack);
+      testResult = `❌ ERRO: ${msg}`;
     }
   }
 
@@ -80,8 +65,5 @@ export async function GET() {
     storageBackend: canUseKV ? "Upstash Redis ☁️" : "Arquivo local /tmp/data/ 📁",
     variaveis: vars,
     testeUpstash: testResult,
-    instrucao: canUseKV
-      ? "Upstash configurado. Se o teste acima falhou, verifique se as env vars estão corretas."
-      : "Configure UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN no Vercel Dashboard > Settings > Environment Variables",
   });
 }
