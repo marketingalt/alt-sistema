@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useAutoSave, getDraft, clearDraft } from "@/hooks/useAutoSave";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import type { ItemOrcamento, Orcamento, Cliente, Produto, Fornecedor } from "@/app/types";
@@ -22,6 +23,17 @@ const MARGEM_PADRAO = 30;
 const PERC_HONORARIOS_PADRAO = 10;
 const PERC_IMPOSTOS_PADRAO = 19;
 const PERC_COMISSAO_PADRAO = 5;
+const DRAFT_KEY_NOVO = "alt_orcamentos_draft_novo";
+
+function formatRelativeTime(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return "agora";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `há ${minutes}min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `há ${hours}h`;
+  return `há ${Math.floor(hours / 24)}d`;
+}
 
 function gerarId() {
   return Math.random().toString(36).substring(2, 10);
@@ -67,6 +79,8 @@ export default function RevisarOrcamento() {
   const [modalFrete, setModalFrete] = useState(false);
   const [modalFreteProducao, setModalFreteProducao] = useState<string | null>(null);
   const [enderecoFornecedorModal, setEnderecoFornecedorModal] = useState("");
+  const restoredRef = useRef(false);
+  const [rascunhoRestaurado, setRascunhoRestaurado] = useState(false);
 
   useEffect(() => {
     fetch("/api/produtos").then((r) => r.json()).then(setProdutos);
@@ -129,6 +143,20 @@ export default function RevisarOrcamento() {
       }));
       sessionStorage.removeItem("orcamento_rascunho");
     }
+  }, []);
+
+  const { savedAt: draftSavedAt, isSaving: draftIsSaving } = useAutoSave(DRAFT_KEY_NOVO, orcamento, true);
+
+  // Restaura rascunho do localStorage (após carregar número e sessionStorage)
+  useEffect(() => {
+    if (restoredRef.current) return;
+    const draft = getDraft<Omit<Orcamento, "id" | "createdAt">>(DRAFT_KEY_NOVO);
+    if (draft && Date.now() - draft.savedAt.getTime() < 24 * 60 * 60 * 1000) {
+      setOrcamento(draft.data);
+      setRascunhoRestaurado(true);
+      setTimeout(() => setRascunhoRestaurado(false), 4000);
+    }
+    restoredRef.current = true;
   }, []);
 
   function atualizarCampo(campo: keyof Orcamento, valor: string | number | boolean) {
@@ -321,6 +349,7 @@ export default function RevisarOrcamento() {
       }
 
       router.refresh();
+      clearDraft(DRAFT_KEY_NOVO);
       setTimeout(() => router.push(`/orcamentos/${salvo.id}`), 50);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao salvar. Tente novamente.";
@@ -346,11 +375,30 @@ export default function RevisarOrcamento() {
             <h1 className="text-2xl font-bold text-gray-800">Revisar Orçamento</h1>
             <p className="text-gray-500 text-sm">Verifique os dados, preencha os custos e ajuste a margem.</p>
           </div>
-          <button onClick={salvar} disabled={salvando}
-            className="bg-[#fb4d06] text-white font-semibold py-2.5 px-6 rounded-xl hover:opacity-90 transition disabled:opacity-50">
-            {salvando ? "Salvando..." : "Salvar e Ver Orçamento →"}
-          </button>
+          <div className="flex items-center gap-3">
+            {draftSavedAt && (
+              <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                {draftIsSaving ? "Salvando rascunho..." : `Rascunho salvo ${formatRelativeTime(draftSavedAt)}`}
+              </span>
+            )}
+            <button onClick={salvar} disabled={salvando}
+              className="bg-[#fb4d06] text-white font-semibold py-2.5 px-6 rounded-xl hover:opacity-90 transition disabled:opacity-50">
+              {salvando ? "Salvando..." : "Salvar e Ver Orçamento →"}
+            </button>
+          </div>
         </div>
+
+        {rascunhoRestaurado && (
+          <div className="mb-5 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+            <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span className="text-sm text-blue-700 font-medium">Rascunho restaurado automaticamente</span>
+          </div>
+        )}
 
         {/* Alerta de erros de validação */}
         {errosValidacao.length > 0 && (

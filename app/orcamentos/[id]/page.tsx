@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { Orcamento, ItemOrcamento, StatusOrcamento, Fornecedor } from "@/app/types";
 import { STATUS_CONFIG } from "@/app/types";
@@ -15,6 +15,7 @@ import type { DocumentoFornecedor } from "@/app/types";
 import DocumentoPreview from "./DocumentoPreview";
 import { validarOrcamento } from "@/lib/validacao";
 import type { ErroValidacao } from "@/lib/validacao";
+import { useAutoSave, getDraft, clearDraft } from "@/hooks/useAutoSave";
 
 const TODOS_STATUS = Object.keys(STATUS_CONFIG) as StatusOrcamento[];
 
@@ -23,6 +24,17 @@ const MARGEM_PADRAO = 30;
 const PERC_HONORARIOS_PADRAO = 10;
 const PERC_IMPOSTOS_PADRAO = 19;
 const PERC_COMISSAO_PADRAO = 5;
+const DRAFT_KEY_PREFIX = "alt_orcamentos_draft_edit_";
+
+function formatRelativeTime(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return "agora";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `há ${minutes}min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `há ${hours}h`;
+  return `há ${Math.floor(hours / 24)}d`;
+}
 
 function gerarId() {
   return Math.random().toString(36).substring(2, 10);
@@ -77,6 +89,8 @@ export default function VisualizarOrcamento() {
   const [modalFrete, setModalFrete] = useState(false);
   const [modalFreteProducao, setModalFreteProducao] = useState<string | null>(null);
   const [enderecoFornecedorModal, setEnderecoFornecedorModal] = useState("");
+  const restoredRef = useRef(false);
+  const [rascunhoRestaurado, setRascunhoRestaurado] = useState(false);
 
   // ── Novo estado: modo de visualização ──
   const [modo, setModo] = useState<ModoVisualizacao>("visualizacao");
@@ -107,6 +121,21 @@ export default function VisualizarOrcamento() {
         setCienteAlteracao(jaDifere);
       });
   }, [id]);
+
+  const draftKey = `${DRAFT_KEY_PREFIX}${id}`;
+  const { savedAt: draftSavedAt, isSaving: draftIsSaving } = useAutoSave(draftKey, orcamento, orcamento !== null);
+
+  // Restaura rascunho do localStorage após carregar dados da API
+  useEffect(() => {
+    if (restoredRef.current || !orcamento) return;
+    const draft = getDraft<Orcamento>(draftKey);
+    if (draft && Date.now() - draft.savedAt.getTime() < 24 * 60 * 60 * 1000) {
+      setOrcamento(draft.data);
+      setRascunhoRestaurado(true);
+      setTimeout(() => setRascunhoRestaurado(false), 4000);
+    }
+    restoredRef.current = true;
+  }, [orcamento]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!modalFreteProducao || !orcamento) { setEnderecoFornecedorModal(""); return; }
@@ -240,6 +269,7 @@ export default function VisualizarOrcamento() {
         throw new Error(errBody.error || `Erro HTTP ${res.status}`);
       }
       setSalvo(true);
+      clearDraft(draftKey);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao salvar. Tente novamente.";
       setErrosValidacao([{ campo: "geral", label: "Erro", mensagem: msg }]);
@@ -380,6 +410,15 @@ export default function VisualizarOrcamento() {
           </div>
         )}
 
+        {rascunhoRestaurado && (
+          <div className="mb-5 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+            <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span className="text-sm text-blue-700 font-medium">Rascunho restaurado automaticamente</span>
+          </div>
+        )}
+
         {/* Abas: Visualização | Revisão */}
         <div className="flex gap-1 mb-5 border-b border-gray-200">
           <button
@@ -471,6 +510,14 @@ export default function VisualizarOrcamento() {
                   }
                 />
                 {salvo && <span className="text-green-600 text-sm font-medium">✓ Salvo</span>}
+                {draftSavedAt && !salvo && (
+                  <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    {draftIsSaving ? "Salvando rascunho..." : `Rascunho salvo ${formatRelativeTime(draftSavedAt)}`}
+                  </span>
+                )}
                 <button
                   onClick={salvar}
                   disabled={salvando}
