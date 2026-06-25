@@ -13,6 +13,8 @@ import CampoPrazoEntrega from "@/app/components/CampoPrazoEntrega";
 import CampoPrazoPagamento from "@/app/components/CampoPrazoPagamento";
 import type { DocumentoFornecedor } from "@/app/types";
 import DocumentoPreview from "./DocumentoPreview";
+import { validarOrcamento } from "@/lib/validacao";
+import type { ErroValidacao } from "@/lib/validacao";
 
 const TODOS_STATUS = Object.keys(STATUS_CONFIG) as StatusOrcamento[];
 
@@ -69,6 +71,7 @@ export default function VisualizarOrcamento() {
   const [orcamento, setOrcamento] = useState<Orcamento | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [salvo, setSalvo] = useState(false);
+  const [errosValidacao, setErrosValidacao] = useState<ErroValidacao[]>([]);
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [cienteAlteracao, setCienteAlteracao] = useState(false);
   const [modalFrete, setModalFrete] = useState(false);
@@ -211,20 +214,35 @@ export default function VisualizarOrcamento() {
 
   async function salvar() {
     if (!orcamento) return;
+
+    // Valida campos obrigatórios
+    const erros = validarOrcamento(orcamento);
+    if (erros.length > 0) {
+      setErrosValidacao(erros);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    setErrosValidacao([]);
+
     if (percentuaisAlterados && !cienteAlteracao) {
       alert("Confirme a caixa 'Estou ciente da alteração nas porcentagens' na seção de Margens antes de salvar.");
       return;
     }
     setSalvando(true);
     try {
-      await fetch(`/api/orcamentos/${id}`, {
+      const res = await fetch(`/api/orcamentos/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(orcamento),
       });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ error: `Erro HTTP ${res.status}` }));
+        throw new Error(errBody.error || `Erro HTTP ${res.status}`);
+      }
       setSalvo(true);
-    } catch {
-      alert("Erro ao salvar.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao salvar. Tente novamente.";
+      setErrosValidacao([{ campo: "geral", label: "Erro", mensagem: msg }]);
     } finally {
       setSalvando(false);
     }
@@ -315,6 +333,42 @@ export default function VisualizarOrcamento() {
             </button>
           </div>
         </div>
+
+        {/* Alerta de erros de validação */}
+        {errosValidacao.length > 0 && (
+          <div className="mb-5 bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-red-800 mb-2">
+                  {errosValidacao[0]?.campo === "geral"
+                    ? errosValidacao[0].mensagem
+                    : "Corrija os campos abaixo antes de salvar:"}
+                </p>
+                {errosValidacao[0]?.campo !== "geral" && (
+                  <ul className="space-y-1">
+                    {errosValidacao.map((e, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-red-700">
+                        <span className="text-red-400 mt-0.5">•</span>
+                        <span><strong>{e.label}:</strong> {e.mensagem}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <button
+                onClick={() => setErrosValidacao([])}
+                className="text-red-400 hover:text-red-600 shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Abas: Visualização | Revisão */}
         <div className="flex gap-1 mb-5 border-b border-gray-200">

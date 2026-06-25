@@ -14,6 +14,8 @@ import CalculadoraFrete from "@/app/components/CalculadoraFrete";
 import CampoPrazoEntrega from "@/app/components/CampoPrazoEntrega";
 import CampoPrazoPagamento from "@/app/components/CampoPrazoPagamento";
 import DocumentoPreview from "@/app/orcamentos/[id]/DocumentoPreview";
+import { validarOrcamento } from "@/lib/validacao";
+import type { ErroValidacao } from "@/lib/validacao";
 
 const TIPOS = ["Silk", "DTF", "Bordado", "Laser", "Verniz UV", "Tampografia", "Sublimação", "Gravação em relevo", "Outro"];
 const MARGEM_PADRAO = 30;
@@ -56,6 +58,7 @@ export default function RevisarOrcamento() {
     itens: [itemVazio(MARGEM_PADRAO)],
   });
   const [salvando, setSalvando] = useState(false);
+  const [errosValidacao, setErrosValidacao] = useState<ErroValidacao[]>([]);
   const [cienteAlteracao, setCienteAlteracao] = useState(false);
   const [modo, setModo] = useState<"visualizacao" | "revisao">("visualizacao");
   const [gerandoPdf, setGerandoPdf] = useState(false);
@@ -275,6 +278,15 @@ export default function RevisarOrcamento() {
   const ehNFSE = (orcamento.tiposNota || []).includes("NFSE");
 
   async function salvar() {
+    // Valida campos obrigatórios
+    const erros = validarOrcamento(orcamento);
+    if (erros.length > 0) {
+      setErrosValidacao(erros);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    setErrosValidacao([]);
+
     if (percentuaisAlterados && !cienteAlteracao) {
       alert("Confirme a caixa 'Estou ciente da alteração nas porcentagens' na seção de Margens antes de salvar.");
       return;
@@ -287,7 +299,10 @@ export default function RevisarOrcamento() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...orcamento, id: gerarId(), createdAt: new Date().toISOString() }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ error: `Erro HTTP ${res.status}` }));
+        throw new Error(errBody.error || `Erro HTTP ${res.status}`);
+      }
       const salvo = await res.json();
 
       // Se o solicitante é novo, adiciona à lista do cliente
@@ -307,8 +322,10 @@ export default function RevisarOrcamento() {
 
       router.refresh();
       setTimeout(() => router.push(`/orcamentos/${salvo.id}`), 50);
-    } catch {
-      alert("Erro ao salvar. Tente novamente.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao salvar. Tente novamente.";
+      setErrosValidacao([{ campo: "geral", label: "Erro", mensagem: msg }]);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setSalvando(false);
     }
@@ -334,6 +351,42 @@ export default function RevisarOrcamento() {
             {salvando ? "Salvando..." : "Salvar e Ver Orçamento →"}
           </button>
         </div>
+
+        {/* Alerta de erros de validação */}
+        {errosValidacao.length > 0 && (
+          <div className="mb-5 bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-red-800 mb-2">
+                  {errosValidacao[0]?.campo === "geral"
+                    ? errosValidacao[0].mensagem
+                    : `Corrija os campos abaixo antes de salvar:`}
+                </p>
+                {errosValidacao[0]?.campo !== "geral" && (
+                  <ul className="space-y-1">
+                    {errosValidacao.map((e, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-red-700">
+                        <span className="text-red-400 mt-0.5">•</span>
+                        <span><strong>{e.label}:</strong> {e.mensagem}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <button
+                onClick={() => setErrosValidacao([])}
+                className="text-red-400 hover:text-red-600 shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Abas: Visualização | Revisão */}
         <div className="flex gap-1 mb-5 border-b border-gray-200">
@@ -1002,6 +1055,26 @@ export default function RevisarOrcamento() {
         )}
 
         {/* Save button - aparece nos dois modos */}
+        {errosValidacao.length > 0 && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+              <p className="text-sm text-red-700 font-medium">
+                Corrija os erros acima antes de salvar.
+              </p>
+              <button
+                onClick={() => setErrosValidacao([])}
+                className="text-red-400 hover:text-red-600 shrink-0 ml-auto"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
         <div className="mt-6 flex justify-end">
           <button onClick={salvar} disabled={salvando}
             className="bg-[#fb4d06] text-white font-semibold py-3 px-10 rounded-xl hover:opacity-90 transition disabled:opacity-50">
