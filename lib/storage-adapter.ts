@@ -51,21 +51,54 @@ function isVercel(): boolean {
 
 function canUseKV(): boolean {
   return (
+    process.env.UPSTASH_REDIS_REST_URL !== undefined &&
+    process.env.UPSTASH_REDIS_REST_TOKEN !== undefined
+  ) || (
     process.env.KV_REST_API_URL !== undefined &&
     process.env.KV_REST_API_TOKEN !== undefined
   );
 }
 
-// ── KV backend ──
+function kvUrl(): string {
+  return process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || "";
+}
+
+function kvToken(): string {
+  return process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || "";
+}
+
+// ── KV backend (Upstash Redis via REST API) ──
 
 async function kvGet<T>(key: DbKey): Promise<T | null> {
-  const { kv } = await import("@vercel/kv");
-  return kv.get<T>(key);
+  const url = `${kvUrl()}/get/${key}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${kvToken()}` },
+    next: { revalidate: 0 },
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const json = await res.json();
+  // Upstash returns { result: "<json-string>" } — need to parse
+  if (json.result === null || json.result === undefined) return null;
+  try {
+    return JSON.parse(json.result) as T;
+  } catch {
+    // In case the stored value isn't a JSON string (e.g. first time)
+    return json.result as T;
+  }
 }
 
 async function kvSet<T>(key: DbKey, value: T): Promise<void> {
-  const { kv } = await import("@vercel/kv");
-  await kv.set(key, value);
+  const url = `${kvUrl()}/set/${key}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${kvToken()}` },
+    body: JSON.stringify(value),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "unknown");
+    console.error(`[KV SET ERROR] ${key}: HTTP ${res.status} — ${text}`);
+  }
 }
 
 // ── File backend ──
