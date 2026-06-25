@@ -68,9 +68,15 @@ import fs from "fs";
 import path from "path";
 
 const DATA_DIR = path.join(process.cwd(), "data");
+/** No Vercel, /tmp/ é writable (ao contrário de /var/task/ que é read-only) */
+const TMP_DIR = "/tmp/data";
 
 function filePath(key: DbKey): string {
   return path.join(DATA_DIR, `${key}.json`);
+}
+
+function tmpPath(key: DbKey): string {
+  return path.join(TMP_DIR, `${key}.json`);
 }
 
 function fileGet<T>(key: DbKey, fallback: T): T {
@@ -89,60 +95,68 @@ function fileSet<T>(key: DbKey, value: T): void {
   fs.writeFileSync(fp, JSON.stringify(value, null, 2));
 }
 
-// ── Cache em memória para Vercel sem KV ──
+function tmpGet<T>(key: DbKey, fallback: T): T {
+  try {
+    const fp = tmpPath(key);
+    if (!fs.existsSync(fp)) return fallback;
+    return JSON.parse(fs.readFileSync(fp, "utf-8"));
+  } catch {
+    return fallback;
+  }
+}
 
-/**
- * Cache em memória para uso em Vercel sem KV.
- * Dados persistem apenas enquanto a instância serverless está quente;
- * em cold starts, os dados serão perdidos.
- */
+function tmpSet<T>(key: DbKey, value: T): void {
+  const fp = tmpPath(key);
+  if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
+  fs.writeFileSync(fp, JSON.stringify(value, null, 2));
+}
+
+// ── Cache em memória (último recurso) ──
+
 const memoryCache = new Map<DbKey, unknown>();
-
-function memorySet<T>(key: DbKey, value: T): void {
-  memoryCache.set(key, value);
-  console.warn(`[storage] Dados salvos apenas em cache de memória para "${key}". Configure Vercel KV para persistência.`);
-}
-
-function memoryGet<T>(key: DbKey, fallback: T): T {
-  if (memoryCache.has(key)) return memoryCache.get(key) as T;
-  return fallback;
-}
 
 // ── API pública ──
 
 /**
  * Lê dados do storage.
- * - Vercel com KV: usa Redis
- * - Vercel sem KV: tenta filesystem, depois cache de memória
- * - Local: usa filesystem
+ * Ordem de consulta no Vercel sem KV:
+ *   cache memória → /tmp/ (writable) → data/ (deployado via git)
  */
 export async function dbGet<T>(key: DbKey, fallback: T): Promise<T> {
   if (canUseKV()) {
     const val = await kvGet<T>(key);
     return val !== null ? val : fallback;
   }
-  // Em Vercel (sem KV), tenta filesystem primeiro (dados deployados via git)
-  const fromFile = fileGet<T>(key, fallback as T);
-  // Se o filesystem não tinha dados, verifica cache de memória
-  if (fromFile === fallback && isVercel()) {
-    return memoryGet(key, fallback);
+
+  if (isVercel()) {
+    // 1. Cache de memória (mais recente, dentro da mesma instância)
+    if (memoryCache.has(key)) {
+      return memoryCache.get(key) as T;
+    }
+    // 2. /tmp/ (persiste entre requisições na mesma instância)
+    const fromTmp = tmpGet<T>(key, fallback as T);
+    if (fromTmp !== fallback) return fromTmp;
   }
-  return fromFile;
+
+  // 3. Filesystem deployado via git (ou local)
+  return fileGet(key, fallback);
 }
 
 /**
  * Escreve dados no storage.
- * - Vercel com KV: usa Redis (OK)
- * - Vercel sem KV: usa cache de memória (dados não persistem após cold start)
- * - Local: usa filesystem (OK)
+ * - Vercel com KV: usa Redis (persistente)
+ * - Vercel sem KV: /tmp/ + cache de memória (persiste por instância)
+ * - Local: filesystem (persistente)
  */
 export async function dbSet<T>(key: DbKey, value: T): Promise<void> {
   if (canUseKV()) {
     await kvSet(key, value);
   } else if (isVercel()) {
-    // Sem KV no Vercel: salva em memória como fallback
-    // Dados serão perdidos em cold start, mas a operação não quebra
-    memorySet(key, value);
+    // Sem KV no Vercel:
+    // 1. /tmp/ é writável e persiste entre requisições na mesma instância
+    // 2. Memória como fallback rápido para leituras seguintes
+    tmpSet(key, value);
+    memoryCache.set(key, value);
   } else {
     fileSet(key, value);
   }
