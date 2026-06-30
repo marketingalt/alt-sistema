@@ -218,7 +218,7 @@ export default function Sidebar() {
   const foto = user?.imageUrl;
 
   return (
-    <aside className={`${recolhido ? "w-16" : "w-56"} min-h-screen bg-black flex flex-col shrink-0 transition-all duration-200`}>
+    <aside className={`${recolhido ? "w-16" : "w-56"} min-h-screen bg-[var(--sidebar-bg)] flex flex-col shrink-0 transition-all duration-200`}>
       {/* Logo + Botão recolher */}
       <div className="px-5 py-5 border-b border-white/10 flex items-center gap-0">
         {recolhido ? (
