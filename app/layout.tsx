@@ -5,14 +5,14 @@ import { ptBR } from "@clerk/localizations";
 import Script from "next/script";
 
 export const metadata: Metadata = {
-  title: "Omini Alt",
-  description: "Sistema interno de gestão — Omini Alt",
+  title: "Omni Alt",
+  description: "Sistema interno de gestão — Omni Alt",
   icons: {
     icon: "/logo.png",
   },
   openGraph: {
-    title: "Omini Alt",
-    description: "Sistema interno de gestão — Omini Alt",
+    title: "Omni Alt",
+    description: "Sistema interno de gestão — Omni Alt",
     images: ["/logo.png"],
   },
 };

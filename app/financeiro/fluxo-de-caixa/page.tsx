@@ -276,7 +276,7 @@ export default function FluxoDeCaixaPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Fluxo de Caixa</h1>
-            <p className="text-gray-500 text-sm mt-0.5">Controle de entradas e saídas — Omini Alt</p>
+            <p className="text-gray-500 text-sm mt-0.5">Controle de entradas e saídas — Omni Alt</p>
           </div>
           <button onClick={abrirNovo} className="bg-[#fb4d06] text-white font-semibold py-2 px-5 rounded-xl hover:opacity-90 transition flex items-center gap-2 text-sm">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>

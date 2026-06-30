@@ -16,7 +16,7 @@ export default function AcessoNegado() {
         <div className="mb-8">
           <Image
             src="/logo.png"
-            alt="Omini Alt"
+            alt="Omni Alt"
             width={180}
             height={50}
             className="mx-auto object-contain"

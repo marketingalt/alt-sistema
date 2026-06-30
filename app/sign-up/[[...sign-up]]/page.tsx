@@ -9,7 +9,7 @@ export default function SignUpPage() {
           <div className="mb-6">
             <Image
               src="/logo.png"
-              alt="Omini Alt"
+              alt="Omni Alt"
               width={220}
               height={60}
               className="mx-auto object-contain"
@@ -17,7 +17,7 @@ export default function SignUpPage() {
             />
           </div>
           <p className="text-gray-300 text-center text-lg max-w-sm leading-relaxed">
-            Crie sua conta para acessar a plataforma Omini Alt.
+            Crie sua conta para acessar a plataforma Omni Alt.
           </p>
         </div>
       </div>
@@ -26,7 +26,7 @@ export default function SignUpPage() {
           <div className="lg:hidden text-center mb-2">
             <Image
               src="/logo.png"
-              alt="Omini Alt"
+              alt="Omni Alt"
               width={150}
               height={40}
               className="mx-auto object-contain"

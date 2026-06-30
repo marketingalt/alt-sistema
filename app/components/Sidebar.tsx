@@ -224,7 +224,7 @@ export default function Sidebar() {
         {recolhido ? (
           <Image
             src="/logo.png"
-            alt="Omini Alt"
+            alt="Omni Alt"
             width={28}
             height={28}
             className="object-contain shrink-0"
@@ -232,7 +232,7 @@ export default function Sidebar() {
         ) : (
           <Image
             src="/logo.png"
-            alt="Omini Alt"
+            alt="Omni Alt"
             width={130}
             height={36}
             className="object-contain shrink-0"

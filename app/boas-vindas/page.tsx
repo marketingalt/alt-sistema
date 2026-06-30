@@ -171,7 +171,7 @@ export default function BoasVindasPage() {
         <div className="text-center mb-10">
           <Image
             src="/logo.png"
-            alt="Omini Alt"
+            alt="Omni Alt"
             width={180}
             height={50}
             className="mx-auto object-contain"
