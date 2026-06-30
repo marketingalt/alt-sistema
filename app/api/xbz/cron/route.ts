@@ -22,6 +22,7 @@ interface ProdutoXbz {
   Altura: number;
   Largura: number;
   Profundidade: number;
+  ClassFiscal?: string;
 }
 
 function gerarId() {
@@ -74,6 +75,7 @@ async function executarSync() {
           estoque: xbz.QuantidadeDisponivel,
           imagemUrl: xbz.ImageLink?.trim() || existing.imagemUrl,
           cor: xbz.CorWebPrincipal || existing.cor,
+          ncm: xbz.ClassFiscal || existing.ncm,
         },
       });
     } else {
@@ -92,6 +94,7 @@ async function executarSync() {
         estoque: xbz.QuantidadeDisponivel,
         xbzId,
         origemXbz: true,
+        ncm: xbz.ClassFiscal || undefined,
         status: "Ativo",
         createdAt: new Date().toISOString(),
       });
