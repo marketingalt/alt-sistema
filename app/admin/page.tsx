@@ -203,6 +203,7 @@ const MODULOS_INFO = [
   { key: "clientes" as const, label: "Clientes", cor: "text-purple-600 bg-purple-50 border-purple-200" },
   { key: "fornecedores" as const, label: "Fornecedores", cor: "text-cyan-600 bg-cyan-50 border-cyan-200" },
   { key: "produtos" as const, label: "Produtos", cor: "text-amber-600 bg-amber-50 border-amber-200" },
+  { key: "planejamento" as const, label: "Planejamento", cor: "text-indigo-600 bg-indigo-50 border-indigo-200" },
   { key: "financeiro" as const, label: "Financeiro", cor: "text-emerald-600 bg-emerald-50 border-emerald-200" },
   { key: "logistica" as const, label: "Logística", cor: "text-orange-600 bg-orange-50 border-orange-200" },
   { key: "rh" as const, label: "RH", cor: "text-pink-600 bg-pink-50 border-pink-200" },
