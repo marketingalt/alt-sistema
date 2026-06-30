@@ -8,11 +8,62 @@ function gerarId() {
   return Math.random().toString(36).substring(2, 10);
 }
 
+// ── Migração de dados antigos (colunas → statuses) ──
+
+function migrarProjetos(projetos: any[]): Projeto[] {
+  return projetos.map((p: any) => {
+    // Já está no formato novo?
+    if (Array.isArray(p.statuses)) return p as Projeto;
+
+    // Formato antigo: tem colunas com cartões aninhados
+    if (Array.isArray(p.colunas)) {
+      const statuses = p.colunas.map((c: any, i: number) => ({
+        id: c.id || gerarId(),
+        nome: c.nome,
+        cor: i === 0 ? "#6b7280" : i === 1 ? "#3b82f6" : i === 2 ? "#a855f7" : "#22c55e",
+        ordem: i,
+      }));
+      return {
+        id: p.id,
+        nome: p.nome,
+        descricao: p.descricao || "",
+        cor: p.cor || "#6366f1",
+        statuses,
+        createdAt: p.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as Projeto;
+    }
+
+    // Fallback: projeto inválido, retorna com statuses padrão
+    return {
+      id: p.id || gerarId(),
+      nome: p.nome || "Projeto",
+      descricao: p.descricao || "",
+      cor: p.cor || "#6366f1",
+      statuses: [
+        { id: gerarId(), nome: "A FAZER", cor: "#6b7280", ordem: 0 },
+        { id: gerarId(), nome: "FAZENDO", cor: "#3b82f6", ordem: 1 },
+        { id: gerarId(), nome: "REVISÃO", cor: "#a855f7", ordem: 2 },
+        { id: gerarId(), nome: "CONCLUÍDO", cor: "#22c55e", ordem: 3 },
+      ],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as Projeto;
+  });
+}
+
 // ── GET /api/planejamento ──
 
 export async function GET() {
-  const projetos = await dbGet<Projeto[]>("planejamento", []);
+  const rawProjetos = await dbGet<any[]>("planejamento", []);
+  const projetos = migrarProjetos(rawProjetos);
   const tarefas = await dbGet<Tarefa[]>("planejamento-tarefas", []);
+
+  // Salva de volta se houve migração
+  if (rawProjetos.length > 0 && rawProjetos.some((p: any) => !Array.isArray(p.statuses))) {
+    await dbSet("planejamento", projetos);
+  }
+
   return NextResponse.json({ projetos, tarefas });
 }
 

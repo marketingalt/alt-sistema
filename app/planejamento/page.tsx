@@ -74,6 +74,47 @@ function Icone({ d, className = "w-5 h-5" }: { d: string; className?: string }) 
 // PÁGINA PRINCIPAL
 // ═══════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════
+// ERROR BOUNDARY
+// ═══════════════════════════════════════════════════════════
+
+import React from "react";
+
+class PlanejamentoErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: string }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: "" };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <WorkspaceLayout>
+          <main className="px-8 py-8 max-w-7xl mx-auto">
+            <div className="text-center py-24 bg-white rounded-2xl border border-gray-100">
+              <Icone d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" className="w-12 h-12 text-red-400 mx-auto mb-4" />
+              <p className="text-gray-800 font-semibold mb-1">Algo deu errado</p>
+              <p className="text-gray-500 text-sm mb-4">{this.state.error}</p>
+              <button
+                onClick={() => { this.setState({ hasError: false, error: "" }); window.location.reload(); }}
+                className="text-sm font-semibold text-white bg-[#fb4d06] px-5 py-2.5 rounded-xl hover:opacity-90 transition"
+              >
+                Recarregar página
+              </button>
+            </div>
+          </main>
+        </WorkspaceLayout>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function PlanejamentoPage() {
   const [projetos, setProjetos] = useState<Projeto[]>([]);
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
@@ -115,10 +156,20 @@ export default function PlanejamentoPage() {
     finally { setCarregando(false); }
   }
 
-  useEffect(() => { carregar(); }, []);
+  useEffect(() => {
+    async function init() {
+      await carregar();
+    }
+    init().catch(() => setCarregando(false));
+  }, []);
 
+  // Normaliza dados para evitar crash com dados antigos
+  const projetosNormalizados = projetos.map((p) => ({
+    ...p,
+    statuses: p.statuses || [],
+  }));
   const projetoAtivo = projetoSelecionado
-    ? projetos.find((p) => p.id === projetoSelecionado) || null
+    ? projetosNormalizados.find((p) => p.id === projetoSelecionado) || null
     : null;
 
   // Atualizar estado local + API
@@ -307,6 +358,7 @@ export default function PlanejamentoPage() {
   // ═════════════════════════════════════════════
 
   return (
+    <PlanejamentoErrorBoundary>
     <WorkspaceLayout>
       <main className="px-8 py-8 max-w-full">
         {/* Cabeçalho */}
@@ -361,7 +413,7 @@ export default function PlanejamentoPage() {
           <p className="text-gray-500 text-sm">Carregando...</p>
         ) : visao === "calendario" ? (
           <CalendarioView
-            projetos={projetos}
+            projetos={projetosNormalizados}
             tarefas={tarefas}
             mes={mesCalendario}
             ano={anoCalendario}
@@ -409,7 +461,7 @@ export default function PlanejamentoPage() {
           </DndContext>
         ) : (
           <ListaProjetos
-            projetos={projetos}
+            projetos={projetosNormalizados}
             tarefas={tarefas}
             onAbrirBoard={(id) => setProjetoSelecionado(id)}
             onDeletarProjeto={handleDeletarProjeto}
@@ -433,6 +485,7 @@ export default function PlanejamentoPage() {
         />
       )}
     </WorkspaceLayout>
+    </PlanejamentoErrorBoundary>
   );
 }
 
