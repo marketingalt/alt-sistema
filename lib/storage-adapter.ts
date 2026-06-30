@@ -41,7 +41,8 @@ export type DbKey =
   | "fluxo-caixa"
   | "configuracoes"
   | "sync-log"
-  | "documentos-rh";
+  | "documentos-rh"
+  | "planejamento";
 
 // ── Detecta ambiente ──
 

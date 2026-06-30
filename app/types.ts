@@ -197,3 +197,31 @@ export interface Orcamento {
   documentos?: DocumentoFornecedor[];
   createdAt: string;
 }
+
+// ── Planejamento / Kanban ────────────────────────────
+
+export interface CartaoKanban {
+  id: string;
+  titulo: string;
+  descricao?: string;
+  dataVencimento?: string;
+  etiquetas: { nome: string; cor: string }[];
+  membros: string[];
+  createdAt: string;
+}
+
+export interface ColunaKanban {
+  id: string;
+  nome: string;
+  cartoes: CartaoKanban[];
+}
+
+export interface Projeto {
+  id: string;
+  nome: string;
+  descricao?: string;
+  cor: string;
+  colunas: ColunaKanban[];
+  createdAt: string;
+  updatedAt: string;
+}

@@ -6,7 +6,7 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import Image from "next/image";
 import { useState, useMemo } from "react";
 
-type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "rh";
+type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "planejamento" | "rh";
 
 interface NavItem {
   label: string;
@@ -72,6 +72,16 @@ const NAV: NavItem[] = [
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+      </svg>
+    ),
+  },
+  {
+    label: "Planejamento",
+    href: "/planejamento",
+    permKey: "planejamento",
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zm12 0a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
       </svg>
     ),
   },
@@ -177,7 +187,7 @@ export default function Sidebar() {
 
   // Permissões do usuário (admins têm todas)
   const permissoes = useMemo<Set<Permissao>>(() => {
-    if (isAdmin) return new Set(["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "rh"]);
+    if (isAdmin) return new Set(["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "planejamento", "rh"]);
     const raw = user?.publicMetadata?.permissoes;
     if (Array.isArray(raw)) return new Set(raw as Permissao[]);
     return new Set();
