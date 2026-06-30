@@ -518,6 +518,9 @@ function KanbanBoard({
   onDeletarTarefa: (id: string) => void;
   onSalvarStatuses: (statuses: StatusKanban[]) => void;
 }) {
+  const [renomeandoStatusId, setRenomeandoStatusId] = useState<string | null>(null);
+  const [renomeandoValor, setRenomeandoValor] = useState("");
+
   const tarefasDoProjeto = tarefas.filter((t) => t.projectId === projeto.id && !t.parentTaskId);
   const tarefasPorStatus = new Map<string, Tarefa[]>();
   for (const s of projeto.statuses) {
@@ -561,7 +564,46 @@ function KanbanBoard({
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200/50">
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: status.cor }} />
-                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">{status.nome}</span>
+                    {renomeandoStatusId === status.id ? (
+                      <input
+                        type="text"
+                        value={renomeandoValor}
+                        onChange={(e) => setRenomeandoValor(e.target.value)}
+                        onBlur={() => {
+                          const valor = renomeandoValor.trim();
+                          if (valor && valor !== status.nome) {
+                            onSalvarStatuses(
+                              projeto.statuses.map((s) =>
+                                s.id === status.id ? { ...s, nome: valor } : s
+                              )
+                            );
+                          }
+                          setRenomeandoStatusId(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            (e.target as HTMLInputElement).blur();
+                          } else if (e.key === "Escape") {
+                            setRenomeandoStatusId(null);
+                          }
+                        }}
+                        autoFocus
+                        onFocus={(e) => e.target.select()}
+                        className="text-xs font-bold text-gray-700 uppercase tracking-wide bg-white border border-gray-300 rounded px-1.5 py-0.5 w-28 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 focus:border-[#fb4d06]"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span
+                        className="text-xs font-bold text-gray-700 uppercase tracking-wide cursor-pointer hover:text-[#fb4d06] transition"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRenomeandoValor(status.nome);
+                          setRenomeandoStatusId(status.id);
+                        }}
+                      >
+                        {status.nome}
+                      </span>
+                    )}
                     <span className="text-xs text-gray-400 bg-gray-200/50 rounded-full px-2 py-0.5 font-medium">{cards.length}</span>
                   </div>
                   <button
