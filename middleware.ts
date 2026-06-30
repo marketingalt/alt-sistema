@@ -8,6 +8,7 @@ const isPublicRoute = createRouteMatcher([
   "/acesso-negado",
   "/boas-vindas",
   "/api/xbz/cron(.*)",
+  "/api/fluxo-caixa/importar-planilha(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

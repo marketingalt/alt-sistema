@@ -71,6 +71,8 @@ export default function FluxoDeCaixaPage() {
   const [dados, setDados] = useState<DadosCaixa | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [sincronizando, setSincronizando] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   // Filtros
   const hoje = new Date();
@@ -278,10 +280,47 @@ export default function FluxoDeCaixaPage() {
             <h1 className="text-2xl font-bold text-gray-800">Fluxo de Caixa</h1>
             <p className="text-gray-500 text-sm mt-0.5">Controle de entradas e saídas — Omni Alt</p>
           </div>
-          <button onClick={abrirNovo} className="bg-[#fb4d06] text-white font-semibold py-2 px-5 rounded-xl hover:opacity-90 transition flex items-center gap-2 text-sm">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
-            Novo Lançamento
-          </button>
+          <div className="flex items-center gap-2">
+            {syncMsg && (
+              <span className={`text-xs font-medium ${syncMsg.includes("sucesso") || syncMsg.includes("ok") || syncMsg.includes("importados") ? "text-green-600" : "text-red-600"}`}>
+                {syncMsg}
+              </span>
+            )}
+            <button
+              onClick={async () => {
+                setSincronizando(true);
+                setSyncMsg(null);
+                try {
+                  const res = await fetch("/api/fluxo-caixa/importar-planilha", { method: "POST" });
+                  const data = await res.json();
+                  if (data.success) {
+                    setSyncMsg(`✅ ${data.resumo.parsedos} lançamentos importados (${data.resumo.periodo.inicio} a ${data.resumo.periodo.fim})`);
+                    // Reload data
+                    const reload = await fetch("/api/fluxo-caixa");
+                    setDados(await reload.json());
+                  } else {
+                    setSyncMsg(`❌ ${data.error || "Erro ao sincronizar"}`);
+                  }
+                } catch (err) {
+                  setSyncMsg("❌ Erro de conexão ao sincronizar");
+                } finally {
+                  setSincronizando(false);
+                  setTimeout(() => setSyncMsg(null), 8000);
+                }
+              }}
+              disabled={sincronizando}
+              className="border border-gray-200 text-gray-600 font-semibold py-2 px-4 rounded-xl hover:bg-gray-50 transition flex items-center gap-2 text-sm disabled:opacity-40"
+            >
+              <svg className={`w-4 h-4 ${sincronizando ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {sincronizando ? "Sincronizando..." : "Sincronizar"}
+            </button>
+            <button onClick={abrirNovo} className="bg-[#fb4d06] text-white font-semibold py-2 px-5 rounded-xl hover:opacity-90 transition flex items-center gap-2 text-sm">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+              Novo Lançamento
+            </button>
+          </div>
         </div>
 
         {/* Navegação de mês */}
