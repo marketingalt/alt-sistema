@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import Image from "next/image";
 
 type Modulo = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "rh";
 
@@ -168,8 +169,14 @@ export default function BoasVindasPage() {
       <div className="max-w-lg w-full">
         {/* Logo */}
         <div className="text-center mb-10">
-          <span className="text-4xl font-bold text-[#fb4d06] tracking-tight">Omini</span>
-          <span className="text-4xl font-bold text-[#fb4d06] tracking-tight ml-2">Alt</span>
+          <Image
+            src="/logo.png"
+            alt="Omini Alt"
+            width={180}
+            height={50}
+            className="mx-auto object-contain"
+            priority
+          />
         </div>
 
         <div className="bg-gray-900 rounded-3xl border border-white/10 p-8">

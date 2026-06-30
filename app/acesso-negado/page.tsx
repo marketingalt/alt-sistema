@@ -1,6 +1,7 @@
 "use client";
 
 import { useClerk, useUser } from "@clerk/nextjs";
+import Image from "next/image";
 
 export default function AcessoNegado() {
   const { signOut } = useClerk();
@@ -13,8 +14,14 @@ export default function AcessoNegado() {
       <div className="max-w-md w-full text-center">
         {/* Logo */}
         <div className="mb-8">
-          <span className="text-4xl font-bold text-[#fb4d06] tracking-tight">Omini</span>
-          <span className="text-4xl font-bold text-[#fb4d06] tracking-tight ml-2">Alt</span>
+          <Image
+            src="/logo.png"
+            alt="Omini Alt"
+            width={180}
+            height={50}
+            className="mx-auto object-contain"
+            priority
+          />
         </div>
 
         {/* Ícone */}

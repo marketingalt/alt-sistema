@@ -220,14 +220,23 @@ export default function Sidebar() {
   return (
     <aside className={`${recolhido ? "w-16" : "w-56"} min-h-screen bg-[var(--sidebar-bg)] flex flex-col shrink-0 transition-all duration-200`}>
       {/* Logo + Botão recolher */}
-      <div className="px-5 py-5 border-b border-white/10 flex items-center gap-0">
+      <div className={`${recolhido ? "px-3" : "px-4"} py-4 border-b border-white/10 flex items-center gap-0`}>
         {recolhido ? (
-          <span className="text-[22px] font-bold text-[#fb4d06] tracking-tight">O</span>
+          <Image
+            src="/logo.png"
+            alt="Omini Alt"
+            width={28}
+            height={28}
+            className="object-contain shrink-0"
+          />
         ) : (
-          <>
-            <span className="text-[22px] font-bold text-[#fb4d06] tracking-tight">Omini</span>
-            <span className="text-[22px] font-bold text-[#fb4d06] tracking-tight ml-1.5">Alt</span>
-          </>
+          <Image
+            src="/logo.png"
+            alt="Omini Alt"
+            width={130}
+            height={36}
+            className="object-contain shrink-0"
+          />
         )}
         <button
           onClick={toggleRecolhido}

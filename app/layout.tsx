@@ -7,6 +7,14 @@ import Script from "next/script";
 export const metadata: Metadata = {
   title: "Omini Alt",
   description: "Sistema interno de gestão — Omini Alt",
+  icons: {
+    icon: "/logo.png",
+  },
+  openGraph: {
+    title: "Omini Alt",
+    description: "Sistema interno de gestão — Omini Alt",
+    images: ["/logo.png"],
+  },
 };
 
 export default function RootLayout({
