@@ -11,6 +11,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
@@ -241,9 +242,16 @@ export default function KanbanPage() {
     if (!over || !projetoAtivo) return;
 
     const tarefaId = String(active.id);
-    const colunaDestinoId = String(over.data.current?.statusId || over.id);
     const tarefaAtual = tarefas.find((t) => t.id === tarefaId);
-    if (!tarefaAtual || colunaDestinoId === tarefaAtual.statusId) return;
+    if (!tarefaAtual) return;
+
+    // Descobrir a coluna de destino
+    const overId = String(over.id);
+    const overTarefa = tarefas.find((t) => t.id === overId);
+    // Se caiu sobre outra tarefa, usa o statusId dela; senão usa o ID direto (coluna)
+    const colunaDestinoId = overTarefa ? overTarefa.statusId : overId;
+
+    if (colunaDestinoId === tarefaAtual.statusId) return;
 
     // Encontrar a ordem correta
     const tarefasNaColuna = tarefas
@@ -528,6 +536,17 @@ export default function KanbanPage() {
 // KANBAN BOARD
 // ═══════════════════════════════════════════════════════════
 
+function ColunaKanban({
+  statusId,
+  children,
+}: {
+  statusId: string;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef } = useDroppable({ id: statusId });
+  return <div ref={setNodeRef} className="flex-1 px-3 py-3 space-y-2 overflow-y-auto min-h-[200px]">{children}</div>;
+}
+
 function KanbanBoard({
   projeto,
   tarefas,
@@ -645,7 +664,7 @@ function KanbanBoard({
                 </div>
 
                 {/* Cartões */}
-                <div className="flex-1 px-3 py-3 space-y-2 overflow-y-auto min-h-[200px]">
+                <ColunaKanban statusId={status.id}>
                   <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
                     {cards.length === 0 && (
                       <div className="text-center py-8 text-gray-400 text-xs">Arraste tarefas para cá</div>
@@ -661,7 +680,7 @@ function KanbanBoard({
                       />
                     ))}
                   </SortableContext>
-                </div>
+                </ColunaKanban>
 
                 {/* Botão adicionar */}
                 <div className="px-3 pb-3">
