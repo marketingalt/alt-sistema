@@ -26,42 +26,12 @@ const NAV: NavItem[] = [
     ),
   },
   {
-    label: "Orçamentos",
-    href: "/orcamentos",
-    permKey: "orcamentos",
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    ),
-  },
-  {
     label: "Clientes",
     href: "/clientes",
     permKey: "clientes",
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    ),
-  },
-  {
-    label: "Fornecedores",
-    href: "/fornecedores",
-    permKey: "fornecedores",
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-      </svg>
-    ),
-  },
-  {
-    label: "Produtos",
-    href: "/produtos",
-    permKey: "produtos",
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
       </svg>
     ),
   },
@@ -85,6 +55,12 @@ const NAV: NavItem[] = [
       </svg>
     ),
   },
+];
+
+const ORCAMENTOS_SUBITENS = [
+  { label: "Visão Geral", href: "/orcamentos", icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg> },
+  { label: "Fornecedores", href: "/fornecedores", icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg> },
+  { label: "Produtos", href: "/produtos", icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg> },
 ];
 
 const FINANCEIRO_SUBITENS = [
@@ -191,6 +167,11 @@ export default function Sidebar() {
   const financeiroPermitido = temPermissao("financeiro");
   const financeiroAtivo = pathname.startsWith("/financeiro");
   const [financeiroAberto, setFinanceiroAberto] = useState(financeiroAtivo);
+
+  // Orçamentos — grupo colapsável
+  const orcamentosPermitido = temPermissao("orcamentos") || temPermissao("fornecedores") || temPermissao("produtos");
+  const orcamentosAtivo = pathname === "/orcamentos" || pathname.startsWith("/fornecedores") || pathname.startsWith("/produtos");
+  const [orcamentosAberto, setOrcamentosAberto] = useState(orcamentosAtivo);
 
   // Planejamento — grupo colapsável com sub-itens dinâmicos
   const planejamentoPermitido = temPermissao("planejamento");
@@ -314,6 +295,81 @@ export default function Sidebar() {
             </Link>
           );
         })}
+
+        {/* Orçamentos — grupo colapsável */}
+        {orcamentosPermitido ? (
+          <div className={recolhido ? "" : "mt-1"}>
+            {recolhido ? (
+              <Link href="/orcamentos" title="Orçamentos">
+                <div className={`flex items-center justify-center px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
+                  orcamentosAtivo ? "bg-[#fb4d06] text-white" : "text-gray-400 hover:bg-white/5 hover:text-white"
+                }`}>
+                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+              </Link>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setOrcamentosAberto((p) => !p)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
+                    orcamentosAtivo
+                      ? "text-[#fb4d06]"
+                      : "text-gray-400 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span className="flex-1 text-left">Orçamentos</span>
+                  <svg
+                    className={`w-3.5 h-3.5 shrink-0 transition-transform ${orcamentosAberto ? "rotate-180" : ""}`}
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {orcamentosAberto && (
+                  <div className="mt-0.5 ml-3 pl-3 border-l border-white/10 flex flex-col gap-0.5">
+                    {ORCAMENTOS_SUBITENS.map((sub) => {
+                      const ativo = pathname === sub.href || pathname.startsWith(sub.href + "/");
+                      return (
+                        <Link key={sub.href} href={sub.href}>
+                          <div className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
+                            ativo
+                              ? "bg-[#fb4d06]/15 text-[#fb4d06]"
+                              : "text-gray-500 hover:bg-white/5 hover:text-white"
+                          }`}>
+                            {sub.icon}
+                            {sub.label}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ) : (
+          /* Orçamentos bloqueado */
+          <div className={recolhido ? "" : "mt-1"}>
+            <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm text-gray-700 cursor-not-allowed`} title={recolhido ? "Orçamentos" : undefined}>
+              <span className="relative">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="absolute -top-1 -right-1">
+                  <IconeCadeado />
+                </span>
+              </span>
+              {!recolhido && <span>Orçamentos</span>}
+            </div>
+          </div>
+        )}
 
         {/* Planejamento — grupo colapsável */}
         {planejamentoPermitido ? (
