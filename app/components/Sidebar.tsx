@@ -151,6 +151,24 @@ export default function Sidebar() {
     });
   }
 
+  // Ordem dos itens do sidebar (carregada do localStorage)
+  const ORDEM_PADRAO: string[] = ["visao-geral", "clientes", "logistica", "rh", "orcamentos", "planejamento", "administracao", "financeiro", "novo-orcamento"];
+  const [sidebarOrdem, setSidebarOrdem] = useState<string[]>(ORDEM_PADRAO);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("sidebar_order");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Garantir que todos os itens estão presentes, mesmo se salvou incompleto
+        const completa = [...new Set([...parsed, ...ORDEM_PADRAO])];
+        setSidebarOrdem(completa);
+      }
+    } catch {
+      // usa padrão
+    }
+  }, []);
+
   // Permissões do usuário (admins têm todas)
   const permissoes = useMemo<Set<Permissao>>(() => {
     if (isAdmin) return new Set(["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "planejamento", "rh"]);
@@ -261,357 +279,244 @@ export default function Sidebar() {
 
         {!recolhido && <div className="mt-1 mb-1 border-t border-white/10" />}
 
-        {NAV.map((item) => {
-          if (!temPermissao(item.permKey)) {
-            // Item bloqueado — sem link, com cadeado
-            return (
-              <div
-                key={item.href}
-                className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm text-gray-700 cursor-not-allowed`}
-                title={recolhido ? item.label : undefined}
-              >
-                <span className="relative">
-                  {item.icon}
-                  <span className="absolute -top-1 -right-1">
-                    <IconeCadeado />
+        {/* Seções dinâmicas — ordem definida pelo usuário */}
+        {(() => {
+          function renderNavItem(item: NavItem) {
+            if (!temPermissao(item.permKey)) {
+              return (
+                <div key={item.href}
+                  className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm text-gray-700 cursor-not-allowed`}
+                  title={recolhido ? item.label : undefined}
+                >
+                  <span className="relative">
+                    {item.icon}
+                    <span className="absolute -top-1 -right-1"><IconeCadeado /></span>
                   </span>
-                </span>
-                {!recolhido && item.label}
-              </div>
+                  {!recolhido && item.label}
+                </div>
+              );
+            }
+            const ativo = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+            return (
+              <Link key={item.href} href={item.href} title={recolhido ? item.label : undefined}>
+                <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
+                  ativo ? "bg-[#fb4d06] text-white" : "text-gray-400 hover:bg-white/5 hover:text-white"
+                }`}>
+                  {item.icon}
+                  {!recolhido && item.label}
+                </div>
+              </Link>
             );
           }
 
-          const ativo = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-          return (
-            <Link key={item.href} href={item.href} title={recolhido ? item.label : undefined}>
-              <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
-                ativo
-                  ? "bg-[#fb4d06] text-white"
-                  : "text-gray-400 hover:bg-white/5 hover:text-white"
-              }`}>
-                {item.icon}
-                {!recolhido && item.label}
-              </div>
-            </Link>
-          );
-        })}
+          // Normaliza sem acentos para match com sidebar_order IDs
+          function normLabel(label: string) { return label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "-"); }
+          const navItemMap = new Map(NAV.map((i) => [normLabel(i.label), i]));
 
-        {/* Orçamentos — grupo colapsável */}
-        {orcamentosPermitido ? (
-          <div className={recolhido ? "" : "mt-1"}>
-            {recolhido ? (
-              <Link href="/orcamentos" title="Orçamentos">
-                <div className={`flex items-center justify-center px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
-                  orcamentosAtivo ? "bg-[#fb4d06] text-white" : "text-gray-400 hover:bg-white/5 hover:text-white"
-                }`}>
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-              </Link>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setOrcamentosAberto((p) => !p)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
-                    orcamentosAtivo
-                      ? "text-[#fb4d06]"
-                      : "text-gray-400 hover:bg-white/5 hover:text-white"
-                  }`}
-                >
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span className="flex-1 text-left">Orçamentos</span>
-                  <svg
-                    className={`w-3.5 h-3.5 shrink-0 transition-transform ${orcamentosAberto ? "rotate-180" : ""}`}
-                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                {orcamentosAberto && (
-                  <div className="mt-0.5 ml-3 pl-3 border-l border-white/10 flex flex-col gap-0.5">
-                    {ORCAMENTOS_SUBITENS.map((sub) => {
-                      const ativo = pathname === sub.href || pathname.startsWith(sub.href + "/");
-                      return (
-                        <Link key={sub.href} href={sub.href}>
-                          <div className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
-                            ativo
-                              ? "bg-[#fb4d06]/15 text-[#fb4d06]"
-                              : "text-gray-500 hover:bg-white/5 hover:text-white"
-                          }`}>
-                            {sub.icon}
-                            {sub.label}
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        ) : (
-          /* Orçamentos bloqueado */
-          <div className={recolhido ? "" : "mt-1"}>
-            <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm text-gray-700 cursor-not-allowed`} title={recolhido ? "Orçamentos" : undefined}>
-              <span className="relative">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span className="absolute -top-1 -right-1">
-                  <IconeCadeado />
-                </span>
-              </span>
-              {!recolhido && <span>Orçamentos</span>}
-            </div>
-          </div>
-        )}
-
-        {/* Planejamento — grupo colapsável */}
-        {planejamentoPermitido ? (
-          <div className={recolhido ? "" : "mt-1"}>
-            {recolhido ? (
-              <Link href="/planejamento" title="Planejamento">
-                <div className={`flex items-center justify-center px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
-                  planejamentoAtivo ? "bg-[#fb4d06] text-white" : "text-gray-400 hover:bg-white/5 hover:text-white"
-                }`}>
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zm12 0a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                  </svg>
-                </div>
-              </Link>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setPlanejamentoAberto((p) => !p)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
-                    planejamentoAtivo
-                      ? "text-[#fb4d06]"
-                      : "text-gray-400 hover:bg-white/5 hover:text-white"
-                  }`}
-                >
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zm12 0a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                  </svg>
-                  <span className="flex-1 text-left">Planejamento</span>
-                  <svg
-                    className={`w-3.5 h-3.5 shrink-0 transition-transform ${planejamentoAberto ? "rotate-180" : ""}`}
-                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                {planejamentoAberto && (
-                  <div className="mt-0.5 ml-3 pl-3 border-l border-white/10 flex flex-col gap-0.5">
-                    {/* Visão Geral — fixo */}
-                    <Link href="/planejamento">
-                      <div className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
-                        pathname === "/planejamento"
-                          ? "bg-[#fb4d06]/15 text-[#fb4d06]"
-                          : "text-gray-500 hover:bg-white/5 hover:text-white"
-                      }`}>
-                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                        Visão Geral
+          const secoes: Record<string, () => React.ReactNode> = {
+            "visao-geral": () => renderNavItem(navItemMap.get("visao-geral")!),
+            "clientes": () => renderNavItem(navItemMap.get("clientes")!),
+            "logistica": () => renderNavItem(navItemMap.get("logistica")!),
+            "rh": () => renderNavItem(navItemMap.get("rh")!),
+            "orcamentos": () => (
+              orcamentosPermitido ? (
+                <div key="orcamentos" className={recolhido ? "" : "mt-1"}>
+                  {recolhido ? (
+                    <Link href="/orcamentos" title="Orçamentos">
+                      <div className={`flex items-center justify-center px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${orcamentosAtivo ? "bg-[#fb4d06] text-white" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}>
+                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                       </div>
                     </Link>
-                    {/* Projetos — dinâmicos da API */}
-                    {projetosSidebar.map((proj) => (
-                      <Link key={proj.id} href={`/planejamento/${proj.id}`}>
-                        <div className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
-                          pathname === `/planejamento/${proj.id}`
-                            ? "bg-[#fb4d06]/15 text-[#fb4d06]"
-                            : "text-gray-500 hover:bg-white/5 hover:text-white"
-                        }`}>
-                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: proj.cor }} />
-                          <span className="truncate">{proj.nome}</span>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => setOrcamentosAberto((p) => !p)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${orcamentosAtivo ? "text-[#fb4d06]" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}
+                      >
+                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        <span className="flex-1 text-left">Orçamentos</span>
+                        <svg className={`w-3.5 h-3.5 shrink-0 transition-transform ${orcamentosAberto ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+                      {orcamentosAberto && (
+                        <div className="mt-0.5 ml-3 pl-3 border-l border-white/10 flex flex-col gap-0.5">
+                          {ORCAMENTOS_SUBITENS.map((sub) => {
+                            const ativo = pathname === sub.href || pathname.startsWith(sub.href + "/");
+                            return (
+                              <Link key={sub.href} href={sub.href}>
+                                <div className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${ativo ? "bg-[#fb4d06]/15 text-[#fb4d06]" : "text-gray-500 hover:bg-white/5 hover:text-white"}`}>
+                                  {sub.icon}{sub.label}
+                                </div>
+                              </Link>
+                            );
+                          })}
                         </div>
-                      </Link>
-                    ))}
-
-                    {/* Novo Projeto — ação direta */}
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const nome = prompt("Nome do novo projeto:");
-                        if (!nome?.trim()) return;
-                        const cor = ["#6366f1","#8b5cf6","#a855f7","#d946ef","#ec4899","#f43f5e","#fb4d06","#f97316","#eab308","#22c55e","#14b8a6","#06b6d4"][Math.floor(Math.random()*12)];
-                        try {
-                          const res = await fetch("/api/planejamento", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ nome: nome.trim(), cor }),
-                          });
-                          if (res.ok) {
-                            const projeto = await res.json();
-                            // Atualiza sidebar e navega para o board
-                            setProjetosSidebar((prev) => [...prev, { id: projeto.id, nome: projeto.nome, cor: projeto.cor || cor }]);
-                            setPlanejamentoAberto(true);
-                            window.location.href = `/planejamento/${projeto.id}`;
-                          }
-                        } catch (e) {
-                          console.error("Erro ao criar projeto:", e);
-                        }
-                      }}
-                      className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium text-gray-500 hover:text-[#fb4d06] hover:bg-white/5 transition cursor-pointer w-full text-left"
-                    >
-                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      Novo Projeto
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        ) : (
-          /* Planejamento bloqueado */
-          <div className={recolhido ? "" : "mt-1"}>
-            <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm text-gray-700 cursor-not-allowed`} title={recolhido ? "Planejamento" : undefined}>
-              <span className="relative">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zm12 0a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                </svg>
-                <span className="absolute -top-1 -right-1">
-                  <IconeCadeado />
-                </span>
-              </span>
-              {!recolhido && <span>Planejamento</span>}
-            </div>
-          </div>
-        )}
-
-        {/* Administração — apenas para admins */}
-        {isAdmin && (
-          <>
-            {!recolhido && <div className="mt-1" />}
-            <div className={recolhido ? "" : "mt-1"}>
-              <Link href="/admin" title={recolhido ? "Administração" : undefined}>
-                <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
-                  pathname.startsWith("/admin")
-                    ? "bg-[#fb4d06] text-white"
-                    : "text-gray-400 hover:bg-white/5 hover:text-white"
-                }`}>
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  {!recolhido && <span>Administração</span>}
+                      )}
+                    </>
+                  )}
                 </div>
-              </Link>
-            </div>
-            {!recolhido && <div className="mt-2 mb-1 border-t border-white/10" />}
-          </>
-        )}
-
-        {/* Financeiro — grupo colapsável */}
-        {financeiroPermitido ? (
-          <div className={recolhido ? "" : "mt-1"}>
-            {recolhido ? (
-              <Link href="/financeiro/contas-a-pagar" title="Financeiro">
-                <div className={`flex items-center justify-center px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
-                  financeiroAtivo ? "bg-[#fb4d06] text-white" : "text-gray-400 hover:bg-white/5 hover:text-white"
-                }`}>
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+              ) : (
+                <div key="orcamentos" className={recolhido ? "" : "mt-1"}>
+                  <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm text-gray-700 cursor-not-allowed`} title={recolhido ? "Orçamentos" : undefined}>
+                    <span className="relative">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      <span className="absolute -top-1 -right-1"><IconeCadeado /></span>
+                    </span>
+                    {!recolhido && <span>Orçamentos</span>}
+                  </div>
+                </div>
+              )
+            ),
+            "planejamento": () => (
+              planejamentoPermitido ? (
+                <div key="planejamento" className={recolhido ? "" : "mt-1"}>
+                  {recolhido ? (
+                    <Link href="/planejamento" title="Planejamento">
+                      <div className={`flex items-center justify-center px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${planejamentoAtivo ? "bg-[#fb4d06] text-white" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}>
+                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zm12 0a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" /></svg>
+                      </div>
+                    </Link>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => setPlanejamentoAberto((p) => !p)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${planejamentoAtivo ? "text-[#fb4d06]" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}
+                      >
+                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zm12 0a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" /></svg>
+                        <span className="flex-1 text-left">Planejamento</span>
+                        <svg className={`w-3.5 h-3.5 shrink-0 transition-transform ${planejamentoAberto ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+                      {planejamentoAberto && (
+                        <div className="mt-0.5 ml-3 pl-3 border-l border-white/10 flex flex-col gap-0.5">
+                          <Link href="/planejamento">
+                            <div className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${pathname === "/planejamento" ? "bg-[#fb4d06]/15 text-[#fb4d06]" : "text-gray-500 hover:bg-white/5 hover:text-white"}`}>
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                              Visão Geral
+                            </div>
+                          </Link>
+                          {projetosSidebar.map((proj) => (
+                            <Link key={proj.id} href={`/planejamento/${proj.id}`}>
+                              <div className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${pathname === `/planejamento/${proj.id}` ? "bg-[#fb4d06]/15 text-[#fb4d06]" : "text-gray-500 hover:bg-white/5 hover:text-white"}`}>
+                                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: proj.cor }} />
+                                <span className="truncate">{proj.nome}</span>
+                              </div>
+                            </Link>
+                          ))}
+                          <button type="button" onClick={async () => {
+                            const nome = prompt("Nome do novo projeto:");
+                            if (!nome?.trim()) return;
+                            const cor = ["#6366f1","#8b5cf6","#a855f7","#d946ef","#ec4899","#f43f5e","#fb4d06","#f97316","#eab308","#22c55e","#14b8a6","#06b6d4"][Math.floor(Math.random()*12)];
+                            try {
+                              const res = await fetch("/api/planejamento", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: nome.trim(), cor }) });
+                              if (res.ok) {
+                                const projeto = await res.json();
+                                setProjetosSidebar((prev) => [...prev, { id: projeto.id, nome: projeto.nome, cor: projeto.cor || cor }]);
+                                setPlanejamentoAberto(true);
+                                window.location.href = `/planejamento/${projeto.id}`;
+                              }
+                            } catch (e) { console.error("Erro ao criar projeto:", e); }
+                          }}
+                          className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium text-gray-500 hover:text-[#fb4d06] hover:bg-white/5 transition cursor-pointer w-full text-left">
+                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                            Novo Projeto
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div key="planejamento" className={recolhido ? "" : "mt-1"}>
+                  <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm text-gray-700 cursor-not-allowed`} title={recolhido ? "Planejamento" : undefined}>
+                    <span className="relative">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zm12 0a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" /></svg>
+                      <span className="absolute -top-1 -right-1"><IconeCadeado /></span>
+                    </span>
+                    {!recolhido && <span>Planejamento</span>}
+                  </div>
+                </div>
+              )
+            ),
+            "administracao": () => isAdmin ? (
+              <div key="administracao" className={recolhido ? "" : "mt-1"}>
+                <Link href="/admin" title={recolhido ? "Administração" : undefined}>
+                  <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${pathname.startsWith("/admin") ? "bg-[#fb4d06] text-white" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}>
+                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    {!recolhido && <span>Administração</span>}
+                  </div>
+                </Link>
+              </div>
+            ) : null,
+            "financeiro": () => (
+              financeiroPermitido ? (
+                <div key="financeiro" className={recolhido ? "" : "mt-1"}>
+                  {recolhido ? (
+                    <Link href="/financeiro/contas-a-pagar" title="Financeiro">
+                      <div className={`flex items-center justify-center px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${financeiroAtivo ? "bg-[#fb4d06] text-white" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}>
+                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      </div>
+                    </Link>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => setFinanceiroAberto((p) => !p)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${financeiroAtivo ? "text-[#fb4d06]" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}
+                      >
+                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span className="flex-1 text-left">Financeiro</span>
+                        <svg className={`w-3.5 h-3.5 shrink-0 transition-transform ${financeiroAberto ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+                      {financeiroAberto && (
+                        <div className="mt-0.5 ml-3 pl-3 border-l border-white/10 flex flex-col gap-0.5">
+                          {FINANCEIRO_SUBITENS.map((sub) => {
+                            const ativo = pathname === sub.href || pathname.startsWith(sub.href + "/");
+                            return (
+                              <Link key={sub.href} href={sub.href}>
+                                <div className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${ativo ? "bg-[#fb4d06]/15 text-[#fb4d06]" : "text-gray-500 hover:bg-white/5 hover:text-white"}`}>
+                                  {sub.icon}{sub.label}
+                                </div>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div key="financeiro" className={recolhido ? "" : "mt-1"}>
+                  <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm text-gray-700 cursor-not-allowed`} title={recolhido ? "Financeiro" : undefined}>
+                    <span className="relative">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <span className="absolute -top-1 -right-1"><IconeCadeado /></span>
+                    </span>
+                    {!recolhido && <span>Financeiro</span>}
+                  </div>
+                </div>
+              )
+            ),
+            "novo-orcamento": () => temPermissao("orcamentos") ? (
+              <Link key="novo-orcamento" href="/novo" className={recolhido ? "mt-2" : "mt-2"} title={recolhido ? "Novo Orçamento" : undefined}>
+                <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white transition cursor-pointer border border-white/10 hover:border-[#fb4d06]/40`}>
+                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                  {!recolhido && <span>Novo Orçamento</span>}
                 </div>
               </Link>
             ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setFinanceiroAberto((p) => !p)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
-                    financeiroAtivo
-                      ? "text-[#fb4d06]"
-                      : "text-gray-400 hover:bg-white/5 hover:text-white"
-                  }`}
-                >
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="flex-1 text-left">Financeiro</span>
-                  <svg
-                    className={`w-3.5 h-3.5 shrink-0 transition-transform ${financeiroAberto ? "rotate-180" : ""}`}
-                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
+              <div key="novo-orcamento" className="mt-2">
+                <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm text-gray-700 cursor-not-allowed border border-white/5`} title={recolhido ? "Novo Orçamento" : undefined}>
+                  <span className="relative">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                    <span className="absolute -top-1 -right-1"><IconeCadeado /></span>
+                  </span>
+                  {!recolhido && <span>Novo Orçamento</span>}
+                </div>
+              </div>
+            ),
+          };
 
-                {financeiroAberto && (
-                  <div className="mt-0.5 ml-3 pl-3 border-l border-white/10 flex flex-col gap-0.5">
-                    {FINANCEIRO_SUBITENS.map((sub) => {
-                      const ativo = pathname === sub.href || pathname.startsWith(sub.href + "/");
-                      return (
-                        <Link key={sub.href} href={sub.href}>
-                          <div className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
-                            ativo
-                              ? "bg-[#fb4d06]/15 text-[#fb4d06]"
-                              : "text-gray-500 hover:bg-white/5 hover:text-white"
-                          }`}>
-                            {sub.icon}
-                            {sub.label}
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        ) : (
-          /* Financeiro bloqueado */
-          <div className={recolhido ? "" : "mt-1"}>
-            <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm text-gray-700 cursor-not-allowed`} title={recolhido ? "Financeiro" : undefined}>
-              <span className="relative">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="absolute -top-1 -right-1">
-                  <IconeCadeado />
-                </span>
-              </span>
-              {!recolhido && <span>Financeiro</span>}
-            </div>
-          </div>
-        )}
-
-        {/* Novo Orçamento */}
-        {temPermissao("orcamentos") ? (
-          <Link href="/novo" className={recolhido ? "mt-2" : "mt-2"} title={recolhido ? "Novo Orçamento" : undefined}>
-            <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white transition cursor-pointer border border-white/10 hover:border-[#fb4d06]/40`}>
-              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              {!recolhido && <span>Novo Orçamento</span>}
-            </div>
-          </Link>
-        ) : (
-          <div className="mt-2">
-            <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm text-gray-700 cursor-not-allowed border border-white/5`} title={recolhido ? "Novo Orçamento" : undefined}>
-              <span className="relative">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span className="absolute -top-1 -right-1">
-                  <IconeCadeado />
-                </span>
-              </span>
-              {!recolhido && <span>Novo Orçamento</span>}
-            </div>
-          </div>
-        )}
+          return sidebarOrdem.map((id) => {
+            const fn = secoes[id];
+            if (!fn) return null;
+            return fn();
+          });
+        })()}
 
         {/* Em breve */}
         {!recolhido && (
@@ -631,8 +536,22 @@ export default function Sidebar() {
         )}
       </nav>
 
+      {/* Configurações */}
+      <div className={`px-3 ${recolhido ? "pb-2 pt-2" : "pb-2"} border-t border-white/10`}>
+        <Link href="/configuracoes" title={recolhido ? "Configurações" : undefined}>
+          <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-white/5 hover:text-white transition cursor-pointer ${
+            pathname === "/configuracoes" ? "bg-[#fb4d06]/15 text-[#fb4d06]" : ""
+          }`}>
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            </svg>
+            {!recolhido && <span>Configurações</span>}
+          </div>
+        </Link>
+      </div>
+
       {/* Logout */}
-      <div className="px-3 py-4 border-t border-white/10">
+      <div className={`px-3 pb-4 ${recolhido ? "pt-2" : ""} border-t border-white/10`}>
         <button
           onClick={() => signOut({ redirectUrl: "/sign-in" })}
           title={recolhido ? "Sair" : undefined}
