@@ -318,6 +318,25 @@ export default function KanbanPage() {
   async function handleNovaSubtarefa(titulo: string) {
     if (!projetoAtivo || !tarefaAberta) return;
     const primeiroStatus = projetoAtivo.statuses[0];
+
+    // Propagar osId da OS vinculada (se houver)
+    let customFields: Record<string, any> = {};
+    const orcamentoId = tarefaAberta.customFields?.orcamentoId as string | undefined;
+    if (orcamentoId) {
+      try {
+        const resOS = await fetch("/api/ordens-servico");
+        if (resOS.ok) {
+          const ordens: any[] = await resOS.json();
+          const os = ordens.find((o: any) => o.orcamentoId === orcamentoId);
+          if (os) customFields.osId = os.id;
+        }
+      } catch {}
+    }
+    // Também propaga osId se o pai já tiver (veio de uma subtarefa anterior)
+    if (!customFields.osId && tarefaAberta.customFields?.osId) {
+      customFields.osId = tarefaAberta.customFields.osId;
+    }
+
     const res = await fetch("/api/planejamento/tarefas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -326,6 +345,7 @@ export default function KanbanPage() {
         statusId: primeiroStatus.id,
         titulo,
         parentTaskId: tarefaAberta.id,
+        customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
       }),
     });
     if (res.ok) {

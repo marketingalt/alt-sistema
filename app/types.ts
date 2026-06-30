@@ -244,3 +244,51 @@ export interface Projeto {
   createdAt: string;
   updatedAt: string;
 }
+
+// ── Ordem de Serviço (OS) ──────────────────────
+
+export type StatusOS = "Pendente" | "Em produção" | "Pronto" | "Entregue" | "Cancelada";
+
+export const STATUS_OS_CONFIG: Record<StatusOS, { cor: string; bg: string; dot: string }> = {
+  "Pendente":    { cor: "text-yellow-700", bg: "bg-yellow-50 border-yellow-200", dot: "bg-yellow-500" },
+  "Em produção": { cor: "text-blue-700",   bg: "bg-blue-50 border-blue-200",    dot: "bg-blue-500" },
+  "Pronto":      { cor: "text-green-700",  bg: "bg-green-50 border-green-200",   dot: "bg-green-500" },
+  "Entregue":    { cor: "text-gray-700",   bg: "bg-gray-100 border-gray-200",    dot: "bg-gray-500" },
+  "Cancelada":   { cor: "text-red-700",    bg: "bg-red-50 border-red-200",       dot: "bg-red-500" },
+};
+
+export interface ItemOS {
+  itemOrcamentoId: string;
+  kit: string;
+  referencia: string;
+  item: string;
+  quantidade: number;
+  fornecedorId?: string;
+  fornecedorNome?: string;
+  custoUnitario: number;
+  freteProducao: number;
+  custoPersonalizacao: number;
+  custoEmbalagemIndividual?: number;
+  custoEmbalagemTransporte?: number;
+  totalCusto: number;
+}
+
+export interface OrdemServico {
+  id: string;
+  numero: string;
+  orcamentoId: string;
+  orcamentoNumero: string;
+  cliente: string;
+  clienteId?: string;
+  solicitante: string;
+  responsavel?: string;
+  dataOrcamento: string;
+  prazoPagamento: string;
+  prazoEntrega: string;
+  observacoes: string;
+  status: StatusOS;
+  itens: ItemOS[];
+  criadoAutomaticamente: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

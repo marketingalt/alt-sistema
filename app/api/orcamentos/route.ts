@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { listarOrcamentos, salvarOrcamento, sincronizarTarefasOrcamento } from "@/lib/storage";
+import { listarOrcamentos, salvarOrcamento, sincronizarTarefasOrcamento, gerarOSdeOrcamento } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +35,11 @@ export async function POST(req: NextRequest) {
     // Sincronizar tarefas no Planejamento
     sincronizarTarefasOrcamento(salvo).catch((err) =>
       console.error("[ORCAMENTO SYNC ERROR]", err)
+    );
+
+    // Gerar OS automaticamente se o orçamento foi aprovado
+    gerarOSdeOrcamento(salvo).catch((err) =>
+      console.error("[ORCAMENTO OS ERROR]", err)
     );
 
     return NextResponse.json(salvo, {
