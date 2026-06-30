@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validar que as permissões são valores conhecidos
-    const VALIDAS = ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "rh"];
+    const VALIDAS = ["orcamentos", "clientes", "fornecedores", "produtos", "planejamento", "financeiro", "logistica", "rh"];
     const invalidas = permissoes.filter((p: string) => !VALIDAS.includes(p));
     if (invalidas.length > 0) {
       return NextResponse.json(
