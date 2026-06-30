@@ -31,6 +31,7 @@ export interface ItemOrcamento {
   item: string;
   cor?: string;
   ncm?: string;
+  categoria?: "brindes" | "servico";
   acabamento: TipoPersonalizacao | string;
   descricao: string;
   quantidade: number;

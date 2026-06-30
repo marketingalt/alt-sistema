@@ -47,6 +47,7 @@ function itemVazio(margem: number): ItemOrcamento {
     id: gerarId(), kit: "", referencia: "", item: "", acabamento: "Silk", descricao: "",
     quantidade: 1, custoUnitario: 0, freteProducao: 0, custoPersonalizacao: 0,
     margem, valorUnitario: 0, valorAjustado: false, total: 0, diasProducao: undefined, ncm: "",
+    categoria: "brindes",
   };
 }
 
@@ -72,6 +73,7 @@ function migrarItem(i: Partial<ItemOrcamento>, margemPadrao: number): ItemOrcame
     valorUnitario: Number(i.valorUnitario) || 0,
     valorAjustado: i.valorAjustado || false,
     total: Number(i.total) || 0,
+    categoria: (i.categoria as "brindes" | "servico") || "brindes",
   };
 }
 
@@ -364,7 +366,6 @@ export default function VisualizarOrcamento() {
   const freteInfo = orcamento.frete && !orcamento.frete.startsWith("CUSTO ADICIONAL") ? orcamento.frete : null;
   const freteValorNum = (freteInfo && (orcamento.freteValor ?? 0) > 0) ? (orcamento.freteValor ?? 0) : 0;
   const totalComFrete = freteValorNum > 0 ? totalGeral + freteValorNum : 0;
-  const ehNFSE = (orcamento.tiposNota || []).includes("NFSE");
 
   return (
     <WorkspaceLayout>
@@ -830,7 +831,21 @@ export default function VisualizarOrcamento() {
                   return (
                     <div key={item.id} className="border border-gray-100 rounded-xl overflow-hidden">
                       <div className="bg-gray-50 px-4 py-2 flex items-center justify-between border-b border-gray-100">
-                        <span className="text-xs font-bold text-[#fb4d06] uppercase">Item {idx + 1}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-[#fb4d06] uppercase">Item {idx + 1}</span>
+                          <span className="text-[10px] font-semibold text-gray-400">·</span>
+                          <button
+                            type="button"
+                            onClick={() => atualizarItem(item.id, "categoria", item.categoria === "servico" ? "brindes" : "servico")}
+                            className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border transition ${
+                              item.categoria === "servico"
+                                ? "bg-purple-100 text-purple-700 border-purple-200"
+                                : "bg-gray-100 text-gray-600 border-gray-200"
+                            }`}
+                          >
+                            {item.categoria === "servico" ? "Serviço" : "Brindes"}
+                          </button>
+                        </div>
                         {orcamento.itens.length > 1 && (
                           <button onClick={() => removerItem(item.id)} className="text-red-400 hover:text-red-600 text-xs">
                             Remover
@@ -839,8 +854,8 @@ export default function VisualizarOrcamento() {
                       </div>
 
                       <div className="p-4 flex flex-col gap-4">
-                        {ehNFSE ? (
-                          /* ═══ NFSE — Serviço ═══ */
+                        {item.categoria === "servico" ? (
+                          /* ═══ Serviço ═══ */
                           <>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                               <Campo label="Item" value={item.item} onChange={(v) => atualizarItem(item.id, "item", v)} />
@@ -897,7 +912,7 @@ export default function VisualizarOrcamento() {
                             </div>
                           </>
                         ) : (
-                          /* ═══ DANFE — Produto ═══ */
+                          /* ═══ Brindes ═══ */
                           <>
                             {/* Dados do produto */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
