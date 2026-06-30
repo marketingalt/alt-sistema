@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getAllUsers, setAdminRole, setUserPermissions, checkIsAdmin } from "@/lib/admin";
+import { getAllUsers, setAdminRole, setUserPermissions, deleteUser, checkIsAdmin } from "@/lib/admin";
 
 export async function GET() {
   try {
@@ -19,6 +19,51 @@ export async function GET() {
   } catch (err) {
     console.error("Erro ao listar usuários:", err);
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+
+    const isAdmin = await checkIsAdmin(userId);
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Acesso restrito a administradores" }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const targetUserId = searchParams.get("userId");
+
+    if (!targetUserId) {
+      return NextResponse.json({ error: "Parâmetro userId é obrigatório" }, { status: 400 });
+    }
+
+    // Não permitir excluir a si mesmo
+    if (targetUserId === userId) {
+      return NextResponse.json({ error: "Você não pode excluir seu próprio usuário" }, { status: 400 });
+    }
+
+    // Verificar se o alvo é admin e se é o último
+    const allUsers = await getAllUsers();
+    const targetUser = allUsers.find((u) => u.id === targetUserId);
+    if (targetUser?.role === "admin") {
+      const adminsRestantes = allUsers.filter((u) => u.role === "admin" && u.id !== targetUserId);
+      if (adminsRestantes.length === 0) {
+        return NextResponse.json(
+          { error: "Não é possível excluir o último administrador do sistema" },
+          { status: 400 }
+        );
+      }
+    }
+
+    await deleteUser(targetUserId);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("Erro ao excluir usuário:", err);
+    return NextResponse.json({ error: "Erro interno ao excluir usuário" }, { status: 500 });
   }
 }
 

@@ -96,6 +96,7 @@ function AbaUsuarios() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
   const [alterando, setAlterando] = useState<string | null>(null);
+  const [excluindo, setExcluindo] = useState<string | null>(null);
 
   async function carregar() {
     setCarregando(true);
@@ -115,6 +116,25 @@ function AbaUsuarios() {
   }
 
   useEffect(() => { carregar(); }, []);
+
+  async function excluirUsuario(targetUserId: string) {
+    setExcluindo(targetUserId);
+    try {
+      const res = await fetch(`/api/admin/usuarios?userId=${targetUserId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Erro ao excluir usuário");
+      } else {
+        await carregar();
+      }
+    } catch {
+      alert("Erro de rede ao excluir usuário");
+    } finally {
+      setExcluindo(null);
+    }
+  }
 
   async function alternarRole(targetUserId: string, novaRole: "admin" | "user") {
     const confirmar = novaRole === "user"
@@ -172,8 +192,9 @@ function AbaUsuarios() {
         <UsuarioRow
           key={u.id}
           usuario={u}
-          alterando={alterando === u.id}
+          alterando={alterando === u.id || excluindo === u.id}
           onAlterarRole={(novaRole) => alternarRole(u.id, novaRole)}
+          onExcluir={() => excluirUsuario(u.id)}
           onAlterarPermissoes={(novasPerms) => {
             setAlterando(u.id);
             fetch("/api/admin/usuarios", {
@@ -214,11 +235,13 @@ function UsuarioRow({
   alterando,
   onAlterarRole,
   onAlterarPermissoes,
+  onExcluir,
 }: {
   usuario: ClerkUserWithRole;
   alterando: boolean;
   onAlterarRole: (role: "admin" | "user") => void;
   onAlterarPermissoes: (permissoes: string[]) => void;
+  onExcluir: () => void;
 }) {
   const [editandoPerms, setEditandoPerms] = useState(false);
   const [pendingPerms, setPendingPerms] = useState<string[]>(usuario.permissoes);
@@ -258,7 +281,7 @@ function UsuarioRow({
         </div>
 
         {/* Ações role */}
-        <div className="shrink-0">
+        <div className="shrink-0 flex items-center gap-1">
           {ehAdmin ? (
             <button
               onClick={() => onAlterarRole("user")}
@@ -276,6 +299,20 @@ function UsuarioRow({
               {alterando ? "Alterando..." : "Promover a Admin"}
             </button>
           )}
+          <button
+            onClick={() => {
+              if (confirm(`Tem certeza que deseja excluir o usuário "${usuario.nome}"? Esta ação não pode ser desfeita.`)) {
+                onExcluir();
+              }
+            }}
+            disabled={alterando}
+            className="text-xs font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 px-2 py-1.5 rounded-lg transition disabled:opacity-50"
+            title="Excluir usuário"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
         </div>
       </div>
 

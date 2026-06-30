@@ -77,6 +77,13 @@ export async function setUserPermissions(
   });
 }
 
+export async function deleteUser(
+  userId: string
+): Promise<void> {
+  const client = await clerkClient();
+  await client.users.deleteUser(userId);
+}
+
 export async function autoSeedAdmin(userId: string): Promise<boolean> {
   try {
     const client = await clerkClient();
