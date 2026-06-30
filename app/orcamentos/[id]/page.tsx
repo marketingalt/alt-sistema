@@ -13,6 +13,7 @@ import CampoPrazoEntrega from "@/app/components/CampoPrazoEntrega";
 import CampoPrazoPagamento from "@/app/components/CampoPrazoPagamento";
 import type { DocumentoFornecedor } from "@/app/types";
 import DocumentoPreview from "./DocumentoPreview";
+import TagSelector from "@/app/components/TagSelector";
 import { validarOrcamento } from "@/lib/validacao";
 import type { ErroValidacao } from "@/lib/validacao";
 import { useAutoSave, getDraft, clearDraft } from "@/hooks/useAutoSave";
@@ -91,6 +92,7 @@ export default function VisualizarOrcamento() {
   const [enderecoFornecedorModal, setEnderecoFornecedorModal] = useState("");
   const restoredRef = useRef(false);
   const [rascunhoRestaurado, setRascunhoRestaurado] = useState(false);
+  const [projetosPlanejamento, setProjetosPlanejamento] = useState<{ id: string; nome: string; cor: string }[]>([]);
 
   // ── Novo estado: modo de visualização ──
   const [modo, setModo] = useState<ModoVisualizacao>("visualizacao");
@@ -121,6 +123,15 @@ export default function VisualizarOrcamento() {
         setCienteAlteracao(jaDifere);
       });
   }, [id]);
+
+  // Carrega projetos do planejamento para tags
+  useEffect(() => {
+    fetch("/api/planejamento").then((r) => r.json()).then((data) => {
+      if (data?.projetos) {
+        setProjetosPlanejamento(data.projetos.map((p: any) => ({ id: p.id, nome: p.nome, cor: p.cor || "#6366f1" })));
+      }
+    }).catch(() => {});
+  }, []);
 
   const draftKey = `${DRAFT_KEY_PREFIX}${id}`;
   const { savedAt: draftSavedAt, isSaving: draftIsSaving } = useAutoSave(draftKey, orcamento, orcamento !== null);
@@ -454,13 +465,34 @@ export default function VisualizarOrcamento() {
            MODO: VISUALIZAÇÃO (Documento Vivo Editável)
            ═══════════════════════════════════════════════ */}
         {modo === "visualizacao" ? (
-          <DocumentoPreview
-            orcamento={orcamento}
-            onUpdateCampo={atualizarCampo}
-            onUpdateItem={atualizarItem}
-            onDownloadPdf={() => gerarPdf("valores")}
-            gerandoPdf={gerandoPdf}
-          />
+          <div>
+            {/* ── Tags (projetos) exibidas como badges no topo ── */}
+            {orcamento.tags && orcamento.tags.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {orcamento.tags.map((tagId) => {
+                  const proj = projetosPlanejamento.find((p) => p.id === tagId);
+                  if (!proj) return null;
+                  return (
+                    <span
+                      key={tagId}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-white shadow-sm"
+                      style={{ backgroundColor: proj.cor, boxShadow: `0 0 8px ${proj.cor}55` }}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-white/60" />
+                      {proj.nome}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+            <DocumentoPreview
+              orcamento={orcamento}
+              onUpdateCampo={atualizarCampo}
+              onUpdateItem={atualizarItem}
+              onDownloadPdf={() => gerarPdf("valores")}
+              gerandoPdf={gerandoPdf}
+            />
+          </div>
         ) : (
           /* ════════════════════════════════════════════════
              MODO: REVISÃO / EDIÇÃO
@@ -567,6 +599,16 @@ export default function VisualizarOrcamento() {
                 <Campo label="Nome do Projeto" value={orcamento.nomeProjeto || ""} onChange={(v) => atualizarCampo("nomeProjeto", v)} />
                 <Campo label="Cliente" value={orcamento.cliente} onChange={(v) => atualizarCampo("cliente", v)} />
                 <Campo label="Solicitante" value={orcamento.solicitante} onChange={(v) => atualizarCampo("solicitante", v)} />
+              </div>
+
+              {/* Projetos (tags) */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-500 mb-2">Projetos</label>
+                <TagSelector
+                  projetos={projetosPlanejamento}
+                  selected={orcamento.tags || []}
+                  onChange={(ids) => { setSalvo(false); setOrcamento((prev) => prev ? { ...prev, tags: ids } : prev); }}
+                />
               </div>
 
               {/* Linha 2: Responsável + Data solicitação + Data elaboração + Tipo nota */}

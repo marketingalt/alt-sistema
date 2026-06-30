@@ -5,6 +5,7 @@ import { useAutoSave, getDraft, clearDraft } from "@/hooks/useAutoSave";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import type { ItemOrcamento, Orcamento, Cliente, Produto, Fornecedor } from "@/app/types";
+import TagSelector from "@/app/components/TagSelector";
 import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima } from "@/lib/calculos";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
@@ -66,6 +67,7 @@ export default function RevisarOrcamento() {
     percHonorarios: PERC_HONORARIOS_PADRAO,
     percImpostos: PERC_IMPOSTOS_PADRAO,
     percComissao: PERC_COMISSAO_PADRAO,
+    tags: [],
     status: "Em andamento" as const,
     itens: [itemVazio(MARGEM_PADRAO)],
   });
@@ -79,11 +81,17 @@ export default function RevisarOrcamento() {
   const [modalFrete, setModalFrete] = useState(false);
   const [modalFreteProducao, setModalFreteProducao] = useState<string | null>(null);
   const [enderecoFornecedorModal, setEnderecoFornecedorModal] = useState("");
+  const [projetosPlanejamento, setProjetosPlanejamento] = useState<{ id: string; nome: string; cor: string }[]>([]);
   const restoredRef = useRef(false);
   const [rascunhoRestaurado, setRascunhoRestaurado] = useState(false);
 
   useEffect(() => {
     fetch("/api/produtos").then((r) => r.json()).then(setProdutos);
+    fetch("/api/planejamento").then((r) => r.json()).then((data) => {
+      if (data?.projetos) {
+        setProjetosPlanejamento(data.projetos.map((p: any) => ({ id: p.id, nome: p.nome, cor: p.cor || "#6366f1" })));
+      }
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -524,6 +532,16 @@ export default function RevisarOrcamento() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Projetos (tags) */}
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-gray-500 mb-2">Projetos</label>
+            <TagSelector
+              projetos={projetosPlanejamento}
+              selected={orcamento.tags || []}
+              onChange={(ids) => setOrcamento((prev) => ({ ...prev, tags: ids }))}
+            />
           </div>
 
           {/* Linha 2: Responsável + Data solicitação + Data elaboração + Tipo nota */}

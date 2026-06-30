@@ -194,6 +194,7 @@ export interface Orcamento {
   margemPadrao: number;
   status: StatusOrcamento;
   itens: ItemOrcamento[];
+  tags?: string[]; // IDs dos projetos de Planejamento
   documentos?: DocumentoFornecedor[];
   createdAt: string;
 }

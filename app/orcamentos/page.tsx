@@ -157,6 +157,7 @@ export default function ListaOrcamentos() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
+  const [projetosPlanejamento, setProjetosPlanejamento] = useState<Record<string, { nome: string; cor: string }>>({});
 
   function carregarOrcamentos() {
     setCarregando(true);
@@ -183,6 +184,15 @@ export default function ListaOrcamentos() {
 
   useEffect(() => {
     carregarOrcamentos();
+
+    // Carrega projetos do planejamento para exibir como tags
+    fetch("/api/planejamento").then((r) => r.json()).then((data) => {
+      if (data?.projetos) {
+        const map: Record<string, { nome: string; cor: string }> = {};
+        data.projetos.forEach((p: any) => { map[p.id] = { nome: p.nome, cor: p.cor || "#6366f1" }; });
+        setProjetosPlanejamento(map);
+      }
+    }).catch(() => {});
 
     window.addEventListener("focus", carregarOrcamentos);
     document.addEventListener("visibilitychange", recarregarSeVisivel);
@@ -223,10 +233,14 @@ export default function ListaOrcamentos() {
 
   const filtrados = orcamentos.filter((o) => {
     const q = busca.toLowerCase();
+    if (!q) return true;
+    // Nomes dos projetos associados via tags
+    const projetosNomes = (o.tags || []).map((tagId) => projetosPlanejamento[tagId]?.nome || "").filter(Boolean);
     return (
       o.numero?.toLowerCase().includes(q) ||
       o.cliente?.toLowerCase().includes(q) ||
-      o.solicitante?.toLowerCase().includes(q)
+      o.solicitante?.toLowerCase().includes(q) ||
+      projetosNomes.some((nome) => nome.toLowerCase().includes(q))
     );
   });
 
@@ -341,6 +355,25 @@ export default function ListaOrcamentos() {
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-800">{o.cliente || "—"}</div>
                         {o.solicitante && <div className="text-xs text-gray-400">{o.solicitante}</div>}
+                        {/* Tags (projetos) */}
+                        {o.tags && o.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {o.tags.map((tagId) => {
+                              const proj = projetosPlanejamento[tagId];
+                              if (!proj) return null;
+                              return (
+                                <span
+                                  key={tagId}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-white leading-tight"
+                                  style={{ backgroundColor: proj.cor }}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-white/60 shrink-0" />
+                                  {proj.nome}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{o.dataOrcamento}</td>
                       <td className="px-4 py-3 text-center">
