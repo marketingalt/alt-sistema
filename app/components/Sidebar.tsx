@@ -380,15 +380,37 @@ export default function Sidebar() {
                       </Link>
                     ))}
 
-                    {/* Novo Projeto — botão */}
-                    <Link href="/planejamento?novo=1">
-                      <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium text-gray-500 hover:text-[#fb4d06] hover:bg-white/5 transition cursor-pointer">
-                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                        Novo Projeto
-                      </div>
-                    </Link>
+                    {/* Novo Projeto — ação direta */}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const nome = prompt("Nome do novo projeto:");
+                        if (!nome?.trim()) return;
+                        const cor = ["#6366f1","#8b5cf6","#a855f7","#d946ef","#ec4899","#f43f5e","#fb4d06","#f97316","#eab308","#22c55e","#14b8a6","#06b6d4"][Math.floor(Math.random()*12)];
+                        try {
+                          const res = await fetch("/api/planejamento", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ nome: nome.trim(), cor }),
+                          });
+                          if (res.ok) {
+                            const projeto = await res.json();
+                            // Atualiza sidebar e navega para o board
+                            setProjetosSidebar((prev) => [...prev, { id: projeto.id, nome: projeto.nome, cor: projeto.cor || cor }]);
+                            setPlanejamentoAberto(true);
+                            window.location.href = `/planejamento/${projeto.id}`;
+                          }
+                        } catch (e) {
+                          console.error("Erro ao criar projeto:", e);
+                        }
+                      }}
+                      className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium text-gray-500 hover:text-[#fb4d06] hover:bg-white/5 transition cursor-pointer w-full text-left"
+                    >
+                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Novo Projeto
+                    </button>
                   </div>
                 )}
               </>

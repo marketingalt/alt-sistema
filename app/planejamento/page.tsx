@@ -75,15 +75,6 @@ export default function PlanejamentoDashboard() {
     carregar().catch(() => setCarregando(false));
   }, []);
 
-  // Abrir modal se ?novo=1
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.location.search.includes("novo=1")) {
-      setModalAberto(true);
-      // Limpa a URL sem recarregar
-      window.history.replaceState({}, "", "/planejamento");
-    }
-  }, []);
-
   // Normaliza dados
   const projetosNormalizados = projetos.map((p) => ({
     ...p,
