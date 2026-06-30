@@ -16,7 +16,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Projeto, Tarefa, StatusKanban } from "@/app/types";
+import { STATUS_CONFIG, type Projeto, type Tarefa, type StatusKanban, type StatusOrcamento, type Orcamento } from "@/app/types";
 
 // ── Helpers ──
 
@@ -115,6 +115,7 @@ export default function KanbanPage() {
   const [projetos, setProjetos] = useState<Projeto[]>([]);
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [orcamentoStatuses, setOrcamentoStatuses] = useState<Record<string, StatusOrcamento>>({});
   const [tarefaAberta, setTarefaAberta] = useState<Tarefa | null>(null);
   const [visao, setVisao] = useState<"kanban" | "calendario">("kanban");
   const [mesCalendario, setMesCalendario] = useState(() => new Date().getMonth());
@@ -140,11 +141,22 @@ export default function KanbanPage() {
 
   async function carregar() {
     try {
-      const res = await fetch("/api/planejamento");
-      if (res.ok) {
-        const data = await res.json();
+      const [resPlanejamento, resOrcamentos] = await Promise.all([
+        fetch("/api/planejamento"),
+        fetch("/api/orcamentos"),
+      ]);
+      if (resPlanejamento.ok) {
+        const data = await resPlanejamento.json();
         setProjetos(data.projetos);
         setTarefas(data.tarefas);
+      }
+      if (resOrcamentos.ok) {
+        const orcamentos: Orcamento[] = await resOrcamentos.json();
+        const map: Record<string, StatusOrcamento> = {};
+        for (const o of orcamentos) {
+          map[o.id] = o.status;
+        }
+        setOrcamentoStatuses(map);
       }
     } catch { /* fallback silencioso */ }
     finally { setCarregando(false); }
@@ -230,8 +242,8 @@ export default function KanbanPage() {
 
     const tarefaId = String(active.id);
     const colunaDestinoId = String(over.data.current?.statusId || over.id);
-
-    if (colunaDestinoId === tarefas.find((t) => t.id === tarefaId)?.statusId) return;
+    const tarefaAtual = tarefas.find((t) => t.id === tarefaId);
+    if (!tarefaAtual || colunaDestinoId === tarefaAtual.statusId) return;
 
     // Encontrar a ordem correta
     const tarefasNaColuna = tarefas
@@ -239,6 +251,20 @@ export default function KanbanPage() {
       .sort((a, b) => a.ordem - b.ordem);
 
     await atualizarTarefa(tarefaId, { statusId: colunaDestinoId, ordem: tarefasNaColuna.length });
+
+    // Se o card tem vínculo com orçamento, atualiza o status do orçamento
+    const orcamentoId = tarefaAtual.customFields?.orcamentoId as string | undefined;
+    if (orcamentoId) {
+      const colunaDestino = projetoAtivo.statuses.find((s) => s.id === colunaDestinoId);
+      const eConcluido = colunaDestino?.nome.toUpperCase() === "CONCLUÍDO";
+      const novoStatus: StatusOrcamento = eConcluido ? "Aprovado" : "Em andamento";
+      await fetch(`/api/orcamentos/${orcamentoId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: novoStatus }),
+      });
+      setOrcamentoStatuses((prev) => ({ ...prev, [orcamentoId]: novoStatus }));
+    }
   }
 
   // ═════════════════════════════════════════════
@@ -447,6 +473,7 @@ export default function KanbanPage() {
               projeto={projetoAtivo}
               tarefas={tarefas}
               timerAtivo={timerAtivo}
+              orcamentoStatuses={orcamentoStatuses}
               onNovaTarefa={handleNovaTarefa}
               onAbrirTarefa={(t) => setTarefaAberta(t)}
               onDeletarTarefa={handleDeletarTarefa}
@@ -505,6 +532,7 @@ function KanbanBoard({
   projeto,
   tarefas,
   timerAtivo,
+  orcamentoStatuses,
   onNovaTarefa,
   onAbrirTarefa,
   onDeletarTarefa,
@@ -513,6 +541,7 @@ function KanbanBoard({
   projeto: Projeto;
   tarefas: Tarefa[];
   timerAtivo: { tarefaId: string; startTime: string } | null;
+  orcamentoStatuses: Record<string, StatusOrcamento>;
   onNovaTarefa: (statusId: string) => void;
   onAbrirTarefa: (t: Tarefa) => void;
   onDeletarTarefa: (id: string) => void;
@@ -627,6 +656,7 @@ function KanbanBoard({
                         tarefa={tarefa}
                         tarefas={tarefas}
                         timerAtivo={timerAtivo}
+                        orcamentoStatuses={orcamentoStatuses}
                         onClick={() => onAbrirTarefa(tarefa)}
                       />
                     ))}
@@ -670,11 +700,13 @@ function CardTarefa({
   tarefa,
   tarefas,
   timerAtivo,
+  orcamentoStatuses,
   onClick,
 }: {
   tarefa: Tarefa;
   tarefas: Tarefa[];
   timerAtivo: { tarefaId: string; startTime: string } | null;
+  orcamentoStatuses: Record<string, StatusOrcamento>;
   onClick: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tarefa.id });
@@ -688,6 +720,9 @@ function CardTarefa({
   const timerRodando = timerAtivo?.tarefaId === tarefa.id;
   const atrasada = estaAtrasada(tarefa.dataVencimento);
 
+  const orcamentoId = tarefa.customFields?.orcamentoId as string | undefined;
+  const orcamentoStatus = orcamentoId ? orcamentoStatuses[orcamentoId] : undefined;
+
   return (
     <div
       ref={setNodeRef}
@@ -699,6 +734,21 @@ function CardTarefa({
         isDragging ? "opacity-50 ring-2 ring-[#fb4d06]/40" : "border-gray-200 hover:border-gray-300"
       } ${timerRodando ? "ring-2 ring-green-400" : ""}`}
     >
+      {/* Status do orçamento vinculado */}
+      {orcamentoStatus && (
+        <div className="mb-2">
+          <span
+            className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+            style={{
+              backgroundColor: STATUS_CONFIG[orcamentoStatus]?.dot || "#6b7280",
+              color: "#fff",
+            }}
+          >
+            {orcamentoStatus}
+          </span>
+        </div>
+      )}
+
       {/* Etiquetas */}
       {tarefa.etiquetas.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
