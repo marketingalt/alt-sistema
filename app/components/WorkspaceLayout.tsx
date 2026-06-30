@@ -8,14 +8,14 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const router = useRouter();
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-[var(--background)]">
       <Sidebar />
       <div id="scroll-container" className="flex-1 min-w-0 overflow-auto">
-        <div className="sticky top-0 z-50 flex items-center justify-end px-4 py-1.5 bg-gray-50/90 backdrop-blur-sm border-b border-gray-100">
+        <div className="sticky top-0 z-50 flex items-center justify-end px-4 py-1.5 bg-gray-50/90 dark:bg-[#0a0a0a]/90 backdrop-blur-sm border-b border-gray-100 dark:border-[#1a1a1a]">
           <button
             onClick={() => router.back()}
             title="Voltar"
-            className="flex items-center justify-center w-7 h-7 rounded-md text-gray-500 hover:text-[#fb4d06] hover:bg-gray-100 transition-colors"
+            className="flex items-center justify-center w-7 h-7 rounded-md text-gray-500 dark:text-gray-600 hover:text-[#fb4d06] dark:hover:text-[#fb4d06] hover:bg-gray-100 dark:hover:bg-[#1a1a1a] transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
