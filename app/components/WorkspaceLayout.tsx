@@ -11,7 +11,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
       <div id="scroll-container" className="flex-1 min-w-0 overflow-auto">
-        <div className="sticky top-0 z-50 flex items-center px-4 py-1.5 bg-gray-50/90 backdrop-blur-sm border-b border-gray-100">
+        <div className="sticky top-0 z-50 flex items-center justify-end px-4 py-1.5 bg-gray-50/90 backdrop-blur-sm border-b border-gray-100">
           <button
             onClick={() => router.back()}
             title="Voltar"
