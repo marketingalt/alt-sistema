@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
 import Image from "next/image";
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "planejamento" | "rh";
 
@@ -72,16 +72,6 @@ const NAV: NavItem[] = [
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
-      </svg>
-    ),
-  },
-  {
-    label: "Planejamento",
-    href: "/planejamento",
-    permKey: "planejamento",
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zm12 0a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
       </svg>
     ),
   },
@@ -202,6 +192,28 @@ export default function Sidebar() {
   const financeiroAtivo = pathname.startsWith("/financeiro");
   const [financeiroAberto, setFinanceiroAberto] = useState(financeiroAtivo);
 
+  // Planejamento — grupo colapsável com sub-itens dinâmicos
+  const planejamentoPermitido = temPermissao("planejamento");
+  const planejamentoAtivo = pathname.startsWith("/planejamento");
+  const [planejamentoAberto, setPlanejamentoAberto] = useState(planejamentoAtivo);
+  const [projetosSidebar, setProjetosSidebar] = useState<{ id: string; nome: string; cor: string }[]>([]);
+
+  useEffect(() => {
+    if (planejamentoPermitido) {
+      fetch("/api/planejamento")
+        .then((r) => {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        })
+        .then((data) => {
+          if (data?.projetos) {
+            setProjetosSidebar(data.projetos.map((p: any) => ({ id: p.id, nome: p.nome, cor: p.cor || "#6366f1" })));
+          }
+        })
+        .catch((err) => console.warn("[Sidebar] Erro ao carregar projetos:", err));
+    }
+  }, [planejamentoPermitido, pathname]);
+
   const nomeExibicao = user?.publicMetadata?.nomeExibicao as string || user?.fullName || user?.firstName || user?.emailAddresses[0]?.emailAddress || "";
   const email = user?.emailAddresses[0]?.emailAddress || "";
   const foto = user?.imageUrl;
@@ -302,6 +314,102 @@ export default function Sidebar() {
             </Link>
           );
         })}
+
+        {/* Planejamento — grupo colapsável */}
+        {planejamentoPermitido ? (
+          <div className={recolhido ? "" : "mt-1"}>
+            {recolhido ? (
+              <Link href="/planejamento" title="Planejamento">
+                <div className={`flex items-center justify-center px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
+                  planejamentoAtivo ? "bg-[#fb4d06] text-white" : "text-gray-400 hover:bg-white/5 hover:text-white"
+                }`}>
+                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zm12 0a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                  </svg>
+                </div>
+              </Link>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setPlanejamentoAberto((p) => !p)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
+                    planejamentoAtivo
+                      ? "text-[#fb4d06]"
+                      : "text-gray-400 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zm12 0a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                  </svg>
+                  <span className="flex-1 text-left">Planejamento</span>
+                  <svg
+                    className={`w-3.5 h-3.5 shrink-0 transition-transform ${planejamentoAberto ? "rotate-180" : ""}`}
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {planejamentoAberto && (
+                  <div className="mt-0.5 ml-3 pl-3 border-l border-white/10 flex flex-col gap-0.5">
+                    {/* Visão Geral — fixo */}
+                    <Link href="/planejamento">
+                      <div className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
+                        pathname === "/planejamento"
+                          ? "bg-[#fb4d06]/15 text-[#fb4d06]"
+                          : "text-gray-500 hover:bg-white/5 hover:text-white"
+                      }`}>
+                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        Visão Geral
+                      </div>
+                    </Link>
+                    {/* Projetos — dinâmicos da API */}
+                    {projetosSidebar.map((proj) => (
+                      <Link key={proj.id} href={`/planejamento/${proj.id}`}>
+                        <div className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
+                          pathname === `/planejamento/${proj.id}`
+                            ? "bg-[#fb4d06]/15 text-[#fb4d06]"
+                            : "text-gray-500 hover:bg-white/5 hover:text-white"
+                        }`}>
+                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: proj.cor }} />
+                          <span className="truncate">{proj.nome}</span>
+                        </div>
+                      </Link>
+                    ))}
+
+                    {/* Novo Projeto — botão */}
+                    <Link href="/planejamento?novo=1">
+                      <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium text-gray-500 hover:text-[#fb4d06] hover:bg-white/5 transition cursor-pointer">
+                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Novo Projeto
+                      </div>
+                    </Link>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ) : (
+          /* Planejamento bloqueado */
+          <div className={recolhido ? "" : "mt-1"}>
+            <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm text-gray-700 cursor-not-allowed`} title={recolhido ? "Planejamento" : undefined}>
+              <span className="relative">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zm12 0a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                </svg>
+                <span className="absolute -top-1 -right-1">
+                  <IconeCadeado />
+                </span>
+              </span>
+              {!recolhido && <span>Planejamento</span>}
+            </div>
+          </div>
+        )}
 
         {/* Administração — apenas para admins */}
         {isAdmin && (
