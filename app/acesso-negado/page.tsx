@@ -1,7 +1,7 @@
 "use client";
 
 import { useClerk, useUser } from "@clerk/nextjs";
-import Image from "next/image";
+import SistemaLogo from "@/app/components/SistemaLogo";
 
 export default function AcessoNegado() {
   const { signOut } = useClerk();
@@ -14,13 +14,10 @@ export default function AcessoNegado() {
       <div className="max-w-md w-full text-center">
         {/* Logo */}
         <div className="mb-8">
-          <Image
-            src="/logo.png"
-            alt="Omni Alt"
+          <SistemaLogo
             width={180}
             height={50}
             className="mx-auto object-contain"
-            priority
           />
         </div>
 

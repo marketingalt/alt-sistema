@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
 import Image from "next/image";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 
 type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "planejamento" | "rh";
 
@@ -196,6 +196,8 @@ export default function Sidebar() {
   const planejamentoAtivo = pathname.startsWith("/planejamento");
   const [planejamentoAberto, setPlanejamentoAberto] = useState(planejamentoAtivo);
   const [projetosSidebar, setProjetosSidebar] = useState<{ id: string; nome: string; cor: string }[]>([]);
+  const [logoSistema, setLogoSistema] = useState<string | null>(null);
+  const logoSelRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (planejamentoPermitido) {
@@ -213,6 +215,14 @@ export default function Sidebar() {
     }
   }, [planejamentoPermitido, pathname]);
 
+  // Carrega logo do servidor (compartilhada entre todos os usuários)
+  useEffect(() => {
+    fetch("/api/admin/logo")
+      .then((r) => r.json())
+      .then((data) => { if (data.logoBase64) setLogoSistema(data.logoBase64); })
+      .catch(() => {});
+  }, []);
+
   const nomeExibicao = user?.publicMetadata?.nomeExibicao as string || user?.fullName || user?.firstName || user?.emailAddresses[0]?.emailAddress || "";
   const email = user?.emailAddresses[0]?.emailAddress || "";
   const foto = user?.imageUrl;
@@ -221,23 +231,64 @@ export default function Sidebar() {
     <aside className={`${recolhido ? "w-16" : "w-56"} min-h-screen bg-[var(--sidebar-bg)] flex flex-col shrink-0 transition-all duration-200`}>
       {/* Logo + Botão recolher */}
       <div className={`${recolhido ? "px-3" : "px-4"} py-4 border-b border-white/10 flex items-center gap-0`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         {recolhido ? (
-          <Image
-            src="/logo.png"
+          <img
+            src={logoSistema || "/logo.png"}
             alt="Omni Alt"
-            width={28}
-            height={28}
-            className="object-contain shrink-0"
+            className="object-contain shrink-0 rounded"
+            style={{ width: 28, height: 28 }}
+            onClick={isAdmin ? () => logoSelRef.current?.click() : undefined}
+            title={isAdmin ? "Clique para alterar a logo" : undefined}
+            role={isAdmin ? "button" : undefined}
           />
         ) : (
-          <Image
-            src="/logo.png"
-            alt="Omni Alt"
-            width={130}
-            height={36}
-            className="object-contain shrink-0"
-          />
+          <div
+            className="flex items-center cursor-pointer group relative"
+            onClick={isAdmin ? () => logoSelRef.current?.click() : undefined}
+            title={isAdmin ? "Clique para alterar a logo" : undefined}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={logoSistema || "/logo.png"}
+              alt="Omni Alt"
+              className="object-contain shrink-0 rounded"
+              style={{ width: 130, height: 36 }}
+            />
+            {isAdmin && (
+              <div className="absolute inset-0 rounded bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5 5 5M12 5v12" />
+                </svg>
+              </div>
+            )}
+          </div>
         )}
+        {/* Input oculto para upload da logo */}
+        <input
+          type="file"
+          accept="image/*"
+          ref={logoSelRef}
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async () => {
+              const b64 = reader.result as string;
+              try {
+                const res = await fetch("/api/admin/logo", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ logoBase64: b64 }),
+                });
+                if (res.ok) setLogoSistema(b64);
+              } catch { /* ignore */ }
+            };
+            reader.readAsDataURL(file);
+            e.target.value = "";
+          }}
+        />
         <button
           onClick={toggleRecolhido}
           title={recolhido ? "Expandir sidebar" : "Recolher sidebar"}

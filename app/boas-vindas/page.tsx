@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import Image from "next/image";
+import SistemaLogo from "@/app/components/SistemaLogo";
 
 type Modulo = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "rh";
 
@@ -169,13 +169,10 @@ export default function BoasVindasPage() {
       <div className="max-w-lg w-full">
         {/* Logo */}
         <div className="text-center mb-10">
-          <Image
-            src="/logo.png"
-            alt="Omni Alt"
+          <SistemaLogo
             width={180}
             height={50}
             className="mx-auto object-contain"
-            priority
           />
         </div>
 
