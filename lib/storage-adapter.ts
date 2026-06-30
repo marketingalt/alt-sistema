@@ -42,7 +42,8 @@ export type DbKey =
   | "configuracoes"
   | "sync-log"
   | "documentos-rh"
-  | "planejamento";
+  | "planejamento"
+  | "planejamento-tarefas";
 
 // ── Detecta ambiente ──
 

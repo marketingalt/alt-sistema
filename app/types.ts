@@ -198,22 +198,40 @@ export interface Orcamento {
   createdAt: string;
 }
 
-// ── Planejamento / Kanban ────────────────────────────
+// ── Planejamento (ClickUp-style) ─────────────────────
 
-export interface CartaoKanban {
+export interface StatusKanban {
   id: string;
+  nome: string;
+  cor: string;
+  ordem: number;
+}
+
+export interface TimeLog {
+  id: string;
+  startTime: string;
+  endTime?: string;
+  durationSeconds: number;
+}
+
+export interface Tarefa {
+  id: string;
+  projectId: string;
+  parentTaskId?: string;
+  statusId: string;
   titulo: string;
   descricao?: string;
   dataVencimento?: string;
   etiquetas: { nome: string; cor: string }[];
-  membros: string[];
+  responsaveis: string[];
+  ordem: number;
+  customFields: Record<string, any>;
+  timeTracking: {
+    totalSeconds: number;
+    logs: TimeLog[];
+  };
   createdAt: string;
-}
-
-export interface ColunaKanban {
-  id: string;
-  nome: string;
-  cartoes: CartaoKanban[];
+  updatedAt: string;
 }
 
 export interface Projeto {
@@ -221,7 +239,7 @@ export interface Projeto {
   nome: string;
   descricao?: string;
   cor: string;
-  colunas: ColunaKanban[];
+  statuses: StatusKanban[];
   createdAt: string;
   updatedAt: string;
 }
