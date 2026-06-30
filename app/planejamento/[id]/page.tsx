@@ -259,20 +259,6 @@ export default function KanbanPage() {
       .sort((a, b) => a.ordem - b.ordem);
 
     await atualizarTarefa(tarefaId, { statusId: colunaDestinoId, ordem: tarefasNaColuna.length });
-
-    // Se o card tem vínculo com orçamento, atualiza o status do orçamento
-    const orcamentoId = tarefaAtual.customFields?.orcamentoId as string | undefined;
-    if (orcamentoId) {
-      const colunaDestino = projetoAtivo.statuses.find((s) => s.id === colunaDestinoId);
-      const eConcluido = colunaDestino?.nome.toUpperCase() === "CONCLUÍDO";
-      const novoStatus: StatusOrcamento = eConcluido ? "Aprovado" : "Em andamento";
-      await fetch(`/api/orcamentos/${orcamentoId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: novoStatus }),
-      });
-      setOrcamentoStatuses((prev) => ({ ...prev, [orcamentoId]: novoStatus }));
-    }
   }
 
   // ═════════════════════════════════════════════
