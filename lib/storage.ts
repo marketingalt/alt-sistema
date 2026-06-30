@@ -1,4 +1,4 @@
-import type { Orcamento, Fornecedor, Cliente, Produto } from "@/app/types";
+import type { Orcamento, Fornecedor, Cliente, Produto, Projeto, Tarefa } from "@/app/types";
 import { dbGet, dbSet } from "./storage-adapter";
 
 // ── Fornecedores ────────────────────────────
@@ -150,4 +150,52 @@ export async function salvarOrcamento(orcamento: Orcamento): Promise<Orcamento> 
 export async function deletarOrcamento(id: string): Promise<void> {
   const lista = await getOrcamentos();
   await dbSet("orcamentos", lista.filter((o) => o.id !== id));
+}
+
+// ── Sincronização Planejamento ─────────────────
+
+export async function sincronizarTarefasOrcamento(orcamento: Orcamento): Promise<void> {
+  if (!orcamento.tags || orcamento.tags.length === 0) return;
+
+  const projetos = await dbGet<Projeto[]>("planejamento", []);
+  const tarefas = await dbGet<Tarefa[]>("planejamento-tarefas", []);
+  let modificou = false;
+
+  for (const projectId of orcamento.tags) {
+    const projeto = projetos.find((p) => p.id === projectId);
+    if (!projeto || !projeto.statuses.length) continue;
+
+    // Verifica se já existe tarefa para este orçamento + projeto
+    const jaExiste = tarefas.some(
+      (t) => t.projectId === projectId && t.customFields?.orcamentoId === orcamento.id
+    );
+    if (jaExiste) continue;
+
+    const primeiroStatus = [...projeto.statuses].sort((a, b) => a.ordem - b.ordem)[0];
+    const maxOrdem = tarefas
+      .filter((t) => t.projectId === projectId && t.statusId === primeiroStatus.id)
+      .reduce((max, t) => Math.max(max, t.ordem), -1);
+
+    const nova: Tarefa = {
+      id: Math.random().toString(36).substring(2, 10),
+      projectId,
+      statusId: primeiroStatus.id,
+      titulo: `Orçamento #${orcamento.numero} - ${orcamento.cliente}`,
+      descricao: `Orçamento #${orcamento.numero}\nCliente: ${orcamento.cliente}\nSolicitante: ${orcamento.solicitante}`,
+      etiquetas: [{ nome: "Orçamento", cor: "#fb4d06" }],
+      responsaveis: [],
+      ordem: maxOrdem + 1,
+      customFields: { orcamentoId: orcamento.id },
+      timeTracking: { totalSeconds: 0, logs: [] },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    tarefas.push(nova);
+    modificou = true;
+  }
+
+  if (modificou) {
+    await dbSet("planejamento-tarefas", tarefas);
+  }
 }

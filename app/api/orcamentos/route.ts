@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { listarOrcamentos, salvarOrcamento } from "@/lib/storage";
+import { listarOrcamentos, salvarOrcamento, sincronizarTarefasOrcamento } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +31,12 @@ export async function POST(req: NextRequest) {
       userEmail: user?.emailAddresses[0]?.emailAddress || undefined,
       userName: user?.fullName || user?.firstName || undefined,
     });
+
+    // Sincronizar tarefas no Planejamento
+    sincronizarTarefasOrcamento(salvo).catch((err) =>
+      console.error("[ORCAMENTO SYNC ERROR]", err)
+    );
+
     return NextResponse.json(salvo, {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",

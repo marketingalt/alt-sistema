@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buscarOrcamento, salvarOrcamento, deletarOrcamento, listarOrcamentos } from "@/lib/storage";
+import { buscarOrcamento, salvarOrcamento, deletarOrcamento, listarOrcamentos, sincronizarTarefasOrcamento } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +21,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const dados = await req.json();
     const salvo = await salvarOrcamento({ ...dados, id });
+
+    // Sincronizar tarefas no Planejamento
+    sincronizarTarefasOrcamento(salvo).catch((err) =>
+      console.error("[ORCAMENTO SYNC ERROR]", err)
+    );
+
     return NextResponse.json(salvo, { headers: NO_CACHE_HEADERS });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
