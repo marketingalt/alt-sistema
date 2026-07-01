@@ -47,7 +47,14 @@ const CATEGORIAS = [
 ];
 
 const MODALIDADES = ["PIX", "TED", "DÉBITO", "BOLETO", "FATURA", "INVESTIMENTO", "TRANSFERENCIA"];
-const BANCOS = ["C6 BANK", "Banco Itaú"];
+const COR_BANCO_PADRAO: Record<string, { cor: string; bg: string; abrev: string }> = {
+  "C6 BANK": { cor: "text-yellow-700", bg: "bg-yellow-50", abrev: "C6" },
+  "Banco Itaú": { cor: "text-blue-700", bg: "bg-blue-50", abrev: "Itaú" },
+  "NUBANK": { cor: "text-purple-700", bg: "bg-purple-50", abrev: "Nubank" },
+};
+function corBanco(banco: string) {
+  return COR_BANCO_PADRAO[banco] || { cor: "text-gray-700", bg: "bg-gray-50", abrev: banco.substring(0, 6) };
+}
 const AREAS = ["PROJETOS", "DIGITAL", "MISTO", "ESTORNO"];
 const PERIODICIDADES = ["mensal", "quinzenal", "semanal", "anual"];
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -94,6 +101,14 @@ const FORM_VAZIO = {
 export default function ContasAPagarPage() {
   const [contas, setContas] = useState<Conta[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bancos, setBancos] = useState(["C6 BANK", "Banco Itaú"]);
+
+  useEffect(() => {
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((d) => { if (d.bancos?.length) setBancos(d.bancos); })
+      .catch(() => {});
+  }, []);
 
   // Filtros
   const hoje = new Date();
@@ -537,8 +552,8 @@ export default function ContasAPagarPage() {
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex flex-col gap-0.5">
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded w-fit ${c.banco === "C6 BANK" ? "bg-yellow-50 text-yellow-700" : "bg-blue-50 text-blue-700"}`}>
-                            {c.banco === "C6 BANK" ? "C6" : "Itaú"}
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded w-fit ${corBanco(c.banco).bg} ${corBanco(c.banco).cor}`}>
+                            {corBanco(c.banco).abrev}
                           </span>
                           <span className="text-[10px] text-gray-400">{c.modalidade}</span>
                         </div>
@@ -677,7 +692,7 @@ export default function ContasAPagarPage() {
                   <label className="block text-xs font-medium text-gray-500 mb-1">Banco</label>
                   <select value={form.banco} onChange={(e) => setForm((f) => ({ ...f, banco: e.target.value }))}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
-                    {BANCOS.map((b) => <option key={b}>{b}</option>)}
+                    {bancos.map((b) => <option key={b}>{b}</option>)}
                   </select>
                 </div>
               </div>
@@ -888,7 +903,7 @@ export default function ContasAPagarPage() {
                           <select value={formPagar.banco}
                             onChange={(e) => setFormPagar((f) => ({ ...f, banco: e.target.value }))}
                             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
-                            {BANCOS.map((b) => <option key={b}>{b}</option>)}
+                            {bancos.map((b) => <option key={b}>{b}</option>)}
                           </select>
                         </div>
                       </div>
@@ -1103,7 +1118,7 @@ export default function ContasAPagarPage() {
                     <label className="block text-xs font-medium text-gray-500 mb-1">Banco</label>
                     <select value={formPagar.banco} onChange={(e) => setFormPagar((f) => ({ ...f, banco: e.target.value }))}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
-                      {BANCOS.map((b) => <option key={b}>{b}</option>)}
+                      {bancos.map((b) => <option key={b}>{b}</option>)}
                     </select>
                   </div>
                 </div>

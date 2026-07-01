@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import { calcularCustoTotal } from "@/lib/calculos";
-import type { Orcamento, ItemOrcamento } from "@/app/types";
+import type { Orcamento, ItemOrcamento, OrdemServico } from "@/app/types";
 
 interface RegistroFaturamento {
   id?: string;
@@ -21,6 +21,7 @@ interface RegistroFaturamento {
   vencimento?: string;
   pago?: boolean;
   dataPagamento?: string;
+  ordemServicoId?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -274,9 +275,10 @@ function CellVencimento({ value, dataEmissao, onSave }: CellVencimentoProps) {
 interface NovoLancamentoModalProps {
   onClose: () => void;
   onSalvar: (dados: Partial<RegistroFaturamento>) => Promise<void>;
+  ordensServico?: OrdemServico[];
 }
 
-function NovoLancamentoModal({ onClose, onSalvar }: NovoLancamentoModalProps) {
+function NovoLancamentoModal({ onClose, onSalvar, ordensServico = [] }: NovoLancamentoModalProps) {
   const [form, setForm] = useState<Partial<RegistroFaturamento>>({
     statusNota: "Pendente",
     pago: false,
@@ -359,6 +361,19 @@ function NovoLancamentoModal({ onClose, onSalvar }: NovoLancamentoModalProps) {
                 onChange={(e) => set("valorAprovadoManual", parseFloat(e.target.value) || 0)}
                 required
               />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Ordem de Serviço</label>
+              <select
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] bg-white"
+                value={form.ordemServicoId || ""}
+                onChange={(e) => set("ordemServicoId", e.target.value || undefined)}
+              >
+                <option value="">Nenhuma</option>
+                {ordensServico.map((os) => (
+                  <option key={os.id} value={os.id}>#{os.numero} — {os.cliente}</option>
+                ))}
+              </select>
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-600">Custos Reais (R$)</label>
@@ -456,22 +471,35 @@ function NovoLancamentoModal({ onClose, onSalvar }: NovoLancamentoModalProps) {
 export default function ContasAReceberPage() {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [faturamentos, setFaturamentos] = useState<RegistroFaturamento[]>([]);
+  const [ordensServico, setOrdensServico] = useState<OrdemServico[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
 
   async function carregar() {
-    const [resOrc, resFat] = await Promise.all([
+    const [resOrc, resFat, resOS] = await Promise.all([
       fetch("/api/orcamentos"),
       fetch("/api/faturamentos"),
+      fetch("/api/ordens-servico"),
     ]);
     const dataOrc = await resOrc.json();
     const dataFat = await resFat.json();
+    const dataOS = await resOS.json();
     setOrcamentos(dataOrc);
     setFaturamentos(dataFat.registros || []);
+    setOrdensServico(Array.isArray(dataOS) ? dataOS : []);
     setCarregando(false);
   }
 
   useEffect(() => { carregar(); }, []);
+
+  // Lookup OS by orcamentoId
+  const osPorOrcamentoId = useMemo(() => {
+    const map: Record<string, OrdemServico> = {};
+    for (const os of ordensServico) {
+      if (os.orcamentoId) map[os.orcamentoId] = os;
+    }
+    return map;
+  }, [ordensServico]);
 
   const rows: RowUnificada[] = useMemo(() => {
     const orcFiltrados = orcamentos.filter(
@@ -527,6 +555,7 @@ export default function ContasAReceberPage() {
     let parsed: unknown = value;
     if (field === "pago") parsed = value === "true";
     if (field === "valorAprovadoManual" || field === "custosReais") parsed = parseFloat(value) || 0;
+    if (field === "ordemServicoId") parsed = value;
 
     const id = row.tipo === "manual" ? row.fat.id : row.orcamento?.id;
     await fetch(`/api/faturamentos/${id}`, {
@@ -613,7 +642,7 @@ export default function ContasAReceberPage() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-100">
-                  {["CLIENTE", "JOB", "RESPONSÁVEL", "STATUS DO JOB", "VALOR APROVADO", "CUSTOS REAIS", "A PAGAR", "RENTABILIDADE", "STATUS NOTA", "Nº NOTA", "EMISSÃO", "VENCIMENTO", "PAGO", ""].map((h) => (
+                  {["CLIENTE", "JOB", "RESPONSÁVEL", "STATUS DO JOB", "VALOR APROVADO", "CUSTOS REAIS", "A PAGAR", "RENTABILIDADE", "STATUS NOTA", "OS", "Nº NOTA", "EMISSÃO", "VENCIMENTO", "PAGO", ""].map((h) => (
                     <th key={h} className="text-left px-4 py-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
                       {h}
                     </th>
@@ -702,6 +731,36 @@ export default function ContasAReceberPage() {
                           onSave={(v) => salvarCelula(row.rowId, "statusNota", v)}
                         />
                       </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {row.tipo === "orcamento" && osPorOrcamentoId[row.orcamento?.id || ""] ? (
+                          <a
+                            href={`/ordens-servico/${osPorOrcamentoId[row.orcamento!.id].id}`}
+                            className="text-[#fb4d06] hover:underline font-medium text-xs"
+                            target="_blank"
+                          >
+                            #{osPorOrcamentoId[row.orcamento!.id].numero}
+                          </a>
+                        ) : row.tipo === "manual" ? (
+                          <Cell
+                            value={row.fat.ordemServicoId
+                              ? (() => { const os = ordensServico.find(o => o.id === row.fat.ordemServicoId); return os ? `#${os.numero} — ${os.cliente}` : row.fat.ordemServicoId; })()
+                              : undefined}
+                            mode="select"
+                            options={ordensServico.map((o) => `#${o.numero} — ${o.cliente}`)}
+                            placeholder="—"
+                            onSave={(v) => {
+                              // Extract OS id from the display string "#1234 — Cliente"
+                              const match = v.match(/^#(\d+)/);
+                              if (match) {
+                                const os = ordensServico.find(o => o.numero === match[1]);
+                                salvarCelula(row.rowId, "ordemServicoId", os?.id || "");
+                              }
+                            }}
+                          />
+                        ) : (
+                          <span className="text-gray-400 text-xs">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                         <Cell
                           value={row.fat.numeroNota}
@@ -759,6 +818,7 @@ export default function ContasAReceberPage() {
         <NovoLancamentoModal
           onClose={() => setModalAberto(false)}
           onSalvar={salvarNovoLancamento}
+          ordensServico={ordensServico}
         />
       )}
     </WorkspaceLayout>

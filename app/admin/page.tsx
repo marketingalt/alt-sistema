@@ -518,7 +518,7 @@ function AbaConfiguracoes() {
       .finally(() => setCarregando(false));
   }, []);
 
-  function atualizar(caminho: string[], valor: number | string) {
+  function atualizar(caminho: string[], valor: number | string | string[]) {
     if (!settings) return;
     const novo = { ...settings };
     let obj: any = novo;
@@ -608,6 +608,67 @@ function AbaConfiguracoes() {
             valor={settings.prazos.entregaPadrao}
             onChange={(v) => atualizar(["prazos", "entregaPadrao"], v)}
           />
+        </div>
+      </section>
+
+      {/* Bancos */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4">Bancos</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Gerencie as opções de banco disponíveis nos formulários de Fluxo de Caixa e Contas a Pagar.
+        </p>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {(settings.bancos || []).map((banco) => (
+            <span
+              key={banco}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700"
+            >
+              {banco}
+              <button
+                type="button"
+                onClick={() => {
+                  const novos = (settings.bancos || []).filter((b: string) => b !== banco);
+                  atualizar(["bancos"], novos);
+                }}
+                className="text-gray-400 hover:text-red-500 transition"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            id="novo-banco"
+            placeholder="Nome do banco"
+            className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#fb4d06]"
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              const input = e.currentTarget;
+              const nome = input.value.trim();
+              if (!nome) return;
+              if ((settings.bancos || []).includes(nome)) return;
+              atualizar(["bancos"], [...(settings.bancos || []), nome]);
+              input.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const input = document.getElementById("novo-banco") as HTMLInputElement;
+              const nome = input?.value?.trim();
+              if (!nome) return;
+              if ((settings.bancos || []).includes(nome)) return;
+              atualizar(["bancos"], [...(settings.bancos || []), nome]);
+              input.value = "";
+            }}
+            className="px-4 py-2 text-sm font-medium text-white bg-gray-800 rounded-xl hover:bg-gray-700 transition"
+          >
+            Adicionar
+          </button>
         </div>
       </section>
 

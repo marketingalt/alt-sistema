@@ -23,6 +23,7 @@ export interface SystemSettings {
     dominioPermitido: string;
   };
   logoBase64?: string;
+  bancos?: string[];
 }
 
 export type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "planejamento" | "rh";
@@ -159,6 +160,7 @@ const CONFIGURACOES_PADRAO: SystemSettings = {
   geral: {
     dominioPermitido: "@altmkt.com.br",
   },
+  bancos: ["C6 BANK", "Banco Itaú"],
 };
 
 export async function getSystemSettings(): Promise<SystemSettings> {
