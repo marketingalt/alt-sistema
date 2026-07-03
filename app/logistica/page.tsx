@@ -70,6 +70,7 @@ interface ItemLote {
   origem: string;
   odometroFinal: number;
   dataFinal: string;
+  dataVencimento: string;
   destino: string;
   distanciaKm: number;
   valorKm: number;
@@ -87,6 +88,7 @@ function itemLoteVazio(): ItemLote {
     origem: "",
     odometroFinal: 0,
     dataFinal: hoje,
+    dataVencimento: "",
     destino: "",
     distanciaKm: 0,
     valorKm: 0,
@@ -415,7 +417,7 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
             total: i.total,
             motivo: i.motivo.trim(),
             observacao: i.observacao.trim(),
-            dataVencimento: i.dataFinal,
+            dataVencimento: i.dataVencimento || i.dataFinal,
           })),
         }),
       });
@@ -490,6 +492,7 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
       total: reb.total,
       dataInicial: reb.dataInicial,
       dataFinal: reb.dataFinal,
+      dataVencimento: reb.dataVencimento,
       odometroInicial: reb.odometroInicial,
       odometroFinal: reb.odometroFinal,
       motivo: reb.motivo || "",
@@ -562,6 +565,7 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
               <tr className="border-b border-gray-100 bg-gray-50/50">
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Motorista</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Período</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600">Vencimento</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Trajeto</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Distância</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Valor Km</th>
@@ -574,7 +578,7 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
             <tbody>
               {reembolsos.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-gray-400">
+                  <td colSpan={10} className="text-center py-12 text-gray-400">
                     Nenhum reembolso encontrado.
                   </td>
                 </tr>
@@ -586,6 +590,15 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
                       {new Date(reb.dataInicial + "T12:00:00").toLocaleDateString("pt-BR")}
                       {" → "}
                       {new Date(reb.dataFinal + "T12:00:00").toLocaleDateString("pt-BR")}
+                    </td>
+                    <td className="px-4 py-3 text-center text-xs">
+                      {reb.dataVencimento ? (
+                        <span className="font-medium text-gray-700">
+                          {new Date(reb.dataVencimento + "T12:00:00").toLocaleDateString("pt-BR")}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       <span className="font-medium">{reb.origem}</span>
@@ -778,7 +791,16 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
                         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
                       />
                     </div>
-                    <div className="sm:col-span-2">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Data de Vencimento</label>
+                      <input
+                        type="date"
+                        value={item.dataVencimento}
+                        onChange={(e) => updateItem(item.key, "dataVencimento", e.target.value)}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                      />
+                    </div>
+                    <div>
                       <label className="block text-xs font-medium text-gray-500 mb-1">Destino</label>
                       <input
                         type="text"
@@ -908,7 +930,7 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Data Inicial</label>
                   <input type="date" value={editForm.dataInicial as string} onChange={(e) => setEditForm((f) => ({ ...f, dataInicial: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
@@ -916,6 +938,10 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Data Final</label>
                   <input type="date" value={editForm.dataFinal as string} onChange={(e) => setEditForm((f) => ({ ...f, dataFinal: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Data de Vencimento</label>
+                  <input type="date" value={editForm.dataVencimento as string} onChange={(e) => setEditForm((f) => ({ ...f, dataVencimento: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
                 </div>
               </div>
 

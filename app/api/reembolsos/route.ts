@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
       const contasCriadas: { reembolsoId: string; contaPagarId: string }[] = [];
       for (const reb of reembolsos) {
         const contaPagarId = await criarContaPagar({
-          dataVencimento: reb.dataFinal,
+          dataVencimento: reb.dataVencimento || reb.dataFinal,
           fornecedor: `Reembolso — ${reb.motorista}`,
           descricao: `${reb.motivo ? reb.motivo + " — " : ""}${reb.origem} → ${reb.destino} (${reb.distanciaKm} km)`,
           valor: reb.total,
