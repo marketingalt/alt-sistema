@@ -251,9 +251,9 @@ export default function ContasAPagarPage() {
     const q = fornecedorBusca.toLowerCase();
     return fornecedores.filter(
       (f) =>
-        f.razaoSocial.toLowerCase().includes(q) ||
-        f.nomeFantasia.toLowerCase().includes(q) ||
-        f.cnpj.includes(q)
+        (f?.razaoSocial ?? "").toLowerCase().includes(q) ||
+        (f?.nomeFantasia ?? "").toLowerCase().includes(q) ||
+        (f?.cnpj ?? "").includes(q)
     ).slice(0, 20);
   }, [fornecedores, fornecedorBusca]);
 
