@@ -70,11 +70,13 @@ function corBanco(banco: string) {
   return COR_BANCO_PADRAO[banco] || { cor: "text-gray-700", bg: "bg-gray-50", abrev: banco.substring(0, 6) };
 }
 
-function fmt(v: number) {
+function fmt(v: number | null | undefined): string {
+  if (v === null || v === undefined || isNaN(v)) return "R$ 0,00";
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function corCategoria(cat: string): string {
+function corCategoria(cat: string | null | undefined): string {
+  if (!cat) return "text-gray-400";
   if (cat.includes("RECEITA") || cat.includes("EMPRÉSTIMO")) return "text-green-700";
   if (cat.includes("ESTORNO")) return "text-blue-600";
   if (cat.includes("DEVOLUÇÃO")) return "text-orange-600";
