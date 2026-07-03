@@ -199,7 +199,7 @@ export default function ContasAPagarPage() {
   // Contas do mês selecionado
   const contasMes = useMemo(() => {
     return contas.filter((c) => {
-      const ref = c.dataPagamento ?? c.dataVencimento;
+      const ref = c.dataPagamento || c.dataVencimento;
       const d = new Date(ref + "T12:00:00");
       return d.getMonth() === mesSel && d.getFullYear() === anoSel;
     });
