@@ -376,6 +376,48 @@ export default function FluxoDeCaixaPage() {
           ))}
         </div>
 
+        {/* Saldo por Banco */}
+        {(() => {
+          const bancosAtivos = [...new Set(lancamentosMes.map((l) => l.banco).filter(Boolean))];
+          if (bancosAtivos.length === 0) return null;
+          return (
+            <div className="mb-6">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Saldo por Banco no Mês</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+                {bancosAtivos.map((banco) => {
+                  const mov = lancamentosMes.filter((l) => l.banco === banco);
+                  const entradas = mov.filter((l) => l.valor > 0).reduce((s, l) => s + l.valor, 0);
+                  const saidas = mov.filter((l) => l.valor < 0).reduce((s, l) => s + l.valor, 0);
+                  const cb = corBanco(banco);
+                  return (
+                    <div key={banco} className={`${cb.bg} rounded-xl p-3 border border-gray-100`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${cb.bg} ${cb.cor}`}>{cb.abrev}</span>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] text-gray-500">Entradas</span>
+                          <span className="text-[10px] font-semibold text-green-700">{fmt(entradas)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] text-gray-500">Saídas</span>
+                          <span className="text-[10px] font-semibold text-red-600">{fmt(saidas)}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1 border-t border-gray-200/50 mt-0.5">
+                          <span className="text-[10px] font-medium text-gray-600">Saldo</span>
+                          <span className={`text-xs font-bold ${entradas + saidas >= 0 ? "text-green-700" : "text-red-600"}`}>
+                            {fmt(entradas + saidas)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Tabela principal */}
           <div className="lg:col-span-3">
