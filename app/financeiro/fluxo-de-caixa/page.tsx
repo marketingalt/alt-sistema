@@ -55,7 +55,6 @@ const CATEGORIAS = [
   "DEVOLUÇÃO THIEMY",
   "DEVOLUÇÃO FERNANDO",
   "ESTORNO",
-  "CUSTOS DIRETOS DOS SERVIÇOS",
 ];
 
 const MODALIDADES = ["PIX", "TED", "DÉBITO", "BOLETO", "FATURA", "INVESTIMENTO", "TRANSFERENCIA"];
@@ -200,7 +199,7 @@ export default function FluxoDeCaixaPage() {
     if (osFiltro !== "Todas") lista = lista.filter((l) => l.ordemServicoId === osFiltro);
     if (busca.trim()) {
       const q = busca.toLowerCase();
-      lista = lista.filter((l) => l.obs.toLowerCase().includes(q) || l.categoria.toLowerCase().includes(q));
+      lista = lista.filter((l) => (l.obs ?? "").toLowerCase().includes(q) || (l.categoria ?? "").toLowerCase().includes(q));
     }
     lista = [...lista].sort((a, b) => {
       let va: string | number = a[ordemCampo];
@@ -576,7 +575,7 @@ export default function FluxoDeCaixaPage() {
                   {comSaldo.length > 0 && (
                     <tfoot>
                       <tr className="border-t-2 border-gray-200 bg-gray-50">
-                        <td colSpan={6} className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total do período filtrado</td>
+                        <td colSpan={7} className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total do período filtrado</td>
                         <td className={`px-3 py-2.5 text-right font-bold text-sm ${lancamentosFiltrados.reduce((s, l) => s + l.valor, 0) >= 0 ? "text-green-700" : "text-red-600"}`}>
                           {fmt(lancamentosFiltrados.reduce((s, l) => s + l.valor, 0))}
                         </td>
