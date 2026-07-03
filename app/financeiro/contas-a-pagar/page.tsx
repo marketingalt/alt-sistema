@@ -757,14 +757,14 @@ export default function ContasAPagarPage() {
                   </div>
                 ) : (
                   <div className="relative">
-                    <input value={fornecedorBusca} onChange={(e) => { setFornecedorBusca(e.target.value); setForm((f) => ({ ...f, fornecedor: e.target.value })); }}
+                    <input value={fornecedorBusca} onChange={(e) => { setFornecedorBusca(e.target.value); }}
                       placeholder="Digite para buscar fornecedor cadastrado..."
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
                     {fornecedorBusca.trim() && fornecedoresFiltrados.length > 0 && (
                       <div className="absolute z-10 top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
                         {fornecedoresFiltrados.map((f) => (
                           <button key={f.id} type="button"
-                            onClick={() => {
+                            onMouseDown={(e) => {
                               setForm((prev) => ({ ...prev, fornecedorId: f.id, fornecedor: f.razaoSocial || f.nomeFantasia }));
                               setFornecedorBusca("");
                             }}
