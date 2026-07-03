@@ -71,7 +71,8 @@ const COR_BANCO_PADRAO: Record<string, { cor: string; bg: string; abrev: string 
   "Banco Itaú": { cor: "text-blue-700", bg: "bg-blue-50", abrev: "Itaú" },
   "NUBANK": { cor: "text-purple-700", bg: "bg-purple-50", abrev: "Nubank" },
 };
-function corBanco(banco: string) {
+function corBanco(banco: string | null | undefined) {
+  if (!banco) return { cor: "text-gray-400", bg: "bg-gray-50", abrev: "—" };
   return COR_BANCO_PADRAO[banco] || { cor: "text-gray-700", bg: "bg-gray-50", abrev: banco.substring(0, 6) };
 }
 const AREAS = ["PROJETOS", "DIGITAL", "MISTO", "ESTORNO"];
@@ -84,7 +85,8 @@ type ImportPreview = {
   totalExibido: number; haMais: boolean;
 } | null;
 
-function fmt(v: number) {
+function fmt(v: number | null | undefined): string {
+  if (v === null || v === undefined || isNaN(v)) return "R$ 0,00";
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
