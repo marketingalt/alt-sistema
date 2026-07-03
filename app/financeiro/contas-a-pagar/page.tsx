@@ -8,6 +8,7 @@ interface Conta {
   dataVencimento: string;
   dataPagamento?: string;
   fornecedor: string;
+  fornecedorId?: string;
   descricao: string;
   valor: number;
   modalidade: string;
@@ -20,6 +21,7 @@ interface Conta {
   periodicidade?: string | null;
   fluxoCaixaId?: string;
   driveLink?: string;
+  boletoUrl?: string;
   dadosBancarios?: {
     nome?: string;
     banco?: string;
@@ -36,6 +38,15 @@ interface OrdemServicoItem {
   numero: string;
   cliente: string;
   orcamentoId?: string;
+}
+
+interface FornecedorItem {
+  id: string;
+  razaoSocial: string;
+  nomeFantasia: string;
+  cnpj: string;
+  dadosBancarios: string;
+  status: string;
 }
 
 const CATEGORIAS = [
@@ -100,7 +111,7 @@ function diasParaVencer(dataVenc: string): number {
 }
 
 const FORM_VAZIO = {
-  dataVencimento: "", fornecedor: "", descricao: "", valor: "",
+  dataVencimento: "", fornecedor: "", fornecedorId: "", descricao: "", valor: "",
   modalidade: "PIX", banco: "C6 BANK", area: "MISTO",
   categoria: "DESPESAS ADM E GERAIS", obs: "",
   recorrente: false, periodicidade: "mensal",
@@ -114,6 +125,14 @@ export default function ContasAPagarPage() {
   const [loading, setLoading] = useState(true);
   const [bancos, setBancos] = useState(["C6 BANK", "Banco Itaú"]);
   const [ordensServico, setOrdensServico] = useState<OrdemServicoItem[]>([]);
+  const [fornecedores, setFornecedores] = useState<FornecedorItem[]>([]);
+  const [modalNovoFornecedor, setModalNovoFornecedor] = useState(false);
+  const [fornecedorBusca, setFornecedorBusca] = useState("");
+  const [salvandoFornecedor, setSalvandoFornecedor] = useState(false);
+  const [formNovoFornecedor, setFormNovoFornecedor] = useState({
+    razaoSocial: "", nomeFantasia: "", cnpj: "",
+    dadosBancarios: "",
+  });
 
   useEffect(() => {
     fetch("/api/config")
@@ -129,7 +148,12 @@ export default function ContasAPagarPage() {
       .catch(() => {});
   }, []);
 
-  // Filtros
+  useEffect(() => {
+    fetch("/api/fornecedores")
+      .then((r) => r.json())
+      .then((d) => setFornecedores(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, []);
   const hoje = new Date();
   const [mesSel, setMesSel] = useState(hoje.getMonth());
   const [anoSel, setAnoSel] = useState(hoje.getFullYear());
@@ -143,6 +167,9 @@ export default function ContasAPagarPage() {
   const [editando, setEditando] = useState<Conta | null>(null);
   const [form, setForm] = useState({ ...FORM_VAZIO });
   const [salvando, setSalvando] = useState(false);
+
+  const [boletoUploading, setBoletoUploading] = useState(false);
+  const [boletoUrl, setBoletoUrl] = useState("");
 
   // Modal pagar
   const [modalPagar, setModalPagar] = useState<Conta | null>(null);
@@ -217,6 +244,17 @@ export default function ContasAPagarPage() {
     return map;
   }, [ordensServico]);
 
+  const fornecedoresFiltrados = useMemo(() => {
+    if (!fornecedorBusca.trim()) return fornecedores.slice(0, 20);
+    const q = fornecedorBusca.toLowerCase();
+    return fornecedores.filter(
+      (f) =>
+        f.razaoSocial.toLowerCase().includes(q) ||
+        f.nomeFantasia.toLowerCase().includes(q) ||
+        f.cnpj.includes(q)
+    ).slice(0, 20);
+  }, [fornecedores, fornecedorBusca]);
+
   function navMes(dir: number) {
     let m = mesSel + dir; let a = anoSel;
     if (m < 0) { m = 11; a--; } if (m > 11) { m = 0; a++; }
@@ -226,13 +264,14 @@ export default function ContasAPagarPage() {
   function abrirNovo() {
     setEditando(null);
     setForm({ ...FORM_VAZIO, dataVencimento: new Date(anoSel, mesSel, 15).toISOString().split("T")[0] });
+    setBoletoUrl("");
     setModalForm(true);
   }
 
   function abrirEditar(c: Conta) {
     setEditando(c);
     setForm({
-      dataVencimento: c.dataVencimento, fornecedor: c.fornecedor, descricao: c.descricao,
+      dataVencimento: c.dataVencimento, fornecedor: c.fornecedor, fornecedorId: c.fornecedorId ?? "", descricao: c.descricao,
       valor: String(c.valor), modalidade: c.modalidade, banco: c.banco, area: c.area,
       categoria: c.categoria, obs: c.obs ?? "",
       recorrente: c.recorrente ?? false, periodicidade: c.periodicidade ?? "mensal",
@@ -240,6 +279,7 @@ export default function ContasAPagarPage() {
       status: c.status,
       dataPagamento: c.dataPagamento ?? "",
     });
+    setBoletoUrl(c.boletoUrl ?? "");
     setModalForm(true);
   }
 
@@ -255,7 +295,7 @@ export default function ContasAPagarPage() {
   async function salvarConta() {
     if (!form.dataVencimento || !form.fornecedor.trim() || !form.descricao.trim()) return;
     setSalvando(true);
-    const payload = { ...form, valor: parseFloat(String(form.valor).replace(",", ".")) || 0 };
+    const payload = { ...form, valor: parseFloat(String(form.valor).replace(",", ".")) || 0, boletoUrl: boletoUrl || undefined };
     try {
       if (editando) {
         const res = await fetch(`/api/contas-a-pagar/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -682,7 +722,7 @@ export default function ContasAPagarPage() {
 
       {/* ── Modal: Nova / Editar Conta ── */}
       {modalForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setModalForm(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => { setModalForm(false); setBoletoUrl(""); }}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 shrink-0">
@@ -690,18 +730,75 @@ export default function ContasAPagarPage() {
                 <h2 className="text-base font-bold text-gray-800">{editando ? "Editar Conta" : "Nova Conta a Pagar"}</h2>
                 <p className="text-xs text-gray-400 mt-0.5">Preencha os dados da obrigação. Ao pagar, vai direto para o Fluxo de Caixa.</p>
               </div>
-              <button onClick={() => setModalForm(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100">
+              <button onClick={() => { setModalForm(false); setBoletoUrl(""); }} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
 
             <div className="overflow-y-auto flex-1 px-6 py-5 flex flex-col gap-3">
-              {/* Fornecedor + Descrição */}
+              {/* Fornecedor */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Fornecedor / Beneficiário <span className="text-red-400">*</span></label>
-                <input value={form.fornecedor} onChange={(e) => setForm((f) => ({ ...f, fornecedor: e.target.value }))}
-                  placeholder="Ex: Receita Federal, Márcio Ramires..."
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                {form.fornecedorId ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 border border-green-200 bg-green-50 rounded-lg px-3 py-2 text-sm text-gray-800">
+                      <span className="font-medium">{form.fornecedor}</span>
+                      {(() => {
+                        const f = fornecedores.find((x) => x.id === form.fornecedorId);
+                        return f?.cnpj ? <span className="text-gray-400 ml-2 text-xs">{f.cnpj}</span> : null;
+                      })()}
+                    </div>
+                    <button type="button" onClick={() => setForm((f) => ({ ...f, fornecedorId: "", fornecedor: "" }))}
+                      className="text-xs text-red-500 hover:text-red-700 font-medium whitespace-nowrap">
+                      Trocar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input value={fornecedorBusca} onChange={(e) => { setFornecedorBusca(e.target.value); setForm((f) => ({ ...f, fornecedor: e.target.value })); }}
+                      placeholder="Digite para buscar fornecedor cadastrado..."
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                    {fornecedorBusca.trim() && fornecedoresFiltrados.length > 0 && (
+                      <div className="absolute z-10 top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                        {fornecedoresFiltrados.map((f) => (
+                          <button key={f.id} type="button"
+                            onClick={() => {
+                              setForm((prev) => ({ ...prev, fornecedorId: f.id, fornecedor: f.razaoSocial || f.nomeFantasia }));
+                              setFornecedorBusca("");
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-orange-50 border-b border-gray-50 last:border-0">
+                            <span className="font-medium text-gray-800">{f.razaoSocial || f.nomeFantasia}</span>
+                            {f.nomeFantasia && f.nomeFantasia !== f.razaoSocial && (
+                              <span className="text-gray-400 ml-1">({f.nomeFantasia})</span>
+                            )}
+                            <span className="text-gray-400 text-xs ml-2">{f.cnpj}</span>
+                            {f.dadosBancarios && (
+                              <span className="block text-[10px] text-gray-400 mt-0.5 truncate">{f.dadosBancarios}</span>
+                            )}
+                          </button>
+                        ))}
+                        <button type="button" onClick={() => setModalNovoFornecedor(true)}
+                          className="w-full text-left px-3 py-2.5 text-xs font-semibold text-[#fb4d06] hover:bg-orange-50 border-t border-gray-100">
+                          + Cadastrar novo fornecedor
+                        </button>
+                      </div>
+                    )}
+                    {fornecedorBusca.trim() && fornecedoresFiltrados.length === 0 && (
+                      <div className="absolute z-10 top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3">
+                        <p className="text-xs text-gray-400 mb-2">Nenhum fornecedor encontrado.</p>
+                        <button type="button" onClick={() => setModalNovoFornecedor(true)}
+                          className="text-xs font-semibold text-[#fb4d06] hover:underline">
+                          + Cadastrar novo fornecedor
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {form.fornecedorId && fornecedores.find((f) => f.id === form.fornecedorId)?.dadosBancarios && (
+                  <p className="text-[10px] text-gray-500 mt-1 bg-gray-50 rounded px-2 py-1 border border-gray-100">
+                    <span className="font-medium">Dados bancários:</span> {fornecedores.find((f) => f.id === form.fornecedorId)?.dadosBancarios}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Descrição <span className="text-red-400">*</span></label>
@@ -767,6 +864,66 @@ export default function ContasAPagarPage() {
                 <input value={form.obs} onChange={(e) => setForm((f) => ({ ...f, obs: e.target.value }))}
                   placeholder="Informação adicional (opcional)"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+              </div>
+
+              {/* Boleto */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Boleto (PDF ou imagem)</label>
+                <div className="flex items-center gap-2">
+                  <label className={`flex-1 flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 text-sm cursor-pointer hover:border-[#fb4d06] transition ${boletoUploading ? "opacity-50 pointer-events-none" : ""}`}>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <span className="text-gray-500 text-xs">{boletoUploading ? "Enviando..." : boletoUrl ? "Trocar arquivo" : "Selecionar arquivo"}</span>
+                    {editando ? (
+                      <input type="file" accept=".pdf,.png,.jpg,.jpeg" className="hidden"
+                        disabled={boletoUploading}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setBoletoUploading(true);
+                          try {
+                            const fd = new FormData();
+                            fd.append("arquivo", file);
+                            const res = await fetch(`/api/contas-a-pagar/${editando.id}/boleto`, { method: "POST", body: fd });
+                            if (res.ok) {
+                              const d = await res.json();
+                              setBoletoUrl(d.boletoUrl);
+                              setContas((prev) => prev.map((c) => c.id === editando.id ? { ...c, boletoUrl: d.boletoUrl } : c));
+                            }
+                          } finally {
+                            setBoletoUploading(false);
+                          }
+                        }} />
+                    ) : (
+                      <span className="text-xs text-gray-400 ml-1">Disponível após salvar</span>
+                    )}
+                  </label>
+                  {boletoUrl && (
+                    <button type="button" onClick={() => {
+                      setBoletoUrl("");
+                      if (editando) {
+                        fetch(`/api/contas-a-pagar/${editando.id}/boleto`, { method: "DELETE" });
+                        setContas((prev) => prev.map((c) => c.id === editando.id ? { ...c, boletoUrl: undefined } : c));
+                      }
+                    }} className="text-xs text-red-500 hover:text-red-700 font-medium">Remover</button>
+                  )}
+                </div>
+                {boletoUrl && (() => {
+                  const contaId = editando?.id;
+                  const boletoUrlFull = contaId ? `/api/uploads/contas-a-pagar/${contaId}/${boletoUrl}` : null;
+                  if (!boletoUrlFull) return null;
+                  return (
+                    <a href={boletoUrlFull} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-[#fb4d06] hover:underline mt-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    Ver boleto anexado
+                  </a>
+                  );
+                })()}
+                <p className="text-[10px] text-gray-400 mt-1">Anexe o boleto em PDF ou imagem para consulta futura.</p>
               </div>
 
               {/* Ordem de Serviço */}
@@ -837,7 +994,7 @@ export default function ContasAPagarPage() {
             </div>
 
             <div className="px-6 pb-6 pt-3 border-t border-gray-100 shrink-0 flex gap-3">
-              <button onClick={() => setModalForm(false)} className="py-2.5 px-4 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+              <button onClick={() => { setModalForm(false); setBoletoUrl(""); }} className="py-2.5 px-4 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
               {editando && (
                 <button onClick={duplicar} disabled={salvando}
                   title="Cria uma cópia desta conta como nova entrada pendente"
@@ -1125,6 +1282,26 @@ export default function ContasAPagarPage() {
                   </div>
                 )}
 
+                {/* Boleto */}
+                {detalhe.boletoUrl && (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Boleto</p>
+                    </div>
+                    <a href={`/api/uploads/contas-a-pagar/${detalhe.id}/${detalhe.boletoUrl}`} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl p-3 hover:bg-orange-100 transition group">
+                      <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-orange-700 group-hover:underline">Abrir boleto anexado</p>
+                        <p className="text-[10px] text-orange-500">PDF ou imagem do boleto bancário</p>
+                      </div>
+                    </a>
+                  </div>
+                )}
+
                 {/* Documentos / Google Drive */}
                 <div>
                   <div className="flex items-center gap-2 mb-3">
@@ -1173,6 +1350,76 @@ export default function ContasAPagarPage() {
           </>
         );
       })()}
+
+      {/* ── Modal: Novo Fornecedor Inline ── */}
+      {modalNovoFornecedor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setModalNovoFornecedor(false)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <div>
+                <h2 className="text-base font-bold text-gray-800">Novo Fornecedor</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Cadastre um novo fornecedor para vincular à conta.</p>
+              </div>
+              <button onClick={() => setModalNovoFornecedor(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="px-6 py-5 flex flex-col gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Razão Social <span className="text-red-400">*</span></label>
+                <input value={formNovoFornecedor.razaoSocial} onChange={(e) => setFormNovoFornecedor((f) => ({ ...f, razaoSocial: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Nome Fantasia</label>
+                  <input value={formNovoFornecedor.nomeFantasia} onChange={(e) => setFormNovoFornecedor((f) => ({ ...f, nomeFantasia: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">CNPJ</label>
+                  <input value={formNovoFornecedor.cnpj} onChange={(e) => setFormNovoFornecedor((f) => ({ ...f, cnpj: e.target.value }))}
+                    placeholder="00.000.000/0001-00"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Dados Bancários</label>
+                <textarea value={formNovoFornecedor.dadosBancarios} onChange={(e) => setFormNovoFornecedor((f) => ({ ...f, dadosBancarios: e.target.value }))}
+                  placeholder="Banco, agência, conta, chave PIX..."
+                  rows={3}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setModalNovoFornecedor(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+                <button onClick={async () => {
+                  if (!formNovoFornecedor.razaoSocial.trim()) return;
+                  setSalvandoFornecedor(true);
+                  try {
+                    const res = await fetch("/api/fornecedores", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ ...formNovoFornecedor, status: "Ativo" }),
+                    });
+                    const novo = await res.json();
+                    setFornecedores((prev) => [...prev, novo]);
+                    setForm((prev) => ({ ...prev, fornecedorId: novo.id, fornecedor: novo.razaoSocial || novo.nomeFantasia }));
+                    setFormNovoFornecedor({ razaoSocial: "", nomeFantasia: "", cnpj: "", dadosBancarios: "" });
+                    setModalNovoFornecedor(false);
+                    setFornecedorBusca("");
+                  } finally {
+                    setSalvandoFornecedor(false);
+                  }
+                }} disabled={salvandoFornecedor || !formNovoFornecedor.razaoSocial.trim()}
+                  className="flex-[2] py-2.5 rounded-xl bg-[#fb4d06] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40">
+                  {salvandoFornecedor ? "Salvando..." : "Cadastrar e Vincular"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal: Confirmar Pagamento ── */}
       {modalPagar && (
