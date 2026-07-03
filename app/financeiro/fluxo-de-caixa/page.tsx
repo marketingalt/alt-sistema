@@ -13,7 +13,19 @@ interface Lancamento {
   categoria: string;
   obs: string;
   ordemServicoId?: string;
+  contaPagarId?: string;
   createdAt: string;
+}
+
+interface ContaPagarItem {
+  id: string;
+  fornecedor: string;
+  descricao: string;
+  valor: number;
+  status: string;
+  dataVencimento: string;
+  fluxoCaixaId?: string;
+  ordemServicoId?: string;
 }
 
 interface OrdemServicoItem {
@@ -88,6 +100,7 @@ export default function FluxoDeCaixaPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [bancos, setBancos] = useState(["C6 BANK", "Banco Itaú"]);
   const [ordensServico, setOrdensServico] = useState<OrdemServicoItem[]>([]);
+  const [contasPagar, setContasPagar] = useState<ContaPagarItem[]>([]);
 
   useEffect(() => {
     fetch("/api/config")
@@ -100,6 +113,13 @@ export default function FluxoDeCaixaPage() {
     fetch("/api/ordens-servico")
       .then((r) => r.json())
       .then((d) => setOrdensServico(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/contas-a-pagar")
+      .then((r) => r.json())
+      .then((d) => setContasPagar(Array.isArray(d?.contas) ? d.contas : []))
       .catch(() => {});
   }, []);
 
@@ -121,7 +141,7 @@ export default function FluxoDeCaixaPage() {
   const [form, setForm] = useState({
     data: "", modalidade: "PIX", banco: "C6 BANK", valor: "",
     area: "PROJETOS", categoria: "RECEITA OPERACIONAL BRUTA", obs: "",
-    ordemServicoId: "",
+    ordemServicoId: "", contaPagarId: "",
   });
   const [salvando, setSalvando] = useState(false);
 
@@ -231,6 +251,14 @@ export default function FluxoDeCaixaPage() {
     return map;
   }, [ordensServico]);
 
+  const contaPorId = useMemo(() => {
+    const map: Record<string, ContaPagarItem> = {};
+    for (const c of contasPagar) {
+      map[c.id] = c;
+    }
+    return map;
+  }, [contasPagar]);
+
   function toggleOrdem(campo: "data" | "valor" | "categoria") {
     if (ordemCampo === campo) setOrdemDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setOrdemCampo(campo); setOrdemDir("asc"); }
@@ -238,13 +266,13 @@ export default function FluxoDeCaixaPage() {
 
   function abrirNovo() {
     setEditando(null);
-    setForm({ data: new Date().toISOString().split("T")[0], modalidade: "PIX", banco: "C6 BANK", valor: "", area: "PROJETOS", categoria: "RECEITA OPERACIONAL BRUTA", obs: "", ordemServicoId: "" });
+    setForm({ data: new Date().toISOString().split("T")[0], modalidade: "PIX", banco: "C6 BANK", valor: "", area: "PROJETOS", categoria: "RECEITA OPERACIONAL BRUTA", obs: "", ordemServicoId: "", contaPagarId: "" });
     setModalAberto(true);
   }
 
   function abrirEditar(l: Lancamento) {
     setEditando(l);
-    setForm({ data: l.data, modalidade: l.modalidade, banco: l.banco, valor: String(l.valor), area: l.area, categoria: l.categoria, obs: l.obs, ordemServicoId: l.ordemServicoId ?? "" });
+    setForm({ data: l.data, modalidade: l.modalidade, banco: l.banco, valor: String(l.valor), area: l.area, categoria: l.categoria, obs: l.obs, ordemServicoId: l.ordemServicoId ?? "", contaPagarId: l.contaPagarId ?? "" });
     setModalAberto(true);
   }
 
@@ -469,6 +497,7 @@ export default function FluxoDeCaixaPage() {
                         Categoria {ordemCampo === "categoria" ? (ordemDir === "asc" ? "↑" : "↓") : ""}
                       </th>
                       <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">OS</th>
+                      <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Conta</th>
                       <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Observação</th>
                       <th onClick={() => toggleOrdem("valor")} className="text-right px-3 py-2.5 text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-700 select-none whitespace-nowrap">
                         Valor {ordemCampo === "valor" ? (ordemDir === "asc" ? "↑" : "↓") : ""}
@@ -479,7 +508,7 @@ export default function FluxoDeCaixaPage() {
                   </thead>
                   <tbody>
                     {comSaldo.length === 0 && (
-                      <tr><td colSpan={9} className="text-center py-12 text-gray-400 text-sm">Nenhum lançamento encontrado para este período.</td></tr>
+                      <tr><td colSpan={10} className="text-center py-12 text-gray-400 text-sm">Nenhum lançamento encontrado para este período.</td></tr>
                     )}
                     {comSaldo.map((l) => (
                       <tr key={l.id} className="border-b border-gray-50 hover:bg-gray-50/50 group">
@@ -509,6 +538,15 @@ export default function FluxoDeCaixaPage() {
                               className="text-xs font-semibold text-[#fb4d06] hover:underline whitespace-nowrap">
                               #{osPorId[l.ordemServicoId].numero}
                             </a>
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          {l.contaPagarId && contaPorId[l.contaPagarId] ? (
+                            <span className="text-xs text-gray-600 whitespace-nowrap" title={contaPorId[l.contaPagarId].fornecedor}>
+                              {contaPorId[l.contaPagarId].fornecedor}
+                            </span>
                           ) : (
                             <span className="text-xs text-gray-400">—</span>
                           )}
@@ -677,6 +715,22 @@ export default function FluxoDeCaixaPage() {
                   ))}
                 </select>
                 <p className="text-[10px] text-gray-400 mt-1">Vincule este lançamento a uma Ordem de Serviço.</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Conta a Pagar</label>
+                <select value={form.contaPagarId} onChange={(e) => setForm((f) => ({ ...f, contaPagarId: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
+                  <option value="">Nenhuma (lançamento avulso)</option>
+                  {contasPagar
+                    .filter((c) => c.status !== "pago" || c.id === form.contaPagarId)
+                    .sort((a, b) => new Date(a.dataVencimento).getTime() - new Date(b.dataVencimento).getTime())
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.fornecedor} — {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(c.valor)} {c.dataVencimento ? `(Venc: ${c.dataVencimento})` : ""}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-[10px] text-gray-400 mt-1">Selecione uma conta pendente para marcá-la como paga ao salvar.</p>
               </div>
             </div>
             <div className="px-6 pb-6 pt-2 flex gap-3">
