@@ -47,6 +47,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       categoria: conta.categoria,
       obs: `${conta.fornecedor}${conta.descricao ? " — " + conta.descricao : ""}`,
       createdAt: dataPagamento,
+      ordemServicoId: conta.ordemServicoId || "",
     };
     dadosFC.lancamentos.push(novoLancamento);
     await salvarFC(dadosFC);
@@ -70,6 +71,46 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
 
     return NextResponse.json({ ok: true, fluxoCaixaId: novoLancamento.id });
+  }
+
+  // Atualização simples (inclui mudança de status vindo do formulário de edição)
+  // Se status mudou para "pago" e não tem fluxoCaixaId, cria fluxo de caixa
+  if (body.status === "pago" && !conta.fluxoCaixaId) {
+    const dataPagamento = body.dataPagamento || new Date().toISOString().split("T")[0];
+    const dadosFC = await lerFC();
+    const novoLancamento = {
+      id: `fc${Date.now()}`,
+      data: dataPagamento,
+      modalidade: body.modalidade || conta.modalidade,
+      banco: body.banco || conta.banco,
+      valor: -Math.abs(body.valor ?? conta.valor),
+      area: body.area || conta.area,
+      categoria: body.categoria || conta.categoria,
+      obs: `${body.fornecedor || conta.fornecedor}${body.descricao || conta.descricao ? " — " + (body.descricao || conta.descricao) : ""}`,
+      createdAt: dataPagamento,
+      ordemServicoId: body.ordemServicoId || conta.ordemServicoId || "",
+    };
+    dadosFC.lancamentos.push(novoLancamento);
+    await salvarFC(dadosFC);
+
+    dadosCP.contas = dadosCP.contas.map((c: { id: string }) =>
+      c.id === id ? { ...c, ...body, status: "pago", fluxoCaixaId: novoLancamento.id } : c
+    );
+    await salvarCP(dadosCP);
+    return NextResponse.json({ ok: true, fluxoCaixaId: novoLancamento.id });
+  }
+
+  // Se estava pago e mudou para pendente/cancelado, remove fluxo de caixa
+  if (body.status && body.status !== "pago" && conta.fluxoCaixaId && conta.status === "pago") {
+    const dadosFC = await lerFC();
+    dadosFC.lancamentos = dadosFC.lancamentos.filter((l: any) => l.id !== conta.fluxoCaixaId);
+    await salvarFC(dadosFC);
+
+    dadosCP.contas = dadosCP.contas.map((c: { id: string }) =>
+      c.id === id ? { ...c, ...body, fluxoCaixaId: undefined } : c
+    );
+    await salvarCP(dadosCP);
+    return NextResponse.json({ ok: true });
   }
 
   // Atualização simples

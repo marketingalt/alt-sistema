@@ -12,7 +12,15 @@ interface Lancamento {
   area: string;
   categoria: string;
   obs: string;
+  ordemServicoId?: string;
   createdAt: string;
+}
+
+interface OrdemServicoItem {
+  id: string;
+  numero: string;
+  cliente: string;
+  orcamentoId?: string;
 }
 
 interface DadosCaixa {
@@ -78,14 +86,20 @@ export default function FluxoDeCaixaPage() {
   const [dados, setDados] = useState<DadosCaixa | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [sincronizando, setSincronizando] = useState(false);
-  const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [bancos, setBancos] = useState(["C6 BANK", "Banco Itaú"]);
+  const [ordensServico, setOrdensServico] = useState<OrdemServicoItem[]>([]);
 
   useEffect(() => {
     fetch("/api/config")
       .then((r) => r.json())
       .then((d) => { if (d.bancos?.length) setBancos(d.bancos); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/ordens-servico")
+      .then((r) => r.json())
+      .then((d) => setOrdensServico(Array.isArray(d) ? d : []))
       .catch(() => {});
   }, []);
 
@@ -96,6 +110,7 @@ export default function FluxoDeCaixaPage() {
   const [bancoFiltro, setBancoFiltro] = useState("Todos");
   const [areaFiltro, setAreaFiltro] = useState("Todas");
   const [catFiltro, setCatFiltro] = useState("Todas");
+  const [osFiltro, setOsFiltro] = useState("Todas");
   const [busca, setBusca] = useState("");
   const [ordemCampo, setOrdemCampo] = useState<"data" | "valor" | "categoria">("data");
   const [ordemDir, setOrdemDir] = useState<"asc" | "desc">("asc");
@@ -106,6 +121,7 @@ export default function FluxoDeCaixaPage() {
   const [form, setForm] = useState({
     data: "", modalidade: "PIX", banco: "C6 BANK", valor: "",
     area: "PROJETOS", categoria: "RECEITA OPERACIONAL BRUTA", obs: "",
+    ordemServicoId: "",
   });
   const [salvando, setSalvando] = useState(false);
 
@@ -161,6 +177,7 @@ export default function FluxoDeCaixaPage() {
     if (bancoFiltro !== "Todos") lista = lista.filter((l) => l.banco === bancoFiltro);
     if (areaFiltro !== "Todas") lista = lista.filter((l) => l.area === areaFiltro);
     if (catFiltro !== "Todas") lista = lista.filter((l) => l.categoria === catFiltro);
+    if (osFiltro !== "Todas") lista = lista.filter((l) => l.ordemServicoId === osFiltro);
     if (busca.trim()) {
       const q = busca.toLowerCase();
       lista = lista.filter((l) => l.obs.toLowerCase().includes(q) || l.categoria.toLowerCase().includes(q));
@@ -174,7 +191,7 @@ export default function FluxoDeCaixaPage() {
       return 0;
     });
     return lista;
-  }, [lancamentosMes, bancoFiltro, areaFiltro, catFiltro, busca, ordemCampo, ordemDir]);
+  }, [lancamentosMes, bancoFiltro, areaFiltro, catFiltro, osFiltro, busca, ordemCampo, ordemDir]);
 
   // KPIs do mês
   const kpis = useMemo(() => {
@@ -206,6 +223,14 @@ export default function FluxoDeCaixaPage() {
     });
   }, [lancamentosMes]);
 
+  const osPorId = useMemo(() => {
+    const map: Record<string, OrdemServicoItem> = {};
+    for (const os of ordensServico) {
+      map[os.id] = os;
+    }
+    return map;
+  }, [ordensServico]);
+
   function toggleOrdem(campo: "data" | "valor" | "categoria") {
     if (ordemCampo === campo) setOrdemDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setOrdemCampo(campo); setOrdemDir("asc"); }
@@ -213,13 +238,13 @@ export default function FluxoDeCaixaPage() {
 
   function abrirNovo() {
     setEditando(null);
-    setForm({ data: new Date().toISOString().split("T")[0], modalidade: "PIX", banco: "C6 BANK", valor: "", area: "PROJETOS", categoria: "RECEITA OPERACIONAL BRUTA", obs: "" });
+    setForm({ data: new Date().toISOString().split("T")[0], modalidade: "PIX", banco: "C6 BANK", valor: "", area: "PROJETOS", categoria: "RECEITA OPERACIONAL BRUTA", obs: "", ordemServicoId: "" });
     setModalAberto(true);
   }
 
   function abrirEditar(l: Lancamento) {
     setEditando(l);
-    setForm({ data: l.data, modalidade: l.modalidade, banco: l.banco, valor: String(l.valor), area: l.area, categoria: l.categoria, obs: l.obs });
+    setForm({ data: l.data, modalidade: l.modalidade, banco: l.banco, valor: String(l.valor), area: l.area, categoria: l.categoria, obs: l.obs, ordemServicoId: l.ordemServicoId ?? "" });
     setModalAberto(true);
   }
 
@@ -296,41 +321,6 @@ export default function FluxoDeCaixaPage() {
             <p className="text-gray-500 text-sm mt-0.5">Controle de entradas e saídas — Omni Alt</p>
           </div>
           <div className="flex items-center gap-2">
-            {syncMsg && (
-              <span className={`text-xs font-medium ${syncMsg.includes("sucesso") || syncMsg.includes("ok") || syncMsg.includes("importados") ? "text-green-600" : "text-red-600"}`}>
-                {syncMsg}
-              </span>
-            )}
-            <button
-              onClick={async () => {
-                setSincronizando(true);
-                setSyncMsg(null);
-                try {
-                  const res = await fetch("/api/fluxo-caixa/importar-planilha", { method: "POST" });
-                  const data = await res.json();
-                  if (data.success) {
-                    setSyncMsg(`✅ ${data.resumo.parsedos} lançamentos importados (${data.resumo.periodo.inicio} a ${data.resumo.periodo.fim})`);
-                    // Reload data
-                    const reload = await fetch("/api/fluxo-caixa");
-                    setDados(await reload.json());
-                  } else {
-                    setSyncMsg(`❌ ${data.error || "Erro ao sincronizar"}`);
-                  }
-                } catch (err) {
-                  setSyncMsg("❌ Erro de conexão ao sincronizar");
-                } finally {
-                  setSincronizando(false);
-                  setTimeout(() => setSyncMsg(null), 8000);
-                }
-              }}
-              disabled={sincronizando}
-              className="border border-gray-200 text-gray-600 font-semibold py-2 px-4 rounded-xl hover:bg-gray-50 transition flex items-center gap-2 text-sm disabled:opacity-40"
-            >
-              <svg className={`w-4 h-4 ${sincronizando ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              {sincronizando ? "Sincronizando..." : "Sincronizar"}
-            </button>
             <button onClick={abrirNovo} className="bg-[#fb4d06] text-white font-semibold py-2 px-5 rounded-xl hover:opacity-90 transition flex items-center gap-2 text-sm">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
               Novo Lançamento
@@ -413,6 +403,13 @@ export default function FluxoDeCaixaPage() {
                   <option value="Todas">Todas categorias</option>
                   {CATEGORIAS.map((c) => <option key={c}>{c}</option>)}
                 </select>
+                <select value={osFiltro} onChange={(e) => setOsFiltro(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 min-w-28">
+                  <option value="Todas">Todas OS</option>
+                  {ordensServico.map((os) => (
+                    <option key={os.id} value={os.id}>#{os.numero}</option>
+                  ))}
+                </select>
                 <span className="text-xs text-gray-400 ml-auto">{lancamentosFiltrados.length} lançamentos</span>
               </div>
 
@@ -429,6 +426,7 @@ export default function FluxoDeCaixaPage() {
                       <th onClick={() => toggleOrdem("categoria")} className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-700 select-none">
                         Categoria {ordemCampo === "categoria" ? (ordemDir === "asc" ? "↑" : "↓") : ""}
                       </th>
+                      <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">OS</th>
                       <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Observação</th>
                       <th onClick={() => toggleOrdem("valor")} className="text-right px-3 py-2.5 text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-700 select-none whitespace-nowrap">
                         Valor {ordemCampo === "valor" ? (ordemDir === "asc" ? "↑" : "↓") : ""}
@@ -439,7 +437,7 @@ export default function FluxoDeCaixaPage() {
                   </thead>
                   <tbody>
                     {comSaldo.length === 0 && (
-                      <tr><td colSpan={8} className="text-center py-12 text-gray-400 text-sm">Nenhum lançamento encontrado para este período.</td></tr>
+                      <tr><td colSpan={9} className="text-center py-12 text-gray-400 text-sm">Nenhum lançamento encontrado para este período.</td></tr>
                     )}
                     {comSaldo.map((l) => (
                       <tr key={l.id} className="border-b border-gray-50 hover:bg-gray-50/50 group">
@@ -462,6 +460,16 @@ export default function FluxoDeCaixaPage() {
                             l.area === "ESTORNO" ? "bg-blue-50 text-blue-600" :
                             "bg-gray-100 text-gray-500"
                           }`}>{l.area}</span>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          {l.ordemServicoId && osPorId[l.ordemServicoId] ? (
+                            <a href={`/ordens-servico/${l.ordemServicoId}`}
+                              className="text-xs font-semibold text-[#fb4d06] hover:underline whitespace-nowrap">
+                              #{osPorId[l.ordemServicoId].numero}
+                            </a>
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
                         </td>
                         <td className="px-3 py-2.5 text-xs text-gray-600 max-w-xs">
                           <span className="line-clamp-1" title={l.obs}>{l.obs}</span>
@@ -488,7 +496,7 @@ export default function FluxoDeCaixaPage() {
                   {comSaldo.length > 0 && (
                     <tfoot>
                       <tr className="border-t-2 border-gray-200 bg-gray-50">
-                        <td colSpan={5} className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total do período filtrado</td>
+                        <td colSpan={6} className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total do período filtrado</td>
                         <td className={`px-3 py-2.5 text-right font-bold text-sm ${lancamentosFiltrados.reduce((s, l) => s + l.valor, 0) >= 0 ? "text-green-700" : "text-red-600"}`}>
                           {fmt(lancamentosFiltrados.reduce((s, l) => s + l.valor, 0))}
                         </td>
@@ -616,6 +624,17 @@ export default function FluxoDeCaixaPage() {
                 <label className="block text-xs font-medium text-gray-500 mb-1">Observação / Descrição</label>
                 <input type="text" placeholder="Ex: Fornecedor XYZ — Projeto Aramis" value={form.obs} onChange={(e) => setForm((f) => ({ ...f, obs: e.target.value }))}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Ordem de Serviço</label>
+                <select value={form.ordemServicoId} onChange={(e) => setForm((f) => ({ ...f, ordemServicoId: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
+                  <option value="">Nenhuma</option>
+                  {ordensServico.map((os) => (
+                    <option key={os.id} value={os.id}>#{os.numero} — {os.cliente}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-gray-400 mt-1">Vincule este lançamento a uma Ordem de Serviço.</p>
               </div>
             </div>
             <div className="px-6 pb-6 pt-2 flex gap-3">

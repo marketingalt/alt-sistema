@@ -27,7 +27,15 @@ interface Conta {
     agencia?: string;
     conta?: string;
   };
+  ordemServicoId?: string;
   createdAt: string;
+}
+
+interface OrdemServicoItem {
+  id: string;
+  numero: string;
+  cliente: string;
+  orcamentoId?: string;
 }
 
 const CATEGORIAS = [
@@ -96,17 +104,28 @@ const FORM_VAZIO = {
   modalidade: "PIX", banco: "C6 BANK", area: "MISTO",
   categoria: "DESPESAS ADM E GERAIS", obs: "",
   recorrente: false, periodicidade: "mensal",
+  ordemServicoId: "",
+  status: "pendente",
+  dataPagamento: "",
 };
 
 export default function ContasAPagarPage() {
   const [contas, setContas] = useState<Conta[]>([]);
   const [loading, setLoading] = useState(true);
   const [bancos, setBancos] = useState(["C6 BANK", "Banco Itaú"]);
+  const [ordensServico, setOrdensServico] = useState<OrdemServicoItem[]>([]);
 
   useEffect(() => {
     fetch("/api/config")
       .then((r) => r.json())
       .then((d) => { if (d.bancos?.length) setBancos(d.bancos); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/ordens-servico")
+      .then((r) => r.json())
+      .then((d) => setOrdensServico(Array.isArray(d) ? d : []))
       .catch(() => {});
   }, []);
 
@@ -190,6 +209,14 @@ export default function ContasAPagarPage() {
     return lista.sort((a, b) => a.dataVencimento.localeCompare(b.dataVencimento));
   }, [contasMes, statusFiltro, areaFiltro, catFiltro, busca]);
 
+  const osPorId = useMemo(() => {
+    const map: Record<string, OrdemServicoItem> = {};
+    for (const os of ordensServico) {
+      map[os.id] = os;
+    }
+    return map;
+  }, [ordensServico]);
+
   function navMes(dir: number) {
     let m = mesSel + dir; let a = anoSel;
     if (m < 0) { m = 11; a--; } if (m > 11) { m = 0; a++; }
@@ -209,6 +236,9 @@ export default function ContasAPagarPage() {
       valor: String(c.valor), modalidade: c.modalidade, banco: c.banco, area: c.area,
       categoria: c.categoria, obs: c.obs ?? "",
       recorrente: c.recorrente ?? false, periodicidade: c.periodicidade ?? "mensal",
+      ordemServicoId: c.ordemServicoId ?? "",
+      status: c.status,
+      dataPagamento: c.dataPagamento ?? "",
     });
     setModalForm(true);
   }
@@ -228,8 +258,13 @@ export default function ContasAPagarPage() {
     const payload = { ...form, valor: parseFloat(String(form.valor).replace(",", ".")) || 0 };
     try {
       if (editando) {
-        await fetch(`/api/contas-a-pagar/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-        setContas((prev) => prev.map((c) => c.id === editando.id ? { ...c, ...payload } : c));
+        const res = await fetch(`/api/contas-a-pagar/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const data = await res.json();
+        setContas((prev) => prev.map((c) =>
+          c.id === editando.id
+            ? { ...c, ...payload, ...(data.fluxoCaixaId ? { fluxoCaixaId: data.fluxoCaixaId } : {}) } as Conta
+            : c
+        ));
       } else {
         const res = await fetch("/api/contas-a-pagar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         const nova = await res.json();
@@ -498,6 +533,7 @@ export default function ContasAPagarPage() {
                   <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">Vencimento</th>
                   <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Fornecedor / Descrição</th>
                   <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Categoria</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">OS</th>
                   <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">Banco</th>
                   <th className="text-right px-3 py-2.5 text-xs font-semibold text-gray-500">Valor</th>
                   <th className="text-center px-3 py-2.5 text-xs font-semibold text-gray-500">Status</th>
@@ -506,7 +542,7 @@ export default function ContasAPagarPage() {
               </thead>
               <tbody>
                 {contasFiltradas.length === 0 && (
-                  <tr><td colSpan={7} className="text-center py-12 text-gray-400 text-sm">Nenhuma conta encontrada para este período.</td></tr>
+                  <tr><td colSpan={8} className="text-center py-12 text-gray-400 text-sm">Nenhuma conta encontrada para este período.</td></tr>
                 )}
                 {contasFiltradas.map((c) => {
                   const st = statusEfetivo(c);
@@ -549,6 +585,16 @@ export default function ContasAPagarPage() {
                           c.area === "DIGITAL" ? "bg-purple-50 text-purple-600" :
                           "bg-gray-100 text-gray-500"
                         }`}>{c.area}</span>
+                      </td>
+                      <td className="px-3 py-3">
+                        {c.ordemServicoId && osPorId[c.ordemServicoId] ? (
+                          <a href={`/ordens-servico/${c.ordemServicoId}`}
+                            className="text-xs font-semibold text-[#fb4d06] hover:underline whitespace-nowrap">
+                            #{osPorId[c.ordemServicoId].numero}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex flex-col gap-0.5">
@@ -621,7 +667,7 @@ export default function ContasAPagarPage() {
               {contasFiltradas.length > 0 && (
                 <tfoot>
                   <tr className="border-t-2 border-gray-200 bg-gray-50">
-                    <td colSpan={4} className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total do período</td>
+                    <td colSpan={5} className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total do período</td>
                     <td className="px-3 py-2.5 text-right font-bold text-sm text-red-600">
                       {fmt(contasFiltradas.filter((c) => c.status !== "cancelado").reduce((s, c) => s + c.valor, 0))}
                     </td>
@@ -723,6 +769,48 @@ export default function ContasAPagarPage() {
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
               </div>
 
+              {/* Ordem de Serviço */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Ordem de Serviço</label>
+                <select value={form.ordemServicoId} onChange={(e) => setForm((f) => ({ ...f, ordemServicoId: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
+                  <option value="">Nenhuma</option>
+                  {ordensServico.map((os) => (
+                    <option key={os.id} value={os.id}>#{os.numero} — {os.cliente}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-gray-400 mt-1">Vincule esta conta a uma Ordem de Serviço para rastrear as saídas do projeto.</p>
+              </div>
+
+              {/* Status (só na edição) */}
+              {editando && (
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                  <label className="block text-xs font-medium text-gray-500 mb-2">Status do Pagamento</label>
+                  <div className="flex gap-2">
+                    {(["pendente", "pago", "cancelado"] as const).map((s) => (
+                      <button key={s} type="button" onClick={() => setForm((f) => ({ ...f, status: s }))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition capitalize ${
+                          form.status === s
+                            ? s === "pago" ? "border-green-500 bg-green-50 text-green-700"
+                              : s === "cancelado" ? "border-gray-400 bg-gray-100 text-gray-600"
+                              : "border-yellow-400 bg-yellow-50 text-yellow-700"
+                            : "border-gray-200 text-gray-500 hover:border-gray-300"
+                        }`}>
+                        {s === "pendente" ? "Pendente" : s === "pago" ? "✓ Pago" : "Cancelado"}
+                      </button>
+                    ))}
+                  </div>
+                  {form.status === "pago" && (
+                    <div className="mt-3">
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Data do Pagamento</label>
+                      <input type="date" value={form.dataPagamento} onChange={(e) => setForm((f) => ({ ...f, dataPagamento: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                      <p className="text-[10px] text-gray-400 mt-1">Ao salvar como "Pago", será criado um lançamento no Fluxo de Caixa automaticamente.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Recorrência */}
               <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -813,6 +901,7 @@ export default function ContasAPagarPage() {
                       area: detalhe.area, categoria: detalhe.categoria,
                       obs: detalhe.obs, recorrente: detalhe.recorrente,
                       periodicidade: detalhe.periodicidade,
+                      ordemServicoId: detalhe.ordemServicoId || "",
                     };
                     const res = await fetch("/api/contas-a-pagar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
                     const nova = await res.json();
@@ -1004,6 +1093,14 @@ export default function ContasAPagarPage() {
                     <div className="bg-gray-50 rounded-xl p-3">
                       <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Área</p>
                       <p className="text-sm font-semibold text-gray-800">{detalhe.area}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Ordem de Serviço</p>
+                      <p className="text-sm font-semibold text-gray-800">
+                        {detalhe.ordemServicoId && osPorId[detalhe.ordemServicoId]
+                          ? `#${osPorId[detalhe.ordemServicoId].numero}`
+                          : "—"}
+                      </p>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-3">
                       <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Criado em</p>
