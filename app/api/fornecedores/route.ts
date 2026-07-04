@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
   const user = await currentUser();
   const body = await req.json();
   const salvo = await salvarFornecedor({
+    id: body.id || `forn${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
     ...body,
     userId: userId || undefined,
     userName: user?.fullName || user?.firstName || undefined,
