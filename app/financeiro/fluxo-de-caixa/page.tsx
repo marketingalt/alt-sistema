@@ -590,14 +590,19 @@ export default function FluxoDeCaixaPage() {
                                         const fd = new FormData();
                                         fd.append("arquivo", file);
                                         const res = await fetch(`/api/fluxo-caixa/${l.id}/comprovante`, { method: "POST", body: fd });
-                                        if (res.ok) {
-                                          const d = await res.json();
+                                        const d = res.ok ? await res.json() : null;
+                                        if (d?.comprovanteUrl) {
                                           setDados((prev) => prev ? { ...prev, lancamentos: prev.lancamentos.map((x) => x.id === l.id ? { ...x, comprovanteUrl: d.comprovanteUrl } : x) } : prev);
+                                        } else {
+                                          const errText = await res.text().catch(() => "Erro desconhecido");
+                                          console.error("Upload comprovante falhou:", res.status, errText);
+                                          alert("Erro ao fazer upload do comprovante");
                                         }
+                                      } catch (err) {
+                                        console.error("Upload comprovante erro:", err);
+                                        alert("Erro de rede ao enviar comprovante");
                                       } finally {
                                         setComprovanteUploading(null);
-                                        // Reset input value so the same file can be selected again
-                                        (document.getElementById(inputId) as HTMLInputElement)!.value = "";
                                       }
                                     }} />
                                   {l.comprovanteUrl && (
