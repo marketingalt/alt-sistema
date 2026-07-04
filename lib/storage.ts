@@ -4,7 +4,18 @@ import { dbGet, dbSet } from "./storage-adapter";
 // ── Fornecedores ────────────────────────────
 
 async function getFornecedores(): Promise<Fornecedor[]> {
-  return dbGet<Fornecedor[]>("fornecedores", []);
+  const lista = await dbGet<Fornecedor[]>("fornecedores", []);
+  // Migração: garantir que todo registro tenha id
+  let modificou = false;
+  const migrados = lista.map((f) => {
+    if (!f.id) {
+      modificou = true;
+      return { ...f, id: `forn${Date.now()}${Math.random().toString(36).slice(2, 8)}` };
+    }
+    return f;
+  });
+  if (modificou) await dbSet("fornecedores", migrados);
+  return migrados;
 }
 function salvarDb(fornecedores: Fornecedor[]) {
   return dbSet("fornecedores", fornecedores);
