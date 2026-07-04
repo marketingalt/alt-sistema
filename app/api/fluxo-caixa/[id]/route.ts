@@ -65,8 +65,8 @@ export async function PUT(
     await salvarCP(dadosCP);
   }
 
-  dados.lancamentos = dados.lancamentos.map((l: { id: string }) =>
-    l.id === id ? { ...l, ...body } : l
+  dados.lancamentos = dados.lancamentos.map((l: any) =>
+    l.id === id ? { ...l, ...body, comprovanteUrl: body.comprovanteUrl === undefined ? l.comprovanteUrl : body.comprovanteUrl } : l
   );
   const atualizado = dados.lancamentos.find((l: { id: string }) => l.id === id);
 

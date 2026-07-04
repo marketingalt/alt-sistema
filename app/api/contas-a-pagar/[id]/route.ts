@@ -119,7 +119,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const dadosFC = await lerFC();
     const idxLanc = dadosFC.lancamentos.findIndex((l: any) => l.id === contaAtual.fluxoCaixaId);
     if (idxLanc >= 0) {
-      const merged = { ...dadosFC.lancamentos[idxLanc], ...body };
+      const merged = { ...dadosFC.lancamentos[idxLanc], ...body, comprovanteUrl: body.comprovanteUrl === undefined ? dadosFC.lancamentos[idxLanc].comprovanteUrl : body.comprovanteUrl };
       // Recalcula obs baseada no fornecedor + descricao atualizados
       const fornecedor = body.fornecedor || contaAtual.fornecedor;
       const descricao = body.descricao || contaAtual.descricao;
@@ -138,8 +138,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
-  dadosCP.contas = dadosCP.contas.map((c: { id: string }) =>
-    c.id === id ? { ...c, ...body } : c
+  dadosCP.contas = dadosCP.contas.map((c: any) =>
+    c.id === id ? { ...c, ...body, fluxoComprovanteUrl: body.fluxoComprovanteUrl === undefined ? c.fluxoComprovanteUrl : body.fluxoComprovanteUrl } : c
   );
   await salvarCP(dadosCP);
   return NextResponse.json({ ok: true });

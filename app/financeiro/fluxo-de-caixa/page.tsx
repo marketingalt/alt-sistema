@@ -96,6 +96,75 @@ const GRUPOS_DRE: { label: string; cats: string[]; cor: string }[] = [
   { label: "Estorno / Transferência", cats: ["ESTORNO"], cor: "text-indigo-600" },
 ];
 
+function ComprovanteActions({ lancamentoId, comprovanteUrl, onUpdate, uploading, onUploadingChange }: {
+  lancamentoId: string;
+  comprovanteUrl?: string;
+  onUpdate: (url: string | undefined) => void;
+  uploading: boolean;
+  onUploadingChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5">
+      <div className="relative w-6 h-6" onClick={() => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = ".pdf,.png,.jpg,.jpeg";
+        input.onchange = async (e) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (!file) return;
+          onUploadingChange(true);
+          try {
+            const fd = new FormData();
+            fd.append("arquivo", file);
+            const res = await fetch(`/api/fluxo-caixa/${lancamentoId}/comprovante`, { method: "POST", body: fd });
+            const d = res.ok ? await res.json() : null;
+            if (d?.comprovanteUrl) {
+              onUpdate(d.comprovanteUrl);
+            } else {
+              const errText = await res.text().catch(() => "Erro desconhecido");
+              alert("Erro ao fazer upload: " + errText);
+            }
+          } catch (err) {
+            alert("Erro de rede ao enviar comprovante");
+          } finally {
+            onUploadingChange(false);
+          }
+        };
+        input.click();
+      }}>
+        {uploading ? (
+          <div className="w-6 h-6 rounded flex items-center justify-center cursor-pointer text-gray-400">
+            <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </div>
+        ) : (
+          <div className={`w-6 h-6 rounded flex items-center justify-center cursor-pointer ${comprovanteUrl ? "text-green-500 hover:bg-green-50" : "text-gray-300 hover:text-gray-500 hover:bg-gray-100"}`}
+            title={comprovanteUrl ? "Trocar comprovante" : "Upload comprovante"}>
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+          </div>
+        )}
+      </div>
+      {comprovanteUrl && (
+        <a href={`/api/uploads/fluxo-caixa/${lancamentoId}/${comprovanteUrl}`} target="_blank" rel="noopener noreferrer"
+          className="w-6 h-6 rounded flex items-center justify-center text-blue-400 hover:text-blue-600 hover:bg-blue-50"
+          title="Abrir comprovante">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+        </a>
+      )}
+      {comprovanteUrl && (
+        <button type="button" onClick={async () => {
+          if (!confirm("Remover comprovante?")) return;
+          await fetch(`/api/fluxo-caixa/${lancamentoId}/comprovante`, { method: "DELETE" });
+          onUpdate(undefined);
+        }} className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50" title="Remover comprovante">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function FluxoDeCaixaPage() {
   const [dados, setDados] = useState<DadosCaixa | null>(null);
   const [loading, setLoading] = useState(true);
@@ -571,53 +640,10 @@ export default function FluxoDeCaixaPage() {
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                             </button>
                             {/* Comprovante */}
-                            <div className="flex items-center gap-0.5">
-                              <label className={`w-6 h-6 rounded flex items-center justify-center cursor-pointer ${l.comprovanteUrl ? "text-green-500 hover:bg-green-50" : "text-gray-300 hover:text-gray-500 hover:bg-gray-100"}`}
-                                title={l.comprovanteUrl ? "Trocar comprovante" : "Upload comprovante"}>
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                <input type="file" accept=".pdf,.png,.jpg,.jpeg" className="sr-only"
-                                  disabled={comprovanteUploading === l.id}
-                                  onChange={async (e) => {
-                                    const file = e.target.files?.[0];
-                                    if (!file) return;
-                                    setComprovanteUploading(l.id);
-                                    try {
-                                      const fd = new FormData();
-                                      fd.append("arquivo", file);
-                                      const res = await fetch(`/api/fluxo-caixa/${l.id}/comprovante`, { method: "POST", body: fd });
-                                      const d = res.ok ? await res.json() : null;
-                                      if (d?.comprovanteUrl) {
-                                        setDados((prev) => prev ? { ...prev, lancamentos: prev.lancamentos.map((x) => x.id === l.id ? { ...x, comprovanteUrl: d.comprovanteUrl } : x) } : prev);
-                                      } else {
-                                        const errText = await res.text().catch(() => "Erro desconhecido");
-                                        console.error("Upload comprovante falhou:", res.status, errText);
-                                        alert("Erro ao fazer upload do comprovante");
-                                      }
-                                    } catch (err) {
-                                      console.error("Upload comprovante erro:", err);
-                                      alert("Erro de rede ao enviar comprovante");
-                                    } finally {
-                                      setComprovanteUploading(null);
-                                    }
-                                  }} />
-                              </label>
-                              {l.comprovanteUrl && (
-                                <a href={`/api/uploads/fluxo-caixa/${l.id}/${l.comprovanteUrl}`} target="_blank" rel="noopener noreferrer"
-                                  className="w-6 h-6 rounded flex items-center justify-center text-blue-400 hover:text-blue-600 hover:bg-blue-50"
-                                  title="Abrir comprovante">
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                                </a>
-                              )}
-                              {l.comprovanteUrl && (
-                                <button type="button" onClick={async () => {
-                                  if (!confirm("Remover comprovante?")) return;
-                                  await fetch(`/api/fluxo-caixa/${l.id}/comprovante`, { method: "DELETE" });
-                                  setDados((prev) => prev ? { ...prev, lancamentos: prev.lancamentos.map((x) => x.id === l.id ? { ...x, comprovanteUrl: undefined } : x) } : prev);
-                                }} className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50" title="Remover comprovante">
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                </button>
-                              )}
-                            </div>
+                            <ComprovanteActions lancamentoId={l.id} comprovanteUrl={l.comprovanteUrl}
+                              onUpdate={(url) => setDados((prev) => prev ? { ...prev, lancamentos: prev.lancamentos.map((x) => x.id === l.id ? { ...x, comprovanteUrl: url } : x) } : prev)}
+                              uploading={comprovanteUploading === l.id}
+                              onUploadingChange={(v) => setComprovanteUploading(v ? l.id : null)} />
                             <button onClick={() => excluir(l.id)} className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50">
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                             </button>
