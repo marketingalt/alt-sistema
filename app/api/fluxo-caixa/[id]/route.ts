@@ -68,6 +68,19 @@ export async function PUT(
   dados.lancamentos = dados.lancamentos.map((l: { id: string }) =>
     l.id === id ? { ...l, ...body } : l
   );
+  const atualizado = dados.lancamentos.find((l: { id: string }) => l.id === id);
+
+  // Sincroniza comprovanteUrl com a conta a pagar vinculada
+  if (atualizado?.contaPagarId && atualizado?.comprovanteUrl !== undefined) {
+    const dadosCP = await lerCP();
+    dadosCP.contas = dadosCP.contas.map((c: any) =>
+      c.id === atualizado.contaPagarId
+        ? { ...c, fluxoComprovanteUrl: atualizado.comprovanteUrl }
+        : c
+    );
+    await salvarCP(dadosCP);
+  }
+
   await salvar(dados);
   return NextResponse.json({ ok: true });
 }
@@ -87,7 +100,7 @@ export async function DELETE(
     const dadosCP = await lerCP();
     dadosCP.contas = dadosCP.contas.map((c: any) =>
       c.id === lancamento.contaPagarId
-        ? { ...c, status: "pendente", dataPagamento: undefined, fluxoCaixaId: undefined }
+        ? { ...c, status: "pendente", dataPagamento: undefined, fluxoCaixaId: undefined, fluxoComprovanteUrl: undefined }
         : c
     );
     await salvarCP(dadosCP);

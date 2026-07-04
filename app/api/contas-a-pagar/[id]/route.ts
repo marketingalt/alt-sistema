@@ -113,7 +113,31 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ ok: true });
   }
 
-  // Atualização simples
+  // Atualização simples — sincroniza com fluxo de caixa se vinculado
+  const contaAtual = dadosCP.contas.find((c: { id: string }) => c.id === id);
+  if (contaAtual?.fluxoCaixaId) {
+    const dadosFC = await lerFC();
+    const idxLanc = dadosFC.lancamentos.findIndex((l: any) => l.id === contaAtual.fluxoCaixaId);
+    if (idxLanc >= 0) {
+      const merged = { ...dadosFC.lancamentos[idxLanc], ...body };
+      // Recalcula obs baseada no fornecedor + descricao atualizados
+      const fornecedor = body.fornecedor || contaAtual.fornecedor;
+      const descricao = body.descricao || contaAtual.descricao;
+      merged.obs = `${fornecedor}${descricao ? " — " + descricao : ""}`;
+      // Sincroniza valor como negativo (saída)
+      if (body.valor !== undefined) {
+        merged.valor = -Math.abs(Number(body.valor));
+      }
+      dadosFC.lancamentos[idxLanc] = merged;
+      await salvarFC(dadosFC);
+
+      // Puxa comprovante do fluxo de caixa para a conta
+      if (dadosFC.lancamentos[idxLanc].comprovanteUrl) {
+        body.fluxoComprovanteUrl = dadosFC.lancamentos[idxLanc].comprovanteUrl;
+      }
+    }
+  }
+
   dadosCP.contas = dadosCP.contas.map((c: { id: string }) =>
     c.id === id ? { ...c, ...body } : c
   );
