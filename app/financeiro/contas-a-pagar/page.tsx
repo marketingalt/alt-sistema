@@ -1404,12 +1404,16 @@ export default function ContasAPagarPage() {
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ ...formNovoFornecedor, status: "Ativo" }),
                     });
+                    if (!res.ok) throw new Error("Erro ao cadastrar fornecedor");
                     const novo = await res.json();
+                    if (!novo?.id) throw new Error("Fornecedor criado sem identificador");
                     setFornecedores((prev) => [...prev, novo]);
                     setForm((prev) => ({ ...prev, fornecedorId: novo.id, fornecedor: novo.razaoSocial || novo.nomeFantasia }));
                     setFormNovoFornecedor({ razaoSocial: "", nomeFantasia: "", cnpj: "", dadosBancarios: "" });
                     setModalNovoFornecedor(false);
                     setFornecedorBusca("");
+                  } catch (e) {
+                    alert("Erro ao cadastrar fornecedor: " + (e instanceof Error ? e.message : "Erro desconhecido"));
                   } finally {
                     setSalvandoFornecedor(false);
                   }
