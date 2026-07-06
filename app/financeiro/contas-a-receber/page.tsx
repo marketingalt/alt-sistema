@@ -51,6 +51,8 @@ function valorAprovadoOrcamento(orc: Orcamento): number {
   return subtotal + (orc.freteValor || 0) + (orc.custoManuseio || 0);
 }
 
+const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
 function fmt(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -720,6 +722,9 @@ export default function ContasAReceberPage() {
   const [modalAberto, setModalAberto] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [detalheAberto, setDetalheAberto] = useState<RowUnificada | null>(null);
+  const hoje = new Date();
+  const [mesSel, setMesSel] = useState(hoje.getMonth());
+  const [anoSel, setAnoSel] = useState(hoje.getFullYear());
 
   async function carregar() {
     const [resOrc, resFat, resOS] = await Promise.all([
@@ -746,6 +751,12 @@ export default function ContasAReceberPage() {
     }
     return map;
   }, [ordensServico]);
+
+  function navMes(dir: number) {
+    let m = mesSel + dir; let a = anoSel;
+    if (m < 0) { m = 11; a--; } if (m > 11) { m = 0; a++; }
+    setMesSel(m); setAnoSel(a);
+  }
 
   const rows: RowUnificada[] = useMemo(() => {
     const orcFiltrados = orcamentos.filter(
@@ -785,15 +796,25 @@ export default function ContasAReceberPage() {
     return [...orcRows, ...manualRows];
   }, [orcamentos, faturamentos]);
 
+  // Filtra pelo mês selecionado
+  const rowsMes = useMemo(() => {
+    return rows.filter((r) => {
+      const ref = r.fat.vencimento || r.fat.dataEmissao;
+      if (!ref) return true; // mostra se não tem data de referência
+      const d = new Date(ref + "T12:00:00");
+      return d.getMonth() === mesSel && d.getFullYear() === anoSel;
+    });
+  }, [rows, mesSel, anoSel]);
+
   const kpis = useMemo(() => {
-    const totalAprovado = rows.reduce((s, r) => s + r.valorAprovado, 0);
-    const totalCustos = rows.reduce((s, r) => s + (r.fat.custosReais ?? r.custosCalculados), 0);
-    const aReceber = rows.filter((r) => !r.fat.pago).reduce((s, r) => s + r.valorAprovado, 0);
-    const recebido = rows.filter((r) => r.fat.pago).reduce((s, r) => s + r.valorAprovado, 0);
-    const inadimplente = rows.filter((r) => statusReceber(r) === "inadimplente").reduce((s, r) => s + r.valorAprovado, 0);
+    const totalAprovado = rowsMes.reduce((s, r) => s + r.valorAprovado, 0);
+    const totalCustos = rowsMes.reduce((s, r) => s + (r.fat.custosReais ?? r.custosCalculados), 0);
+    const aReceber = rowsMes.filter((r) => !r.fat.pago).reduce((s, r) => s + r.valorAprovado, 0);
+    const recebido = rowsMes.filter((r) => r.fat.pago).reduce((s, r) => s + r.valorAprovado, 0);
+    const inadimplente = rowsMes.filter((r) => statusReceber(r) === "inadimplente").reduce((s, r) => s + r.valorAprovado, 0);
     const rentabilidade = totalAprovado > 0 ? ((totalAprovado - totalCustos) / totalAprovado) * 100 : 0;
     return { totalAprovado, totalCustos, aReceber, recebido, rentabilidade, inadimplente };
-  }, [rows]);
+  }, [rowsMes]);
 
   async function salvarCelula(rowId: string, field: keyof RegistroFaturamento, value: string) {
     const row = rows.find((r) => r.rowId === rowId);
@@ -820,10 +841,12 @@ export default function ContasAReceberPage() {
     await carregar();
   }
 
+  const mesAnoLabel = `${String(mesSel + 1).padStart(2, "0")}-${anoSel}`;
+
   function exportCSV() {
     const headers = ["Cliente", "Job", "Responsável", "Status Job", "Valor Aprovado", "Custos Reais", "A Pagar", "Rentabilidade (%)", "Status Nota", "Nº Nota", "Emissão", "Vencimento", "Pago", "OS"];
     const fmtData = (d?: string) => d ? `${d.split("-")[2]}/${d.split("-")[1]}/${d.split("-")[0]}` : "";
-    const rowsData = rows.map((r) => {
+    const rowsData = rowsMes.map((r) => {
       const aPagar = r.valorAprovado - (r.fat.custosReais ?? r.custosCalculados);
       const rentab = r.valorAprovado > 0 ? ((r.valorAprovado - (r.fat.custosReais ?? r.custosCalculados)) / r.valorAprovado * 100) : 0;
       const os = r.fat.ordemServicoId
@@ -846,11 +869,11 @@ export default function ContasAReceberPage() {
         os,
       ];
     });
-    downloadCSV(`contas-a-receber_${new Date().toISOString().split("T")[0]}.csv`, headers, rowsData);
+    downloadCSV(`contas-a-receber_${mesAnoLabel}.csv`, headers, rowsData);
   }
 
   async function exportPDF() {
-    const linhas = rows.map((r) => {
+    const linhas = rowsMes.map((r) => {
       const aPagar = r.valorAprovado - (r.fat.custosReais ?? r.custosCalculados);
       const rentab = r.valorAprovado > 0 ? ((r.valorAprovado - (r.fat.custosReais ?? r.custosCalculados)) / r.valorAprovado * 100) : 0;
       const os = r.fat.ordemServicoId
@@ -879,7 +902,7 @@ export default function ContasAReceberPage() {
       body: JSON.stringify({
         tipo: "contas-receber",
         titulo: "Contas a Receber",
-        periodo: new Date().toISOString().split("T")[0],
+        periodo: mesAnoLabel,
         linhas,
         totalAprovado: kpis.totalAprovado,
         totalCustos: kpis.totalCustos,
@@ -891,7 +914,7 @@ export default function ContasAReceberPage() {
     if (!res.ok) { alert("Erro ao gerar PDF"); return; }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = `contas-a-receber_${new Date().toISOString().split("T")[0]}.pdf`;
+    const a = document.createElement("a"); a.href = url; a.download = `contas-a-receber_${mesAnoLabel}.pdf`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
@@ -977,6 +1000,30 @@ export default function ContasAReceberPage() {
           </div>
         </div>
 
+        {/* Navegação de mês */}
+        <div className="flex items-center gap-2 mb-5 flex-wrap">
+          <button onClick={() => navMes(-1)} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <div className="flex items-center gap-1">
+            {MESES.map((m, i) => (
+              <button key={i} onClick={() => setMesSel(i)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${mesSel === i ? "bg-[#fb4d06] text-white" : "text-gray-500 hover:bg-gray-100"}`}>{m}</button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1 border-l border-gray-200 pl-2">
+            <button onClick={() => setAnoSel(anoSel - 1)}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium transition text-gray-500 hover:bg-gray-100">{anoSel - 1}</button>
+            <button className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-800 text-white">{anoSel}</button>
+            <button onClick={() => setAnoSel(anoSel + 1)}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium transition text-gray-500 hover:bg-gray-100">{anoSel + 1}</button>
+          </div>
+          <button onClick={() => navMes(1)} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          </button>
+          <span className="text-xs text-gray-400 ml-auto">{rowsMes.length} registro(s)</span>
+        </div>
+
         {/* KPIs */}
         <div className="grid grid-cols-6 gap-4 mb-6">
           {[
@@ -998,7 +1045,7 @@ export default function ContasAReceberPage() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
           {carregando ? (
             <div className="flex items-center justify-center py-20 text-gray-400 text-sm">Carregando...</div>
-          ) : rows.length === 0 ? (
+          ) : rowsMes.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <div className="w-12 h-12 rounded-2xl bg-[#fb4d06]/10 flex items-center justify-center">
                 <svg className="w-6 h-6 text-[#fb4d06]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1019,7 +1066,7 @@ export default function ContasAReceberPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => {
+                {rowsMes.map((row) => {
                   const custos = row.fat.custosReais ?? row.custosCalculados;
                   const aPagar = row.valorAprovado - custos;
                   const rent = row.valorAprovado > 0 ? ((row.valorAprovado - custos) / row.valorAprovado) * 100 : 0;
