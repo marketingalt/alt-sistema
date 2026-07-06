@@ -13,7 +13,56 @@ async function salvar(d: ContasPagarDB) {
 }
 
 export async function GET() {
-  return NextResponse.json(await ler());
+  const dados = await ler();
+
+  // Gera parcelas pendentes para contas recorrentes existentes
+  let gerou = false;
+  const geradas: any[] = [];
+  const configs: Record<string, { incremento: number; unidade: "dia" | "mes" | "ano"; total: number }> = {
+    mensal:     { incremento: 1, unidade: "mes", total: 12 },
+    quinzenal:  { incremento: 15, unidade: "dia", total: 24 },
+    semanal:    { incremento: 7, unidade: "dia", total: 52 },
+    anual:      { incremento: 1, unidade: "ano", total: 5 },
+  };
+
+  for (const conta of dados.contas) {
+    if (conta.recorrente && conta.periodicidade && !conta._parcelasGeradas && !conta._parcelaDe) {
+      const config = configs[conta.periodicidade];
+      if (!config) continue;
+
+      const dataBase = new Date(conta.dataVencimento + "T12:00:00");
+      if (isNaN(dataBase.getTime())) continue;
+
+      // Gera parcelas a partir de i=1 (i=0 já é a conta original)
+      for (let i = 1; i < config.total; i++) {
+        const dt = new Date(dataBase);
+        if (config.unidade === "mes") {
+          dt.setMonth(dt.getMonth() + i);
+        } else if (config.unidade === "ano") {
+          dt.setFullYear(dt.getFullYear() + i);
+        } else {
+          dt.setDate(dt.getDate() + i * config.incremento);
+        }
+        geradas.push({
+          ...conta,
+          id: `${conta.id}_rec${i}`,
+          dataVencimento: dt.toISOString().split("T")[0],
+          createdAt: new Date().toISOString().split("T")[0],
+          _parcelaDe: conta.id,
+        });
+      }
+
+      conta._parcelasGeradas = true;
+      gerou = true;
+    }
+  }
+
+  if (gerou) {
+    dados.contas.push(...geradas);
+    await salvar(dados);
+  }
+
+  return NextResponse.json(dados);
 }
 
 export async function POST(req: Request) {
@@ -26,6 +75,7 @@ export async function POST(req: Request) {
     status: "pendente" as const,
     createdAt: new Date().toISOString().split("T")[0],
     dataVencimento: dataVenc,
+    _parcelasGeradas: true,
   });
 
   if (body.recorrente && body.periodicidade) {
