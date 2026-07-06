@@ -299,6 +299,48 @@ export default function ContasAPagarPage() {
     downloadCSV(`contas-a-pagar_${mesAno}.csv`, headers, rows);
   }
 
+  async function exportPDF() {
+    const mesAno = `${String(mesSel + 1).padStart(2, "0")}-${anoSel}`;
+    const linhas = contasFiltradas.map((c) => {
+      const os = c.ordemServicoId && osPorId[c.ordemServicoId] ? `#${osPorId[c.ordemServicoId].numero}` : "";
+      return {
+        vencimento: c.dataVencimento,
+        pagamento: c.dataPagamento ?? "",
+        fornecedor: c.fornecedor,
+        descricao: c.descricao,
+        valor: c.valor,
+        modalidade: c.modalidade,
+        banco: c.banco,
+        area: c.area,
+        categoria: c.categoria,
+        status: statusEfetivo(c),
+        os,
+        obs: c.obs ?? "",
+      };
+    });
+    const totalMes = contasFiltradas.reduce((s, c) => s + c.valor, 0);
+    const totalPendente = contasFiltradas.filter((c) => statusEfetivo(c) === "pendente").reduce((s, c) => s + c.valor, 0);
+    const totalPago = contasFiltradas.filter((c) => statusEfetivo(c) === "pago").reduce((s, c) => s + c.valor, 0);
+    const totalVencido = contasFiltradas.filter((c) => statusEfetivo(c) === "vencido").reduce((s, c) => s + c.valor, 0);
+    const res = await fetch("/api/financeiro/export-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tipo: "contas-pagar",
+        titulo: "Contas a Pagar",
+        periodo: mesAno,
+        linhas,
+        totalMes, totalPendente, totalPago, totalVencido,
+      }),
+    });
+    if (!res.ok) { alert("Erro ao gerar PDF"); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `contas-a-pagar_${mesAno}.pdf`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   function abrirNovo() {
     setEditando(null);
     setForm({ ...FORM_VAZIO, dataVencimento: new Date(anoSel, mesSel, 15).toISOString().split("T")[0] });
@@ -528,12 +570,13 @@ export default function ContasAPagarPage() {
                       </svg>
                       CSV (Planilha)
                     </button>
-                    <div className="px-4 py-2 text-xs text-gray-400 italic flex items-center gap-2">
+                    <button onClick={() => { exportPDF(); setShowExportMenu(false); }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                       <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                       </svg>
-                      PDF (em breve)
-                    </div>
+                      PDF (Relatório)
+                    </button>
                   </div>
                 </>
               )}

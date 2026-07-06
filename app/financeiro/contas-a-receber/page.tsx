@@ -604,6 +604,53 @@ export default function ContasAReceberPage() {
     downloadCSV(`contas-a-receber_${new Date().toISOString().split("T")[0]}.csv`, headers, rowsData);
   }
 
+  async function exportPDF() {
+    const linhas = rows.map((r) => {
+      const aPagar = r.valorAprovado - (r.fat.custosReais ?? r.custosCalculados);
+      const rentab = r.valorAprovado > 0 ? ((r.valorAprovado - (r.fat.custosReais ?? r.custosCalculados)) / r.valorAprovado * 100) : 0;
+      const os = r.fat.ordemServicoId
+        ? `#${ordensServico.find((os) => os.id === r.fat.ordemServicoId)?.numero ?? ""}`
+        : "";
+      return {
+        cliente: r.cliente,
+        job: r.job,
+        responsavel: r.responsavel,
+        statusJob: r.statusJob,
+        valorAprovado: r.valorAprovado,
+        custos: r.fat.custosReais ?? r.custosCalculados,
+        aPagar,
+        rentabilidade: rentab,
+        statusNota: r.fat.statusNota ?? "",
+        numeroNota: r.fat.numeroNota ?? "",
+        emissao: r.fat.dataEmissao ?? "",
+        vencimento: r.fat.vencimento ?? "",
+        pago: r.fat.pago ?? false,
+        os,
+      };
+    });
+    const res = await fetch("/api/financeiro/export-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tipo: "contas-receber",
+        titulo: "Contas a Receber",
+        periodo: new Date().toISOString().split("T")[0],
+        linhas,
+        totalAprovado: kpis.totalAprovado,
+        totalCustos: kpis.totalCustos,
+        aReceber: kpis.aReceber,
+        recebido: kpis.recebido,
+        rentabilidadeMedia: kpis.rentabilidade,
+      }),
+    });
+    if (!res.ok) { alert("Erro ao gerar PDF"); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `contas-a-receber_${new Date().toISOString().split("T")[0]}.pdf`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   async function salvarNovoLancamento(dados: Partial<RegistroFaturamento>) {
     await fetch("/api/faturamentos", {
       method: "POST",
@@ -649,12 +696,13 @@ export default function ContasAReceberPage() {
                       </svg>
                       CSV (Planilha)
                     </button>
-                    <div className="px-4 py-2 text-xs text-gray-400 italic flex items-center gap-2">
+                    <button onClick={() => { exportPDF(); setShowExportMenu(false); }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                       <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                       </svg>
-                      PDF (em breve)
-                    </div>
+                      PDF (Relatório)
+                    </button>
                   </div>
                 </>
               )}

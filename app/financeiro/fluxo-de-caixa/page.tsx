@@ -371,6 +371,41 @@ export default function FluxoDeCaixaPage() {
     downloadCSV(`fluxo-caixa_${mesAno}.csv`, headers, rows);
   }
 
+  async function exportPDF() {
+    const mesAno = `${String(mesSel + 1).padStart(2, "0")}-${anoSel}`;
+    const linhas = comSaldo.map((l) => ({
+      data: l.data,
+      modalidade: l.modalidade,
+      banco: l.banco,
+      area: l.area,
+      categoria: l.categoria,
+      os: l.ordemServicoId && osPorId[l.ordemServicoId] ? `#${osPorId[l.ordemServicoId].numero}` : "",
+      obs: l.obs,
+      valor: l.valor,
+      saldoCorrido: l.saldoCorrido,
+    }));
+    const res = await fetch("/api/financeiro/export-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tipo: "fluxo-caixa",
+        titulo: "Fluxo de Caixa",
+        periodo: mesAno,
+        linhas,
+        entradas: kpis.entradas,
+        saidas: kpis.saidas,
+        resultado: kpis.resultado,
+        saldoFinal: kpis.saldoFinal,
+      }),
+    });
+    if (!res.ok) { alert("Erro ao gerar PDF"); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `fluxo-caixa_${mesAno}.pdf`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   function abrirNovo() {
     setEditando(null);
     setForm({ data: new Date().toISOString().split("T")[0], modalidade: "PIX", banco: "C6 BANK", valor: "", area: "PROJETOS", categoria: "RECEITA OPERACIONAL BRUTA", obs: "", ordemServicoId: "", contaPagarId: "" });
@@ -475,12 +510,13 @@ export default function FluxoDeCaixaPage() {
                       </svg>
                       CSV (Planilha)
                     </button>
-                    <div className="px-4 py-2 text-xs text-gray-400 italic flex items-center gap-2">
+                    <button onClick={() => { exportPDF(); setShowExportMenu(false); }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                       <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                       </svg>
-                      PDF (em breve)
-                    </div>
+                      PDF (Relatório)
+                    </button>
                   </div>
                 </>
               )}
