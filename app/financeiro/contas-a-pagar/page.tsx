@@ -387,8 +387,12 @@ export default function ContasAPagarPage() {
         ));
       } else {
         const res = await fetch("/api/contas-a-pagar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-        const nova = await res.json();
-        setContas((prev) => [...prev, nova]);
+        const result = await res.json();
+        const contasCriadas = Array.isArray(result.contas) ? result.contas : [result];
+        setContas((prev) => [...prev, ...contasCriadas]);
+        if (result.criadas > 1) {
+          alert(`${result.criadas} parcelas geradas (${form.periodicidade}).`);
+        }
       }
       setModalForm(false);
     } finally {
@@ -509,8 +513,9 @@ export default function ContasAPagarPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const nova = await res.json();
-      setContas((prev) => [...prev, nova]);
+      const result = await res.json();
+      const contasCriadas = Array.isArray(result.contas) ? result.contas : [result];
+      setContas((prev) => [...prev, ...contasCriadas]);
       setModalForm(false);
     } finally {
       setSalvando(false);
@@ -1171,8 +1176,9 @@ export default function ContasAPagarPage() {
                       ordemServicoId: detalhe.ordemServicoId || "",
                     };
                     const res = await fetch("/api/contas-a-pagar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-                    const nova = await res.json();
-                    setContas((prev) => [...prev, nova]);
+                    const result = await res.json();
+                    const contasCriadas = Array.isArray(result.contas) ? result.contas : [result];
+                    setContas((prev) => [...prev, ...contasCriadas]);
                     setDetalhe(null);
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#fb4d06] bg-[#fb4d06]/8 hover:bg-[#fb4d06]/15 transition">
