@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import { downloadCSV } from "@/lib/export-csv";
 
 interface Conta {
   id: string;
@@ -189,6 +190,7 @@ export default function ContasAPagarPage() {
   const [driveInput, setDriveInput] = useState("");
   const [salvandoLink, setSalvandoLink] = useState(false);
   const [dadosBancariosForm, setDadosBancariosForm] = useState({ nome: "", banco: "", chavePix: "", agencia: "", conta: "" });
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
     fetch("/api/contas-a-pagar")
@@ -262,6 +264,39 @@ export default function ContasAPagarPage() {
     let m = mesSel + dir; let a = anoSel;
     if (m < 0) { m = 11; a--; } if (m > 11) { m = 0; a++; }
     setMesSel(m); setAnoSel(a);
+  }
+
+  function exportCSV() {
+    const headers = ["Vencimento", "Pagamento", "Fornecedor", "Descrição", "Valor", "Modalidade", "Banco", "Área", "Categoria", "Status", "Dias", "OS", "Observação"];
+    const rows = contasFiltradas.map((c) => {
+      const status = statusEfetivo(c);
+      const dias = status === "vencido"
+        ? `Vencido há ${Math.abs(diasParaVencer(c.dataVencimento))}`
+        : status === "pendente"
+          ? `Faltam ${diasParaVencer(c.dataVencimento)}`
+          : "";
+      const os = c.ordemServicoId && osPorId[c.ordemServicoId]
+        ? `#${osPorId[c.ordemServicoId].numero}`
+        : "";
+      const fmtData = (d?: string) => d ? `${d.split("-")[2]}/${d.split("-")[1]}/${d.split("-")[0]}` : "";
+      return [
+        fmtData(c.dataVencimento),
+        fmtData(c.dataPagamento),
+        c.fornecedor,
+        c.descricao,
+        String(c.valor),
+        c.modalidade,
+        c.banco,
+        c.area,
+        c.categoria,
+        status,
+        dias,
+        os,
+        c.obs ?? "",
+      ];
+    });
+    const mesAno = `${String(mesSel + 1).padStart(2, "0")}-${anoSel}`;
+    downloadCSV(`contas-a-pagar_${mesAno}.csv`, headers, rows);
   }
 
   function abrirNovo() {
@@ -474,6 +509,35 @@ export default function ContasAPagarPage() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
               Nova Conta
             </button>
+            <div className="relative">
+              <button onClick={() => setShowExportMenu(p => !p)}
+                className="border border-gray-200 text-gray-600 font-semibold py-2 px-5 rounded-xl hover:bg-gray-50 transition flex items-center gap-2 text-sm">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar
+              </button>
+              {showExportMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 min-w-[180px] py-1">
+                    <button onClick={() => { exportCSV(); setShowExportMenu(false); }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      CSV (Planilha)
+                    </button>
+                    <div className="px-4 py-2 text-xs text-gray-400 italic flex items-center gap-2">
+                      <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      PDF (em breve)
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             <button onClick={() => setShowModalImportar(true)} className="border border-gray-200 text-gray-600 font-semibold py-2 px-5 rounded-xl hover:bg-gray-50 transition flex items-center gap-2 text-sm">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
               Importar Planilha

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import { downloadCSV } from "@/lib/export-csv";
 
 interface Lancamento {
   id: string;
@@ -218,6 +219,7 @@ export default function FluxoDeCaixaPage() {
 
   // Comprovante upload
   const [comprovanteUploading, setComprovanteUploading] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -338,6 +340,37 @@ export default function FluxoDeCaixaPage() {
     else { setOrdemCampo(campo); setOrdemDir("asc"); }
   }
 
+  function exportCSV() {
+    const fmtData = (d: string) => {
+      if (!d) return "";
+      const [a, m, dia] = d.split("-");
+      return `${dia}/${m}/${a}`;
+    };
+    const headers = ["Data", "Modalidade", "Banco", "Área", "Categoria", "OS", "Conta", "Observação", "Valor", "Saldo Corrido"];
+    const rows = comSaldo.map((l) => {
+      const os = l.ordemServicoId && osPorId[l.ordemServicoId]
+        ? `#${osPorId[l.ordemServicoId].numero}`
+        : "";
+      const contaNome = l.contaPagarId && contaPorId[l.contaPagarId]
+        ? contaPorId[l.contaPagarId].fornecedor
+        : "";
+      return [
+        fmtData(l.data),
+        l.modalidade,
+        l.banco,
+        l.area,
+        l.categoria,
+        os,
+        contaNome,
+        l.obs,
+        String(l.valor),
+        l.saldoCorrido !== null ? String(l.saldoCorrido) : "",
+      ];
+    });
+    const mesAno = `${String(mesSel + 1).padStart(2, "0")}-${anoSel}`;
+    downloadCSV(`fluxo-caixa_${mesAno}.csv`, headers, rows);
+  }
+
   function abrirNovo() {
     setEditando(null);
     setForm({ data: new Date().toISOString().split("T")[0], modalidade: "PIX", banco: "C6 BANK", valor: "", area: "PROJETOS", categoria: "RECEITA OPERACIONAL BRUTA", obs: "", ordemServicoId: "", contaPagarId: "" });
@@ -423,6 +456,35 @@ export default function FluxoDeCaixaPage() {
             <p className="text-gray-500 text-sm mt-0.5">Controle de entradas e saídas — Omni Alt</p>
           </div>
           <div className="flex items-center gap-2">
+            <div className="relative">
+              <button onClick={() => setShowExportMenu(p => !p)}
+                className="border border-gray-200 text-gray-600 font-semibold py-2 px-5 rounded-xl hover:bg-gray-50 transition flex items-center gap-2 text-sm">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar
+              </button>
+              {showExportMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 min-w-[180px] py-1">
+                    <button onClick={() => { exportCSV(); setShowExportMenu(false); }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      CSV (Planilha)
+                    </button>
+                    <div className="px-4 py-2 text-xs text-gray-400 italic flex items-center gap-2">
+                      <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      PDF (em breve)
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             <button onClick={abrirNovo} className="bg-[#fb4d06] text-white font-semibold py-2 px-5 rounded-xl hover:opacity-90 transition flex items-center gap-2 text-sm">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
               Novo Lançamento
