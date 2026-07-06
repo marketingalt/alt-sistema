@@ -373,7 +373,7 @@ export default function ContasAPagarPage() {
   }
 
   async function salvarConta() {
-    if (!form.dataVencimento || !form.fornecedor.trim() || !form.descricao.trim()) return;
+    if (!form.dataVencimento || !form.descricao.trim()) return;
     setSalvando(true);
     const payload = { ...form, valor: parseFloat(String(form.valor).replace(",", ".")) || 0, boletoUrl: boletoUrl || undefined };
     try {
@@ -853,7 +853,7 @@ export default function ContasAPagarPage() {
             <div className="overflow-y-auto flex-1 px-6 py-5 flex flex-col gap-3">
               {/* Fornecedor */}
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Fornecedor / Beneficiário <span className="text-red-400">*</span></label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Fornecedor / Beneficiário</label>
                 {form.fornecedorId ? (
                   <div className="flex items-center gap-2">
                     <div className="flex-1 border border-green-200 bg-green-50 rounded-lg px-3 py-2 text-sm text-gray-800">
@@ -908,6 +908,12 @@ export default function ContasAPagarPage() {
                       </div>
                     )}
                   </div>
+                )}
+                {!form.fornecedorId && !fornecedorBusca.trim() && (
+                  <button type="button" onClick={() => setModalNovoFornecedor(true)}
+                    className="mt-1 text-xs font-semibold text-[#fb4d06] hover:underline flex items-center gap-1">
+                    + Cadastrar novo fornecedor
+                  </button>
                 )}
                 {form.fornecedorId && fornecedores.find((f) => f.id === form.fornecedorId)?.dadosBancarios && (
                   <p className="text-[10px] text-gray-500 mt-1 bg-gray-50 rounded px-2 py-1 border border-gray-100">
@@ -1120,7 +1126,7 @@ export default function ContasAPagarPage() {
                   Duplicar
                 </button>
               )}
-              <button onClick={salvarConta} disabled={salvando || !form.dataVencimento || !form.fornecedor.trim() || !form.descricao.trim()}
+              <button onClick={salvarConta} disabled={salvando || !form.dataVencimento || !form.descricao.trim()}
                 className="flex-1 py-2.5 rounded-xl bg-[#fb4d06] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40">
                 {salvando ? "Salvando..." : editando ? "Salvar Alterações" : "Adicionar Conta"}
               </button>
