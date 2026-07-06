@@ -59,6 +59,12 @@ function pct(n: number) {
   return n.toFixed(1) + "%";
 }
 
+function statusReceber(row: RowUnificada): "pago" | "inadimplente" | "aReceber" {
+  if (row.fat.pago) return "pago";
+  if (row.fat.vencimento && new Date(row.fat.vencimento + "T23:59:59") < new Date()) return "inadimplente";
+  return "aReceber";
+}
+
 // ── Inline editable cell ──────────────────────────────────────────────────────
 type CellMode = "text" | "number" | "date" | "select";
 interface CellProps {
@@ -91,7 +97,7 @@ function Cell({ value, mode = "text", options = [], placeholder = "—", classNa
     return (
       <span
         className={`cursor-pointer hover:text-[#fb4d06] transition-colors whitespace-nowrap ${className}`}
-        onClick={() => setEditing(true)}
+        onClick={(e) => { e.stopPropagation(); setEditing(true); }}
       >
         {display}
       </span>
@@ -186,7 +192,7 @@ function CellVencimento({ value, dataEmissao, onSave }: CellVencimentoProps) {
     <div className="relative" ref={ref}>
       <span
         className="cursor-pointer hover:text-[#fb4d06] transition-colors whitespace-nowrap"
-        onClick={() => { setAberto(true); setAba("dias"); setDias(""); }}
+        onClick={(e) => { e.stopPropagation(); setAberto(true); setAba("dias"); setDias(""); }}
       >
         {value ? formatarData(value) : <span className="text-gray-400 italic text-xs">—</span>}
       </span>
@@ -468,6 +474,243 @@ function NovoLancamentoModal({ onClose, onSalvar, ordensServico = [] }: NovoLanc
   );
 }
 
+// ── Drawer Detalhe / Edição ────────────────────────────────────────────────────
+interface DrawerDetalheProps {
+  row: RowUnificada;
+  ordensServico: OrdemServico[];
+  onClose: () => void;
+  onSalvar: (dados: Partial<RegistroFaturamento>) => Promise<void>;
+}
+
+function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheProps) {
+  const [form, setForm] = useState<Partial<RegistroFaturamento>>({
+    cliente: row.fat.cliente || row.cliente,
+    job: row.fat.job || row.job,
+    responsavel: row.fat.responsavel || row.responsavel,
+    statusJob: row.fat.statusJob || row.statusJob,
+    valorAprovadoManual: row.fat.valorAprovadoManual || (row.tipo === "manual" ? row.valorAprovado : undefined),
+    custosReais: row.fat.custosReais,
+    statusNota: row.fat.statusNota || "Pendente",
+    numeroNota: row.fat.numeroNota,
+    dataEmissao: row.fat.dataEmissao,
+    vencimento: row.fat.vencimento,
+    pago: row.fat.pago || false,
+    dataPagamento: row.fat.dataPagamento,
+    ordemServicoId: row.fat.ordemServicoId,
+  });
+  const [salvando, setSalvando] = useState(false);
+
+  function set(field: keyof RegistroFaturamento, val: unknown) {
+    setForm((p) => ({ ...p, [field]: val }));
+  }
+
+  async function handleSave() {
+    setSalvando(true);
+    await onSalvar(form);
+    setSalvando(false);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      {/* Drawer */}
+      <div className="relative w-full max-w-lg bg-white shadow-2xl h-full overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-base font-semibold text-gray-800">Detalhes do Lançamento</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="px-6 py-5 flex flex-col gap-4">
+          {/* Badges */}
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+              row.tipo === "manual"
+                ? "bg-[#fb4d06]/10 text-[#fb4d06] border border-[#fb4d06]/20"
+                : "bg-blue-50 text-blue-600 border border-blue-200"
+            }`}>
+              {row.tipo === "manual" ? "Manual" : "Orçamento"}
+            </span>
+            {!form.pago && row.fat.vencimento && new Date(row.fat.vencimento + "T23:59:59") < new Date() && (
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-semibold border border-red-200">
+                Inadimplente
+              </span>
+            )}
+            <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+              form.pago ? "bg-green-50 text-green-600 border border-green-200" : "bg-yellow-50 text-yellow-600 border border-yellow-200"
+            }`}>
+              {form.pago ? "Pago" : "A Receber"}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Cliente</label>
+              <input
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                value={form.cliente || ""}
+                onChange={(e) => set("cliente", e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Job</label>
+              <input
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                value={form.job || ""}
+                onChange={(e) => set("job", e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Responsável</label>
+              <input
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                value={form.responsavel || ""}
+                onChange={(e) => set("responsavel", e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Status do Job</label>
+              <select
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] bg-white"
+                value={form.statusJob || ""}
+                onChange={(e) => set("statusJob", e.target.value)}
+              >
+                <option value="">Selecione</option>
+                <option>Em andamento</option>
+                <option>Enviado</option>
+                <option>Aprovado</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Valor Aprovado (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                value={form.valorAprovadoManual ?? ""}
+                onChange={(e) => set("valorAprovadoManual", parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Custos Reais (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                value={form.custosReais ?? ""}
+                onChange={(e) => set("custosReais", parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Status Nota</label>
+              <select
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] bg-white"
+                value={form.statusNota || "Pendente"}
+                onChange={(e) => set("statusNota", e.target.value as RegistroFaturamento["statusNota"])}
+              >
+                <option>Pendente</option>
+                <option>Emitida</option>
+                <option>Cancelada</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Nº Nota</label>
+              <input
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                value={form.numeroNota || ""}
+                onChange={(e) => set("numeroNota", e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Data Emissão</label>
+              <input
+                type="date"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                value={form.dataEmissao || ""}
+                onChange={(e) => set("dataEmissao", e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Vencimento</label>
+              <input
+                type="date"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                value={form.vencimento || ""}
+                onChange={(e) => set("vencimento", e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">OS</label>
+              <select
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] bg-white"
+                value={form.ordemServicoId || ""}
+                onChange={(e) => set("ordemServicoId", e.target.value || undefined)}
+              >
+                <option value="">Nenhuma</option>
+                {ordensServico.map((os) => (
+                  <option key={os.id} value={os.id}>#{os.numero} — {os.cliente}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Pago toggle */}
+          <div className="flex items-center gap-3 pt-2">
+            <label className="text-xs font-medium text-gray-600">Pago</label>
+            <button
+              type="button"
+              onClick={() => set("pago", !form.pago)}
+              className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${form.pago ? "bg-green-500" : "bg-gray-200"}`}
+            >
+              <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform mt-0.5 ${form.pago ? "translate-x-4" : "translate-x-0.5"}`} />
+            </button>
+            {form.pago && (
+              <input
+                type="date"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                value={form.dataPagamento || ""}
+                onChange={(e) => set("dataPagamento", e.target.value)}
+              />
+            )}
+            {row.tipo === "orcamento" && (
+              <div className="ml-auto text-xs text-gray-400">
+                Valor aprovado (orçamento): {fmt(row.valorAprovado)}
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={salvando}
+              className="px-4 py-2 text-sm font-medium text-white bg-[#fb4d06] rounded-lg hover:bg-[#e04400] transition disabled:opacity-50"
+            >
+              {salvando ? "Salvando..." : "Salvar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function ContasAReceberPage() {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
@@ -476,6 +719,7 @@ export default function ContasAReceberPage() {
   const [carregando, setCarregando] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [detalheAberto, setDetalheAberto] = useState<RowUnificada | null>(null);
 
   async function carregar() {
     const [resOrc, resFat, resOS] = await Promise.all([
@@ -546,8 +790,9 @@ export default function ContasAReceberPage() {
     const totalCustos = rows.reduce((s, r) => s + (r.fat.custosReais ?? r.custosCalculados), 0);
     const aReceber = rows.filter((r) => !r.fat.pago).reduce((s, r) => s + r.valorAprovado, 0);
     const recebido = rows.filter((r) => r.fat.pago).reduce((s, r) => s + r.valorAprovado, 0);
+    const inadimplente = rows.filter((r) => statusReceber(r) === "inadimplente").reduce((s, r) => s + r.valorAprovado, 0);
     const rentabilidade = totalAprovado > 0 ? ((totalAprovado - totalCustos) / totalAprovado) * 100 : 0;
-    return { totalAprovado, totalCustos, aReceber, recebido, rentabilidade };
+    return { totalAprovado, totalCustos, aReceber, recebido, rentabilidade, inadimplente };
   }, [rows]);
 
   async function salvarCelula(rowId: string, field: keyof RegistroFaturamento, value: string) {
@@ -661,6 +906,19 @@ export default function ContasAReceberPage() {
     await carregar();
   }
 
+  async function salvarEdicao(dados: Partial<RegistroFaturamento>) {
+    if (!detalheAberto) return;
+    const row = detalheAberto;
+    const id = row.tipo === "manual" ? row.fat.id : row.orcamento?.id;
+    await fetch(`/api/faturamentos/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...dados, ...(row.tipo === "orcamento" ? { orcamentoId: row.orcamento?.id } : {}) }),
+    });
+    setDetalheAberto(null);
+    await carregar();
+  }
+
   const statusNotaColor = {
     Pendente: "bg-yellow-50 text-yellow-700 border-yellow-200",
     Emitida: "bg-green-50 text-green-700 border-green-200",
@@ -720,12 +978,13 @@ export default function ContasAReceberPage() {
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-6 gap-4 mb-6">
           {[
             { label: "Valor Aprovado", value: fmt(kpis.totalAprovado), color: "text-gray-800" },
             { label: "Custos Reais", value: fmt(kpis.totalCustos), color: "text-gray-800" },
             { label: "Rentabilidade", value: pct(kpis.rentabilidade), color: kpis.rentabilidade >= 30 ? "text-green-600" : "text-orange-500" },
             { label: "A Receber", value: fmt(kpis.aReceber), color: "text-blue-600" },
+            { label: "Inadimplente", value: fmt(kpis.inadimplente), color: "text-red-600" },
             { label: "Recebido", value: fmt(kpis.recebido), color: "text-green-600" },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4">
@@ -766,12 +1025,17 @@ export default function ContasAReceberPage() {
                   const rent = row.valorAprovado > 0 ? ((row.valorAprovado - custos) / row.valorAprovado) * 100 : 0;
 
                   return (
-                    <tr key={row.rowId} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <tr key={row.rowId} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => setDetalheAberto(row)}>
                       <td className="px-4 py-3 font-medium text-gray-800 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           {row.tipo === "manual" && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#fb4d06]/10 text-[#fb4d06] font-semibold border border-[#fb4d06]/20">
                               manual
+                            </span>
+                          )}
+                          {statusReceber(row) === "inadimplente" && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 font-semibold border border-red-200">
+                              Inadimplente
                             </span>
                           )}
                           {row.tipo === "manual" ? (
@@ -895,7 +1159,7 @@ export default function ContasAReceberPage() {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <button
-                          onClick={() => salvarCelula(row.rowId, "pago", String(!row.fat.pago))}
+                          onClick={(e) => { e.stopPropagation(); salvarCelula(row.rowId, "pago", String(!row.fat.pago)); }}
                           className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${row.fat.pago ? "bg-green-500" : "bg-gray-200"}`}
                           title={row.fat.pago ? "Marcar como não pago" : "Marcar como pago"}
                         >
@@ -905,7 +1169,7 @@ export default function ContasAReceberPage() {
                       <td className="px-4 py-3">
                         {row.tipo === "manual" && (
                           <button
-                            onClick={() => excluirManual(row.rowId)}
+                            onClick={(e) => { e.stopPropagation(); excluirManual(row.rowId); }}
                             className="text-gray-300 hover:text-red-400 transition"
                             title="Excluir lançamento"
                           >
@@ -929,6 +1193,15 @@ export default function ContasAReceberPage() {
           onClose={() => setModalAberto(false)}
           onSalvar={salvarNovoLancamento}
           ordensServico={ordensServico}
+        />
+      )}
+
+      {detalheAberto && (
+        <DrawerDetalhe
+          row={detalheAberto}
+          ordensServico={ordensServico}
+          onClose={() => setDetalheAberto(null)}
+          onSalvar={salvarEdicao}
         />
       )}
     </WorkspaceLayout>
