@@ -725,6 +725,8 @@ export default function ContasAReceberPage() {
   const hoje = new Date();
   const [mesSel, setMesSel] = useState(hoje.getMonth());
   const [anoSel, setAnoSel] = useState(hoje.getFullYear());
+  const [statusFiltro, setStatusFiltro] = useState("todos");
+  const [busca, setBusca] = useState("");
 
   async function carregar() {
     const [resOrc, resFat, resOS] = await Promise.all([
@@ -816,6 +818,18 @@ export default function ContasAReceberPage() {
     return { totalAprovado, totalCustos, aReceber, recebido, rentabilidade, inadimplente };
   }, [rowsMes]);
 
+  const rowsFiltradas = useMemo(() => {
+    let lista = rowsMes;
+    if (statusFiltro === "pago") lista = lista.filter((r) => r.fat.pago);
+    else if (statusFiltro === "aReceber") lista = lista.filter((r) => !r.fat.pago && statusReceber(r) !== "inadimplente");
+    else if (statusFiltro === "inadimplente") lista = lista.filter((r) => statusReceber(r) === "inadimplente");
+    if (busca.trim()) {
+      const q = busca.toLowerCase();
+      lista = lista.filter((r) => r.cliente.toLowerCase().includes(q) || r.job.toLowerCase().includes(q) || (r.fat.numeroNota ?? "").toLowerCase().includes(q));
+    }
+    return lista;
+  }, [rowsMes, statusFiltro, busca]);
+
   async function salvarCelula(rowId: string, field: keyof RegistroFaturamento, value: string) {
     const row = rows.find((r) => r.rowId === rowId);
     if (!row) return;
@@ -846,7 +860,7 @@ export default function ContasAReceberPage() {
   function exportCSV() {
     const headers = ["Cliente", "Job", "Responsável", "Status Job", "Valor Aprovado", "Custos Reais", "A Pagar", "Rentabilidade (%)", "Status Nota", "Nº Nota", "Emissão", "Vencimento", "Pago", "OS"];
     const fmtData = (d?: string) => d ? `${d.split("-")[2]}/${d.split("-")[1]}/${d.split("-")[0]}` : "";
-    const rowsData = rowsMes.map((r) => {
+    const rowsData = rowsFiltradas.map((r) => {
       const aPagar = r.valorAprovado - (r.fat.custosReais ?? r.custosCalculados);
       const rentab = r.valorAprovado > 0 ? ((r.valorAprovado - (r.fat.custosReais ?? r.custosCalculados)) / r.valorAprovado * 100) : 0;
       const os = r.fat.ordemServicoId
@@ -873,7 +887,7 @@ export default function ContasAReceberPage() {
   }
 
   async function exportPDF() {
-    const linhas = rowsMes.map((r) => {
+    const linhas = rowsFiltradas.map((r) => {
       const aPagar = r.valorAprovado - (r.fat.custosReais ?? r.custosCalculados);
       const rentab = r.valorAprovado > 0 ? ((r.valorAprovado - (r.fat.custosReais ?? r.custosCalculados)) / r.valorAprovado * 100) : 0;
       const os = r.fat.ordemServicoId
@@ -1043,9 +1057,27 @@ export default function ContasAReceberPage() {
 
         {/* Table */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
+          {/* Filtros */}
+          <div className="px-4 py-3 border-b border-gray-100 flex flex-wrap gap-2 items-center">
+            <input placeholder="Buscar cliente, job ou nota..."
+              value={busca} onChange={(e) => setBusca(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 w-56" />
+            <div className="flex gap-1">
+              {(["todos", "aReceber", "pago", "inadimplente"] as const).map((s) => (
+                <button key={s} onClick={() => setStatusFiltro(s)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition capitalize ${
+                    statusFiltro === s ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  }`}>
+                  {s === "todos" ? "Todos" : s === "aReceber" ? "A Receber" : s === "pago" ? "Pago" : "Inadimplente"}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-gray-400 ml-auto">{rowsFiltradas.length} registro(s)</span>
+          </div>
+
           {carregando ? (
             <div className="flex items-center justify-center py-20 text-gray-400 text-sm">Carregando...</div>
-          ) : rowsMes.length === 0 ? (
+          ) : rowsFiltradas.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <div className="w-12 h-12 rounded-2xl bg-[#fb4d06]/10 flex items-center justify-center">
                 <svg className="w-6 h-6 text-[#fb4d06]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1066,7 +1098,7 @@ export default function ContasAReceberPage() {
                 </tr>
               </thead>
               <tbody>
-                {rowsMes.map((row) => {
+                {rowsFiltradas.map((row) => {
                   const custos = row.fat.custosReais ?? row.custosCalculados;
                   const aPagar = row.valorAprovado - custos;
                   const rent = row.valorAprovado > 0 ? ((row.valorAprovado - custos) / row.valorAprovado) * 100 : 0;
