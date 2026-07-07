@@ -24,6 +24,7 @@ export interface SystemSettings {
   };
   logoBase64?: string;
   bancos?: string[];
+  categorias?: string[];
 }
 
 export type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "planejamento" | "rh";
@@ -161,6 +162,21 @@ const CONFIGURACOES_PADRAO: SystemSettings = {
     dominioPermitido: "@altmkt.com.br",
   },
   bancos: ["C6 BANK", "Banco Itaú"],
+  categorias: [
+    "RECEITA OPERACIONAL BRUTA",
+    "CUSTOS DIRETOS DOS SERVIÇOS",
+    "DESPESAS ADM E GERAIS",
+    "DESPESAS COM PESSOAL OPERACIONAL",
+    "DESPESAS COM PESSOAL — PROLABORE",
+    "DEDUÇÕES DA RECEITA (IMPOSTOS)",
+    "DESPESAS COMERCIAIS",
+    "RESULTADO FINANCEIRO",
+    "EMPRÉSTIMO THIEMY",
+    "EMPRÉSTIMO FERNANDO",
+    "DEVOLUÇÃO THIEMY",
+    "DEVOLUÇÃO FERNANDO",
+    "ESTORNO",
+  ],
 };
 
 export async function getSystemSettings(): Promise<SystemSettings> {
