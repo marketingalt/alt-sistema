@@ -51,7 +51,7 @@ const CATEGORIAS_FALLBACK = [
   "DEDUÇÕES DA RECEITA (IMPOSTOS)", "DESPESAS COMERCIAIS", "RESULTADO FINANCEIRO",
   "EMPRÉSTIMO THIEMY", "EMPRÉSTIMO FERNANDO", "DEVOLUÇÃO THIEMY", "DEVOLUÇÃO FERNANDO", "ESTORNO",
 ];
-const AREAS = ["PROJETOS", "DIGITAL", "MISTO", "ESTORNO"];
+const AREAS_FALLBACK = ["PROJETOS", "DIGITAL", "MISTO", "ESTORNO"];
 
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const COR_BANCO_PADRAO: Record<string, { cor: string; bg: string; abrev: string }> = {
@@ -163,7 +163,9 @@ export default function FluxoDeCaixaPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [bancos, setBancos] = useState(["C6 BANK", "Banco Itaú"]);
   const [categorias, setCategorias] = useState<string[]>([]);
+  const [areas, setAreas] = useState<string[]>([]);
   const [showModalCategorias, setShowModalCategorias] = useState(false);
+  const [showModalAreas, setShowModalAreas] = useState(false);
   const [ordensServico, setOrdensServico] = useState<OrdemServicoItem[]>([]);
   const [contasPagar, setContasPagar] = useState<ContaPagarItem[]>([]);
 
@@ -173,6 +175,7 @@ export default function FluxoDeCaixaPage() {
       .then((d) => {
         if (d.bancos?.length) setBancos(d.bancos);
         if (d.categorias?.length) setCategorias(d.categorias);
+        if (d.areas?.length) setAreas(d.areas);
       })
       .catch(() => {});
   }, []);
@@ -634,7 +637,7 @@ export default function FluxoDeCaixaPage() {
                 <select value={areaFiltro} onChange={(e) => setAreaFiltro(e.target.value)}
                   className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
                   <option>Todas</option>
-                  {AREAS.map((a) => <option key={a}>{a}</option>)}
+                  {(areas.length ? areas : AREAS_FALLBACK).map((a) => <option key={a}>{a}</option>)}
                 </select>
                 <select value={catFiltro} onChange={(e) => setCatFiltro(e.target.value)}
                   className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 flex-1 min-w-36">
@@ -796,7 +799,7 @@ export default function FluxoDeCaixaPage() {
               {/* Distribuição por área */}
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Por Área</p>
-                {AREAS.map((a) => {
+                {(areas.length ? areas : AREAS_FALLBACK).map((a) => {
                   const tot = lancamentosMes.filter((l) => l.area === a).reduce((s, l) => s + l.valor, 0);
                   if (tot === 0) return null;
                   return (
@@ -859,10 +862,14 @@ export default function FluxoDeCaixaPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Área</label>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">
+                    Área
+                    <button type="button" onClick={() => setShowModalAreas(true)}
+                      className="ml-2 text-[10px] text-[#fb4d06] hover:text-[#e04400] font-medium">✎ Gerenciar</button>
+                  </label>
                   <select value={form.area} onChange={(e) => setForm((f) => ({ ...f, area: e.target.value }))}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
-                    {AREAS.map((a) => <option key={a}>{a}</option>)}
+                    {(areas.length ? areas : AREAS_FALLBACK).map((a) => <option key={a}>{a}</option>)}
                   </select>
                 </div>
                 <div>
@@ -936,6 +943,23 @@ export default function FluxoDeCaixaPage() {
           }}
         />
       )}
+
+      {showModalAreas && (
+        <GerenciarCategoriasModal
+          categorias={areas.length ? areas : AREAS_FALLBACK}
+          titulo="Áreas"
+          onClose={() => setShowModalAreas(false)}
+          onSalvar={async (novas) => {
+            await fetch("/api/config", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ areas: novas }),
+            });
+            setAreas(novas);
+            setShowModalAreas(false);
+          }}
+        />
+      )}
     </WorkspaceLayout>
   );
 }
@@ -944,10 +968,11 @@ export default function FluxoDeCaixaPage() {
 // COMPONENTE: Gerenciar Categorias
 // ═══════════════════════════════════════════════════════════
 
-function GerenciarCategoriasModal({ categorias, onClose, onSalvar }: {
+function GerenciarCategoriasModal({ categorias, onClose, onSalvar, titulo = "Categorias" }: {
   categorias: string[];
   onClose: () => void;
   onSalvar: (novas: string[]) => Promise<void>;
+  titulo?: string;
 }) {
   const [lista, setLista] = useState([...categorias]);
   const [nova, setNova] = useState("");
@@ -988,7 +1013,7 @@ function GerenciarCategoriasModal({ categorias, onClose, onSalvar }: {
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-800">Gerenciar Categorias</h2>
+          <h2 className="text-base font-semibold text-gray-800">Gerenciar {titulo}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

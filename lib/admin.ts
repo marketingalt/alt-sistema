@@ -25,6 +25,7 @@ export interface SystemSettings {
   logoBase64?: string;
   bancos?: string[];
   categorias?: string[];
+  areas?: string[];
 }
 
 export type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "planejamento" | "rh";
@@ -177,6 +178,7 @@ const CONFIGURACOES_PADRAO: SystemSettings = {
     "DEVOLUÇÃO FERNANDO",
     "ESTORNO",
   ],
+  areas: ["PROJETOS", "DIGITAL", "MISTO", "ESTORNO"],
 };
 
 export async function getSystemSettings(): Promise<SystemSettings> {
