@@ -605,7 +605,7 @@ export default function ContasAPagarPage() {
             ))}
           </div>
           <div className="flex items-center gap-1 border-l border-gray-200 pl-2">
-            {[2026, 2027].map((a) => (
+            {[2026, 2027, 2028].map((a) => (
               <button key={a} onClick={() => setAnoSel(a)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${anoSel === a ? "bg-gray-800 text-white" : "text-gray-500 hover:bg-gray-100"}`}>{a}</button>
             ))}
