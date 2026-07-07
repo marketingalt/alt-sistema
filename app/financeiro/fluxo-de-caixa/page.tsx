@@ -577,36 +577,72 @@ export default function FluxoDeCaixaPage() {
 
         {/* Saldo por Banco */}
         {(() => {
-          const bancosAtivos = [...new Set(lancamentosMes.map((l) => l.banco).filter(Boolean))];
-          if (bancosAtivos.length === 0) return null;
+          if (!dados || !Array.isArray(dados.lancamentos)) return null;
+          const limite = new Date(anoSel, mesSel, 1);
+          const saldoInicialDt = new Date((dados.saldoInicialData || "") + "T12:00:00");
+          const hasValidDate = !isNaN(saldoInicialDt.getTime());
+          const saldoInicialVal = typeof dados.saldoInicial === "number" ? dados.saldoInicial : 0;
+
+          // Saldo acumulado por banco até antes do mês atual
+          // Atribui saldoInicial ao banco mais antigo (o que originou o saldo)
+          const saldoAntePorBanco = new Map<string, number>();
+          const todosBancos = new Set<string>();
+          let bancoMaisAntigo = "";
+          let dataMaisAntiga = "";
+          for (const l of dados.lancamentos) {
+            if (!l || typeof l.valor !== "number" || !l.banco) continue;
+            const d = new Date((l.data || "") + "T12:00:00");
+            if (isNaN(d.getTime())) continue;
+            // Rastreia o banco do lançamento mais antigo
+            if (l.data < dataMaisAntiga || !bancoMaisAntigo) {
+              bancoMaisAntigo = l.banco;
+              dataMaisAntiga = l.data;
+            }
+            if (d < limite) {
+              saldoAntePorBanco.set(l.banco, (saldoAntePorBanco.get(l.banco) ?? 0) + l.valor);
+            }
+            todosBancos.add(l.banco);
+          }
+
+          // Atribui o saldoInicial ao banco mais antigo
+          if (hasValidDate && saldoInicialVal !== 0 && bancoMaisAntigo) {
+            saldoAntePorBanco.set(bancoMaisAntigo, (saldoAntePorBanco.get(bancoMaisAntigo) ?? 0) + saldoInicialVal);
+          }
+
+          const bancosOrdenados = [...todosBancos].sort();
+          if (bancosOrdenados.length === 0) return null;
+
           return (
             <div className="mb-6">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Saldo por Banco no Mês</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Saldo Real por Banco</p>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-                {bancosAtivos.map((banco) => {
+                {bancosOrdenados.map((banco) => {
                   const mov = lancamentosMes.filter((l) => l.banco === banco);
                   const entradas = mov.filter((l) => l.valor > 0).reduce((s, l) => s + l.valor, 0);
                   const saidas = mov.filter((l) => l.valor < 0).reduce((s, l) => s + l.valor, 0);
+                  const saldoAnte = saldoAntePorBanco.get(banco) ?? 0;
+                  const saldoFinal = saldoAnte + entradas + saidas;
                   const cb = corBanco(banco);
                   return (
                     <div key={banco} className={`${cb.bg} rounded-xl p-3 border border-gray-100`}>
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center justify-between mb-2">
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${cb.bg} ${cb.cor}`}>{cb.abrev}</span>
+                        <span className={`text-xs font-bold ${saldoFinal >= 0 ? "text-green-700" : "text-red-600"}`}>
+                          {fmt(saldoFinal)}
+                        </span>
                       </div>
-                      <div className="flex flex-col gap-0.5">
+                      <div className="flex flex-col gap-0.5 text-[10px]">
                         <div className="flex justify-between items-center">
-                          <span className="text-[10px] text-gray-500">Entradas</span>
-                          <span className="text-[10px] font-semibold text-green-700">{fmt(entradas)}</span>
+                          <span className="text-gray-400">Saldo anterior</span>
+                          <span className="font-medium text-gray-600">{fmt(saldoAnte)}</span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-[10px] text-gray-500">Saídas</span>
-                          <span className="text-[10px] font-semibold text-red-600">{fmt(saidas)}</span>
+                          <span className="text-green-600">+ Entradas</span>
+                          <span className="font-semibold text-green-700">{fmt(entradas)}</span>
                         </div>
-                        <div className="flex justify-between items-center pt-1 border-t border-gray-200/50 mt-0.5">
-                          <span className="text-[10px] font-medium text-gray-600">Saldo</span>
-                          <span className={`text-xs font-bold ${entradas + saidas >= 0 ? "text-green-700" : "text-red-600"}`}>
-                            {fmt(entradas + saidas)}
-                          </span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-red-500">- Saídas</span>
+                          <span className="font-semibold text-red-600">{fmt(Math.abs(saidas))}</span>
                         </div>
                       </div>
                     </div>
