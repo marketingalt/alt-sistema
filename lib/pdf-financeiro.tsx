@@ -183,11 +183,10 @@ export function PdfFluxoCaixa({ titulo, periodo, linhas, entradas, saidas, resul
             <Text style={{ ...styles.th, width: "11%" }}>Modalidade</Text>
             <Text style={{ ...styles.th, width: "12%" }}>Banco</Text>
             <Text style={{ ...styles.th, width: "10%" }}>Área</Text>
-            <Text style={{ ...styles.th, width: "19%" }}>Categoria</Text>
-            <Text style={{ ...styles.th, width: "8%" }}>OS</Text>
-            <Text style={{ ...styles.th, width: "15%" }}>Observação</Text>
-            <Text style={{ ...styles.thRight, width: "8%" }}>Valor</Text>
-            <Text style={{ ...styles.thRight, width: "7%" }}>Saldo</Text>
+            <Text style={{ ...styles.th, width: "21%" }}>Categoria</Text>
+            <Text style={{ ...styles.th, width: "9%" }}>OS</Text>
+            <Text style={{ ...styles.th, width: "17%" }}>Observação</Text>
+            <Text style={{ ...styles.thRight, width: "9%" }}>Valor</Text>
           </View>
           {linhas.map((l, i) => (
             <View key={i} style={i % 2 === 1 ? [styles.row, styles.rowAlt] : styles.row}>
@@ -195,17 +194,15 @@ export function PdfFluxoCaixa({ titulo, periodo, linhas, entradas, saidas, resul
               <Text style={{ ...styles.td, width: "11%" }}>{l.modalidade}</Text>
               <Text style={{ ...styles.td, width: "12%" }}>{l.banco}</Text>
               <Text style={{ ...styles.td, width: "10%" }}>{l.area}</Text>
-              <Text style={{ ...styles.td, width: "19%" }}>{l.categoria}</Text>
-              <Text style={{ ...styles.td, width: "8%" }}>{l.os}</Text>
-              <Text style={{ ...styles.td, width: "15%" }}>{l.obs}</Text>
-              <Text style={{ ...(l.valor >= 0 ? styles.tdPos : styles.tdNeg), width: "8%" }}>{fmtMoeda(l.valor)}</Text>
-              <Text style={{ ...styles.tdRight, width: "7%" }}>{l.saldoCorrido !== null ? fmtMoeda(l.saldoCorrido) : ""}</Text>
+              <Text style={{ ...styles.td, width: "21%" }}>{l.categoria}</Text>
+              <Text style={{ ...styles.td, width: "9%" }}>{l.os}</Text>
+              <Text style={{ ...styles.td, width: "17%" }}>{l.obs}</Text>
+              <Text style={{ ...(l.valor >= 0 ? styles.tdPos : styles.tdNeg), width: "9%" }}>{fmtMoeda(l.valor)}</Text>
             </View>
           ))}
           <View style={styles.totalRow}>
-            <Text style={{ ...styles.totalLabel, width: "85%" }}>Total do período</Text>
-            <Text style={{ ...styles.totalValue, width: "8%", color: resultado >= 0 ? "#059669" : "#dc2626" }}>{fmtMoeda(resultado)}</Text>
-            <Text style={{ width: "7%" }} />
+            <Text style={{ ...styles.totalLabel, width: "91%" }}>Total do período</Text>
+            <Text style={{ ...styles.totalValue, width: "9%", color: resultado >= 0 ? "#059669" : "#dc2626" }}>{fmtMoeda(resultado)}</Text>
           </View>
         </View>
 
