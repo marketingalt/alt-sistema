@@ -323,7 +323,7 @@ export async function gerarOSdeOrcamento(orcamento: Orcamento): Promise<OrdemSer
   const agora = new Date().toISOString();
   const nova: OrdemServico = {
     id: Math.random().toString(36).substring(2, 10),
-    numero: await gerarNumeroOS(),
+    numero: orcamento.numero,
     orcamentoId: orcamento.id,
     orcamentoNumero: orcamento.numero,
     cliente: orcamento.cliente,
