@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import type { Vendedor } from "@/app/api/financeiro/vendas-comissoes/vendedores/route";
 import type { Venda } from "@/app/api/financeiro/vendas-comissoes/vendas/route";
+import type { ComissaoNF } from "@/app/api/financeiro/vendas-comissoes/comissoes-nf/route";
 import type { Orcamento } from "@/app/types";
 
 // ── Utilitários ──
@@ -326,6 +327,7 @@ export default function VendasComissoesPage() {
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
+  const [comissoesNF, setComissoesNF] = useState<ComissaoNF[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [vendedorSelId, setVendedorSelId] = useState<string>("");
   const [anoSel, setAnoSel] = useState(new Date().getFullYear());
@@ -335,17 +337,20 @@ export default function VendasComissoesPage() {
   const [modalTransacao, setModalTransacao] = useState<{ aberto: boolean; editar?: Venda | null }>({ aberto: false });
 
   async function carregar() {
-    const [resVend, resVendas, resOrc] = await Promise.all([
+    const [resVend, resVendas, resOrc, resNF] = await Promise.all([
       fetch("/api/financeiro/vendas-comissoes/vendedores"),
       fetch("/api/financeiro/vendas-comissoes/vendas"),
       fetch("/api/orcamentos"),
+      fetch("/api/financeiro/vendas-comissoes/comissoes-nf"),
     ]);
     const dataVend: Vendedor[] = await resVend.json();
     const dataVendas: Venda[] = await resVendas.json();
     const dataOrc: Orcamento[] = await resOrc.json();
+    const dataNF: ComissaoNF[] = await resNF.json();
     setVendedores(dataVend);
     setVendas(dataVendas);
     setOrcamentos(dataOrc.filter((o) => o.status === "Aprovado" || o.status === "Enviado"));
+    setComissoesNF(dataNF);
     if (!vendedorSelId && dataVend.length > 0) setVendedorSelId(dataVend[0].id);
     setCarregando(false);
   }
@@ -456,6 +461,22 @@ export default function VendasComissoesPage() {
   async function excluirTransacao(id: string) {
     if (!confirm("Excluir transação?")) return;
     await fetch(`/api/financeiro/vendas-comissoes/vendas?id=${id}`, { method: "DELETE" });
+    await carregar();
+  }
+
+  async function toggleNFEmissao(mes: number, ano: number) {
+    const registro = comissoesNF.find((r) => r.vendedorId === vendedorSelId && r.ano === ano && r.mes === mes);
+    if (registro) {
+      await fetch("/api/financeiro/vendas-comissoes/comissoes-nf", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: registro.id, nfEmitida: !registro.nfEmitida }),
+      });
+    } else {
+      await fetch("/api/financeiro/vendas-comissoes/comissoes-nf", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vendedorId: vendedorSelId, ano, mes, nfEmitida: true }),
+      });
+    }
     await carregar();
   }
 
@@ -705,6 +726,59 @@ export default function VendasComissoesPage() {
                             }`}>
                               {todasPagas ? "Pago" : "Pendente"}
                             </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ── EMISSÃO NF COMISSÕES ── */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
+              <div className="px-5 py-3 border-b border-gray-50">
+                <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Emissão de NF — Comissões {anoSel}</h2>
+              </div>
+              <table className="w-full text-xs min-w-[600px]">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/80">
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-500 uppercase">Mês</th>
+                    <th className="text-right px-4 py-2.5 text-[10px] font-semibold text-gray-500 uppercase">Valor Comissão</th>
+                    <th className="text-center px-4 py-2.5 text-[10px] font-semibold text-gray-500 uppercase">NF Emitida</th>
+                    <th className="text-center px-4 py-2.5 text-[10px] font-semibold text-gray-500 uppercase">OK</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {MESES.map((m, idx) => {
+                    const doMes = vendasVendedor.filter((v) => v.status === "Realizada" && extrairMes(v.data) === idx);
+                    const totalComissao = doMes.reduce((s, v) => s + v.comissaoCalculada, 0);
+                    const nfReg = comissoesNF.find((r) => r.vendedorId === vendedorSelId && r.ano === anoSel && r.mes === idx);
+                    const emitida = nfReg?.nfEmitida ?? false;
+                    return (
+                      <tr key={m} className={`border-b border-gray-50 hover:bg-gray-50/40 ${emitida ? "bg-green-50/30" : ""}`}>
+                        <td className="px-4 py-2.5 font-medium text-gray-700">{m}</td>
+                        <td className="px-4 py-2.5 text-right font-medium text-blue-700">{totalComissao > 0 ? fmt(totalComissao) : "—"}</td>
+                        <td className="px-4 py-2.5 text-center">
+                          {totalComissao > 0 && (
+                            <span className={`inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full font-medium border ${
+                              emitida ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-50 text-gray-400 border-gray-200"
+                            }`}>
+                              <svg className={`w-3 h-3 ${emitida ? "text-green-600" : "text-gray-300"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                {emitida ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />}
+                              </svg>
+                              {emitida ? "Emitida" : "Pendente"}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-center">
+                          {totalComissao > 0 && (
+                            <button
+                              onClick={() => toggleNFEmissao(idx, anoSel)}
+                              className={`inline-flex h-5 w-9 rounded-full transition-colors ${emitida ? "bg-green-500" : "bg-gray-200"}`}
+                            >
+                              <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform mt-0.5 ${emitida ? "translate-x-4" : "translate-x-0.5"}`} />
+                            </button>
                           )}
                         </td>
                       </tr>
