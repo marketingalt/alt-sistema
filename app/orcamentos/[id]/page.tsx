@@ -458,10 +458,9 @@ export default function VisualizarOrcamento() {
     orcamento.margemPadrao !== MARGEM_PADRAO;
   const totalProdutos = orcamento.itens.reduce((a, i) => a + (i.total || 0), 0);
   const totalServicos = orcamento.manuseio && orcamento.custoManuseio ? orcamento.custoManuseio : 0;
-  const totalGeral = totalProdutos + totalServicos;
   const freteInfo = orcamento.frete && !orcamento.frete.startsWith("CUSTO ADICIONAL") ? orcamento.frete : null;
   const freteValorNum = (freteInfo && (orcamento.freteValor ?? 0) > 0) ? (orcamento.freteValor ?? 0) : 0;
-  const totalComFrete = freteValorNum > 0 ? totalGeral + freteValorNum : 0;
+  const totalGeral = totalProdutos + totalServicos + freteValorNum;
 
   return (
     <WorkspaceLayout>
@@ -1300,38 +1299,26 @@ export default function VisualizarOrcamento() {
               <div className="flex items-start justify-between gap-6">
                 <div className="flex-1">
                   <div className="flex flex-col gap-2">
-                    {orcamento.manuseio && !!orcamento.custoManuseio && (
-                      <>
-                        <div className="flex justify-between items-center text-sm text-gray-500">
-                          <span>Total Produtos</span>
-                          <span className="font-semibold text-gray-700">R$ {totalProdutos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm text-gray-500">
-                          <span>Total Serviços <span className="text-xs text-purple-500">(Manuseio · NFSE)</span></span>
-                          <span className="font-semibold text-purple-700">R$ {totalServicos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
-                        </div>
-                      </>
-                    )}
-                    <div className={`flex justify-between items-center ${(orcamento.manuseio && !!orcamento.custoManuseio) || totalComFrete > 0 ? "border-t border-gray-100 pt-2" : ""}`}>
-                      <span className={totalComFrete > 0 ? "text-sm text-gray-500" : "font-semibold text-gray-700"}>
-                        {totalComFrete > 0 ? "Subtotal (sem frete)" : "Total Geral"}
-                      </span>
-                      <span className={totalComFrete > 0 ? "font-semibold text-gray-700 text-sm" : "text-2xl font-bold text-[#fb4d06]"}>
-                        R$ {totalGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </span>
+                    <div className="flex justify-between items-center text-sm text-gray-500">
+                      <span>Total Produtos</span>
+                      <span className="font-semibold text-gray-700">R$ {totalProdutos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                     </div>
+                    {orcamento.manuseio && !!orcamento.custoManuseio && (
+                      <div className="flex justify-between items-center text-sm text-gray-500">
+                        <span>Total Serviços <span className="text-xs text-purple-500">(Manuseio · NFSE)</span></span>
+                        <span className="font-semibold text-purple-700">R$ {totalServicos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
                     {freteInfo && freteValorNum > 0 && (
                       <div className="flex justify-between items-center text-sm text-gray-500">
                         <span>Frete de entrega</span>
                         <span className="font-semibold text-blue-700">R$ {freteValorNum.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                       </div>
                     )}
-                    {totalComFrete > 0 && (
-                      <div className="border-t border-gray-100 pt-2 flex justify-between items-center">
-                        <span className="font-semibold text-gray-700">Total com Frete</span>
-                        <p className="text-2xl font-bold text-[#fb4d06]">R$ {totalComFrete.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
-                      </div>
-                    )}
+                    <div className="border-t-2 border-gray-200 pt-2 flex justify-between items-center">
+                      <span className="font-semibold text-gray-700">Total Geral</span>
+                      <p className="text-2xl font-bold text-[#fb4d06]">R$ {totalGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+                    </div>
                     {freteInfo && freteValorNum === 0 && (
                       <div className="mt-1 pt-3 border-t border-dashed border-gray-200 flex justify-between items-center text-sm">
                         <span className="text-gray-500">Frete de entrega</span>
