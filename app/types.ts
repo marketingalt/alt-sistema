@@ -300,4 +300,44 @@ export interface OrdemServico {
   criadoAutomaticamente: boolean;
   createdAt: string;
   updatedAt: string;
+  // Campos dinâmicos
+  camposDinamicos?: Record<string, any>;
+  documentos?: DocumentoFornecedor[];
+  anotacoesInternas?: AnotacaoInterna[];
+  materiais?: MaterialOS[];
+  statusFornecedor?: string;
+  responsaveis?: Record<string, string>;  // { [processo]: userId }
+}
+
+// ── Campos Dinâmicos da OS ─────────────────────
+
+export type TipoCampoDinamico = "texto" | "textarea" | "numero" | "checkbox" | "select" | "multiselect" | "data" | "anexo" | "medida";
+export type GrupoCampoDinamico = "detalhamento" | "checklist" | "interno" | "materiais";
+
+export interface CampoDinamicoDef {
+  id: string;
+  nome: string;
+  tipo: TipoCampoDinamico;
+  grupo: GrupoCampoDinamico;
+  opcoes?: string[];
+  visivelCliente: boolean;
+  visivelImpressao: boolean;
+  obrigatorio?: boolean;
+  ordem: number;
+  itemVinculado?: boolean;
+}
+
+export interface AnotacaoInterna {
+  id: string;
+  autor: string;
+  texto: string;
+  createdAt: string;
+  parentId?: string;
+}
+
+export interface MaterialOS {
+  id: string;
+  nome: string;
+  quantidade: number;
+  separado: boolean;
 }

@@ -1,10 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
-import { STATUS_OS_CONFIG, type OrdemServico, type StatusOS, type Tarefa } from "@/app/types";
+import type {
+  OrdemServico,
+  StatusOS,
+  CampoDinamicoDef,
+  Tarefa,
+  Cliente,
+} from "@/app/types";
+import type { SystemSettings } from "@/lib/admin";
+import StatusRoadmap from "./components/StatusRoadmap";
+import CabecalhoOS from "./components/CabecalhoOS";
+import DetalhamentoOS from "./components/DetalhamentoOS";
+import AreaInternaOS from "./components/AreaInternaOS";
 
 function Icone({ d, className = "w-5 h-5" }: { d: string; className?: string }) {
   return (
@@ -14,8 +25,6 @@ function Icone({ d, className = "w-5 h-5" }: { d: string; className?: string }) 
   );
 }
 
-const STATUS_OS_LIST: StatusOS[] = ["Pendente", "Em produção", "Pronto", "Entregue", "Cancelada"];
-
 export default function DetalheOSPage() {
   const params = useParams();
   const router = useRouter();
@@ -24,10 +33,20 @@ export default function DetalheOSPage() {
   const [os, setOs] = useState<OrdemServico | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  // Dados auxiliares
+  const [camposDinamicos, setCamposDinamicos] = useState<CampoDinamicoDef[]>([]);
+  const [cliente, setCliente] = useState<Cliente | null>(null);
   const [subtarefas, setSubtarefas] = useState<Tarefa[]>([]);
   const [projetosMap, setProjetosMap] = useState<Record<string, { nome: string; cor: string }>>({});
-  const [salvandoStatus, setSalvandoStatus] = useState(false);
 
+  // Status de outros módulos para o roadmap
+  const [orcamentoStatus, setOrcamentoStatus] = useState<string | undefined>();
+  const [financeiroColuna, setFinanceiroColuna] = useState<string | undefined>();
+  const [planejamentoColuna, setPlanejamentoColuna] = useState<string | undefined>();
+
+  // ── Carregar dados ─────────────────────────────────
   async function carregar() {
     try {
       const res = await fetch(`/api/ordens-servico/${osId}`);
@@ -35,7 +54,36 @@ export default function DetalheOSPage() {
       const data: OrdemServico = await res.json();
       setOs(data);
 
-      // Buscar subtarefas vinculadas
+      // Campos dinâmicos das configurações
+      try {
+        const resC = await fetch("/api/admin/configuracoes");
+        if (resC.ok) {
+          const settings: SystemSettings = await resC.json();
+          setCamposDinamicos(settings.osCamposDinamicos || []);
+        }
+      } catch {}
+
+      // Dados do cliente do cadastro
+      if (data.cliente) {
+        try {
+          const resCl = await fetch(`/api/clientes?search=${encodeURIComponent(data.cliente)}`);
+          if (resCl.ok) {
+            const clientes: Cliente[] = await resCl.json();
+            if (clientes.length > 0) setCliente(clientes[0]);
+          }
+        } catch {}
+      }
+
+      // Orçamento original
+      try {
+        const resO = await fetch(`/api/orcamentos/${data.orcamentoId}`);
+        if (resO.ok) {
+          const orcamento = await resO.json();
+          setOrcamentoStatus(orcamento.status || "—");
+        }
+      } catch {}
+
+      // Subtarefas vinculadas
       try {
         const resT = await fetch("/api/planejamento/tarefas");
         if (resT.ok) {
@@ -47,7 +95,7 @@ export default function DetalheOSPage() {
         }
       } catch {}
 
-      // Buscar projetos para mapear status do kanban
+      // Projetos para mapear status
       try {
         const resP = await fetch("/api/planejamento");
         if (resP.ok) {
@@ -59,6 +107,38 @@ export default function DetalheOSPage() {
           setProjetosMap(map);
         }
       } catch {}
+
+      // Financeiro kanban — busca a coluna da tarefa financeira do orçamento
+      try {
+        const resF = await fetch("/api/financeiro/kanban");
+        if (resF.ok) {
+          const kanban = await resF.json();
+          const tarefas = kanban.colunas?.flatMap((c: any) =>
+            (c.tarefas || []).map((t: any) => ({ ...t, coluna: c.nome }))
+          ) || [];
+          const fin = tarefas.find(
+            (t: any) => t.orcamentoId === data.orcamentoId || t.titulo?.includes(data.orcamentoNumero)
+          );
+          if (fin) setFinanceiroColuna(fin.coluna || "—");
+        }
+      } catch {}
+
+      // Planejamento — busca tarefa do orçamento no kanban
+      try {
+        const resPl = await fetch("/api/planejamento/tarefas");
+        if (resPl.ok) {
+          const todas: Tarefa[] = await resPl.json();
+          const tarefaOrcamento = todas.find(
+            (t) => !t.parentTaskId && t.customFields?.orcamentoId === data.orcamentoId
+          );
+          if (tarefaOrcamento) {
+            const projeto = projetosMap[tarefaOrcamento.projectId];
+            if (projeto) {
+              setPlanejamentoColuna(projeto.nome);
+            }
+          }
+        }
+      } catch {}
     } catch {
       setErro("OS não encontrada");
     } finally {
@@ -66,35 +146,52 @@ export default function DetalheOSPage() {
     }
   }
 
-  useEffect(() => { carregar(); }, [osId]);
+  useEffect(() => {
+    carregar();
+  }, [osId]);
 
-  async function alterarStatus(novoStatus: StatusOS) {
-    setSalvandoStatus(true);
-    try {
-      const res = await fetch(`/api/ordens-servico/${osId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: novoStatus }),
-      });
-      if (res.ok) {
-        const atualizada = await res.json();
-        setOs(atualizada);
+  // ── Salvar alterações na OS ────────────────────────
+  const salvarOS = useCallback(
+    async (updates: Partial<OrdemServico>) => {
+      if (!os) return;
+      setSalvando(true);
+      try {
+        const res = await fetch(`/api/ordens-servico/${osId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates),
+        });
+        if (res.ok) {
+          const atualizada = await res.json();
+          setOs(atualizada);
+        }
+      } catch (err) {
+        console.error("[SAVE OS ERROR]", err);
+        alert("Erro ao salvar alterações.");
+      } finally {
+        setSalvando(false);
       }
-    } catch {}
-    finally { setSalvandoStatus(false); }
+    },
+    [os, osId]
+  );
+
+  // ── Alterar status da OS ───────────────────────────
+  async function alterarStatus(novoStatus: StatusOS) {
+    await salvarOS({ status: novoStatus });
   }
 
+  async function alterarStatusFornecedor(novo: string) {
+    await salvarOS({ statusFornecedor: novo });
+  }
+
+  // ── Formatadores ───────────────────────────────────
   function formatarMoeda(valor: number) {
     return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   }
 
-  // Encontrar nome do status do kanban para uma tarefa
-  function statusKanbanTarefa(tarefa: Tarefa): string {
-    // Como não temos o projeto completo aqui, extraímos do statusId
-    // Simplificação: exibe o projectId para referência
-    return tarefa.statusId;
-  }
+  const totalCustos = os?.itens.reduce((acc, i) => acc + i.totalCusto, 0) || 0;
 
+  // ── Loading ────────────────────────────────────────
   if (carregando) {
     return (
       <WorkspaceLayout>
@@ -105,6 +202,7 @@ export default function DetalheOSPage() {
     );
   }
 
+  // ── Error ──────────────────────────────────────────
   if (erro || !os) {
     return (
       <WorkspaceLayout>
@@ -121,95 +219,43 @@ export default function DetalheOSPage() {
     );
   }
 
-  const totalCustos = os.itens.reduce((acc, i) => acc + i.totalCusto, 0);
-
   return (
     <WorkspaceLayout>
-      <main className="px-8 py-8 max-w-7xl mx-auto">
+      <main className="px-8 py-8 max-w-7xl mx-auto space-y-6">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-          <Link href="/ordens-servico" className="hover:text-[#fb4d06] transition">Ordens de Serviço</Link>
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Link href="/ordens-servico" className="hover:text-[#fb4d06] transition">
+            Ordens de Serviço
+          </Link>
           <span>/</span>
           <span className="text-gray-800 font-semibold">OS #{os.numero}</span>
+
+          {salvando && (
+            <span className="text-xs text-gray-400 ml-auto">Salvando...</span>
+          )}
         </div>
 
-        {/* Header */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-2xl font-bold text-gray-800">OS #{os.numero}</h1>
-                <Link
-                  href={`/orcamentos/${os.orcamentoId}`}
-                  className="text-sm font-medium text-[#fb4d06] hover:underline"
-                >
-                  Orçamento #{os.orcamentoNumero}
-                </Link>
-              </div>
-              <p className="text-gray-500 text-sm">{os.cliente} · {os.solicitante}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Seletor de status da OS */}
-              <div className="flex items-center gap-1">
-                {STATUS_OS_LIST.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => alterarStatus(s)}
-                    disabled={salvandoStatus || s === os.status}
-                    className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-lg border transition ${
-                      s === os.status
-                        ? `${STATUS_OS_CONFIG[s].bg} ${STATUS_OS_CONFIG[s].cor} border-current cursor-default`
-                        : "bg-white text-gray-400 border-gray-200 hover:border-gray-300 hover:text-gray-600"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+        {/* ── STATUS ROADMAP ─────────────────────── */}
+        <StatusRoadmap
+          osStatus={os.status}
+          orcamentoStatus={orcamentoStatus}
+          financeiroColuna={financeiroColuna}
+          planejamentoColuna={planejamentoColuna}
+          fornecedorStatus={os.statusFornecedor}
+          onStatusOSChange={alterarStatus}
+          onFornecedorStatusChange={alterarStatusFornecedor}
+        />
 
-          {/* Info grid */}
-          <div className="grid grid-cols-3 gap-6 mt-6 pt-6 border-t border-gray-100">
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Responsável</p>
-              <p className="text-sm text-gray-800">{os.responsavel || "—"}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Data do Orçamento</p>
-              <p className="text-sm text-gray-800">{new Date(os.dataOrcamento).toLocaleDateString("pt-BR")}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Prazo de Pagamento</p>
-              <p className="text-sm text-gray-800">{os.prazoPagamento || "—"}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Prazo de Entrega</p>
-              <p className="text-sm text-gray-800">{os.prazoEntrega || "—"}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Criada em</p>
-              <p className="text-sm text-gray-800">{new Date(os.createdAt).toLocaleDateString("pt-BR")}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Tipo</p>
-              <p className="text-sm text-gray-800">{os.criadoAutomaticamente ? "Automática" : "Manual"}</p>
-            </div>
-          </div>
-        </div>
+        {/* ── CABEÇALHO ──────────────────────────── */}
+        <CabecalhoOS os={os} cliente={cliente} />
 
-        {/* Observações */}
-        {os.observacoes && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Observações</p>
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{os.observacoes}</p>
-          </div>
-        )}
-
-        {/* Itens da OS */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
+        {/* ── ITENS — TABELA DE CUSTOS ───────────── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-bold text-gray-800">Itens da Ordem de Serviço</h2>
+            <h2 className="text-sm font-bold text-gray-800">
+              Itens da Ordem de Serviço
+              <span className="text-gray-400 font-normal ml-1">({os.itens.length})</span>
+            </h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -255,7 +301,22 @@ export default function DetalheOSPage() {
           </div>
         </div>
 
-        {/* Subtarefas Vinculadas */}
+        {/* ── DETALHAMENTO TÉCNICO ──────────────── */}
+        <DetalhamentoOS
+          os={os}
+          camposDinamicos={camposDinamicos}
+          onUpdateOS={salvarOS}
+          osId={osId}
+        />
+
+        {/* ── ÁREA INTERNA ──────────────────────── */}
+        <AreaInternaOS
+          os={os}
+          camposDinamicos={camposDinamicos}
+          onUpdateOS={salvarOS}
+        />
+
+        {/* ── SUBTAREFAS VINCULADAS ─────────────── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100">
             <h2 className="text-sm font-bold text-gray-800">
@@ -277,25 +338,29 @@ export default function DetalheOSPage() {
                 {subtarefas.map((st) => {
                   const projetoInfo = projetosMap[st.projectId];
                   return (
-                    <div key={st.id} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100">
+                    <div
+                      key={st.id}
+                      className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100"
+                    >
                       <div className="flex items-center gap-3 min-w-0">
                         {projetoInfo && (
-                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: projetoInfo.cor }} />
+                          <div
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: projetoInfo.cor }}
+                          />
                         )}
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-gray-800 truncate">{st.titulo}</p>
                           <p className="text-xs text-gray-500">
                             {projetoInfo?.nome || "Projeto"}
-                            {st.dataVencimento && ` · ${new Date(st.dataVencimento + "T12:00:00").toLocaleDateString("pt-BR")}`}
+                            {st.dataVencimento &&
+                              ` · ${new Date(st.dataVencimento + "T12:00:00").toLocaleDateString("pt-BR")}`}
                           </p>
                         </div>
                       </div>
                       <span
                         className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded whitespace-nowrap"
-                        style={{
-                          backgroundColor: "#e5e7eb",
-                          color: "#374151",
-                        }}
+                        style={{ backgroundColor: "#e5e7eb", color: "#374151" }}
                       >
                         {st.statusId.substring(0, 8)}...
                       </span>

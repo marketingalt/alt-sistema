@@ -1,5 +1,6 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { dbGet, dbSet } from "./storage-adapter";
+import type { CampoDinamicoDef } from "@/app/types";
 import fs from "fs";
 import path from "path";
 
@@ -26,6 +27,7 @@ export interface SystemSettings {
   bancos?: string[];
   categorias?: string[];
   areas?: string[];
+  osCamposDinamicos?: CampoDinamicoDef[];
 }
 
 export type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "planejamento" | "rh";
@@ -179,6 +181,7 @@ const CONFIGURACOES_PADRAO: SystemSettings = {
     "ESTORNO",
   ],
   areas: ["PROJETOS", "DIGITAL", "MISTO", "ESTORNO"],
+  osCamposDinamicos: [],
 };
 
 export async function getSystemSettings(): Promise<SystemSettings> {

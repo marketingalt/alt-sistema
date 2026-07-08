@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import type { ClerkUserWithRole, SystemSettings } from "@/lib/admin";
+import type { CampoDinamicoDef } from "@/app/types";
 
-type Aba = "usuarios" | "registros" | "configuracoes";
+type Aba = "usuarios" | "registros" | "configuracoes" | "os-campos";
 
 // ── Ícones SVG inline (consistente com o resto do projeto) ──
 
@@ -19,6 +20,7 @@ const ICONES = {
   usuarios: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
   registros: "M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
   configuracoes: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+  "os-campos": "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
 };
 
 // ── Badge ──
@@ -62,6 +64,7 @@ export default function AdminPage() {
             { key: "usuarios" as Aba, label: "Usuários" },
             { key: "registros" as Aba, label: "Registros" },
             { key: "configuracoes" as Aba, label: "Configurações" },
+            { key: "os-campos" as Aba, label: "Campos da OS" },
           ] as const
         ).map(({ key, label }) => (
           <button
@@ -83,6 +86,7 @@ export default function AdminPage() {
       {aba === "usuarios" && <AbaUsuarios />}
       {aba === "registros" && <AbaRegistros />}
       {aba === "configuracoes" && <AbaConfiguracoes />}
+      {aba === "os-campos" && <AbaCamposOS />}
     </main>
   );
 }
@@ -819,6 +823,232 @@ function CampoTexto({ label, valor, onChange }: { label: string; valor: string; 
         onChange={(e) => onChange(e.target.value)}
         className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 focus:border-[#fb4d06]"
       />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// ABA: CAMPOS DINÂMICOS DA OS
+// ═══════════════════════════════════════════════════════════
+
+function AbaCamposOS() {
+  const [campos, setCampos] = useState<CampoDinamicoDef[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [salvo, setSalvo] = useState(false);
+  const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/configuracoes")
+      .then((r) => r.json())
+      .then((data: SystemSettings) => setCampos(data.osCamposDinamicos || []))
+      .catch(() => setErro("Erro ao carregar campos"))
+      .finally(() => setCarregando(false));
+  }, []);
+
+  function gerarId() {
+    return Math.random().toString(36).substring(2, 10);
+  }
+
+  function adicionar() {
+    const nome = prompt("Nome do campo:");
+    if (!nome?.trim()) return;
+    const tipo = prompt("Tipo (texto|textarea|numero|checkbox|select|multiselect|data|anexo|medida):") || "texto";
+    const grupo = prompt("Grupo (detalhamento|checklist|interno|materiais):") || "detalhamento";
+    const opcoesStr = (tipo === "select" || tipo === "multiselect") ? prompt("Opções separadas por vírgula:") : "";
+    const opcoes = opcoesStr ? opcoesStr.split(",").map((s) => s.trim()).filter(Boolean) : undefined;
+    const novo: CampoDinamicoDef = {
+      id: gerarId(),
+      nome: nome.trim(),
+      tipo: tipo as any,
+      grupo: grupo as any,
+      visivelCliente: true,
+      visivelImpressao: true,
+      ordem: campos.length,
+    };
+    if (opcoes) novo.opcoes = opcoes;
+    setCampos([...campos, novo]);
+    setSalvo(false);
+  }
+
+  function editar(campo: CampoDinamicoDef) {
+    const nome = prompt("Nome:", campo.nome);
+    if (!nome?.trim()) return;
+    const opcoesStr = (campo.tipo === "select" || campo.tipo === "multiselect")
+      ? prompt("Opções separadas por vírgula:", campo.opcoes?.join(",") || "") : undefined;
+    const opcoes = opcoesStr ? opcoesStr.split(",").map((s) => s.trim()).filter(Boolean) : campo.opcoes;
+    setCampos(campos.map((c) =>
+      c.id === campo.id
+        ? { ...c, nome: nome.trim(), opcoes, visivelCliente: c.visivelCliente, visivelImpressao: c.visivelImpressao }
+        : c
+    ));
+    setSalvo(false);
+  }
+
+  function toggleFlag(id: string, flag: "visivelCliente" | "visivelImpressao") {
+    setCampos(campos.map((c) => (c.id === id ? { ...c, [flag]: !c[flag] } : c)));
+    setSalvo(false);
+  }
+
+  function remover(id: string) {
+    if (!confirm("Excluir este campo?")) return;
+    setCampos(campos.filter((c) => c.id !== id));
+    setSalvo(false);
+  }
+
+  function moverParaCima(index: number) {
+    if (index === 0) return;
+    const novo = [...campos];
+    [novo[index - 1], novo[index]] = [novo[index], novo[index - 1]];
+    novo.forEach((c, i) => (c.ordem = i));
+    setCampos(novo);
+    setSalvo(false);
+  }
+
+  function moverParaBaixo(index: number) {
+    if (index >= campos.length - 1) return;
+    const novo = [...campos];
+    [novo[index], novo[index + 1]] = [novo[index + 1], novo[index]];
+    novo.forEach((c, i) => (c.ordem = i));
+    setCampos(novo);
+    setSalvo(false);
+  }
+
+  async function salvar() {
+    setSalvando(true);
+    setSalvo(false);
+    setErro("");
+    try {
+      const res = await fetch("/api/admin/configuracoes");
+      const settings: SystemSettings = await res.json();
+      settings.osCamposDinamicos = campos;
+      const putRes = await fetch("/api/admin/configuracoes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      if (!putRes.ok) throw new Error("Erro ao salvar");
+      setSalvo(true);
+      setTimeout(() => setSalvo(false), 3000);
+    } catch {
+      setErro("Erro ao salvar campos");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  if (carregando) {
+    return <p className="text-gray-500 text-sm">Carregando campos...</p>;
+  }
+
+  const agrupados = new Map<string, CampoDinamicoDef[]>();
+  for (const c of campos) {
+    const g = c.grupo || "detalhamento";
+    if (!agrupados.has(g)) agrupados.set(g, []);
+    agrupados.get(g)!.push(c);
+  }
+
+  const ROTULO_GRUPO: Record<string, string> = {
+    detalhamento: "Por Item (aparece em cada item do orçamento)",
+    checklist: "Checklist Geral (checkboxes de conferência)",
+    interno: "Área Interna (não visível ao cliente)",
+    materiais: "Materiais do Estoque",
+  };
+
+  return (
+    <div className="max-w-3xl space-y-6">
+      {erro && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
+          {erro}
+        </div>
+      )}
+
+      {["detalhamento", "checklist", "interno", "materiais"].map((grupo) => {
+        const itens = agrupados.get(grupo) || [];
+        return (
+          <section key={grupo} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-1 capitalize">{grupo}</h3>
+            <p className="text-xs text-gray-500 mb-4">{ROTULO_GRUPO[grupo]}</p>
+
+            {itens.length === 0 ? (
+              <p className="text-sm text-gray-400 italic">Nenhum campo neste grupo.</p>
+            ) : (
+              <div className="space-y-2">
+                {itens.map((campo, idx) => (
+                  <div
+                    key={campo.id}
+                    className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100"
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <button onClick={() => moverParaCima(idx)} className="text-gray-400 hover:text-gray-600 p-0.5" disabled={idx === 0}>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                      </button>
+                      <button onClick={() => moverParaBaixo(idx)} className="text-gray-400 hover:text-gray-600 p-0.5" disabled={idx >= itens.length - 1}>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-800">{campo.nome}</span>
+                        <span className="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">{campo.tipo}</span>
+                        {campo.opcoes && campo.opcoes.length > 0 && (
+                          <span className="text-[10px] text-gray-500">({campo.opcoes.join(", ")})</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => toggleFlag(campo.id, "visivelCliente")}
+                      className={`text-[10px] font-semibold px-2 py-1 rounded-lg border ${
+                        campo.visivelCliente ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-100 text-gray-500 border-gray-200"
+                      }`}
+                      title={campo.visivelCliente ? "Visível ao cliente" : "Oculto do cliente"}
+                    >
+                      Cliente
+                    </button>
+                    <button
+                      onClick={() => toggleFlag(campo.id, "visivelImpressao")}
+                      className={`text-[10px] font-semibold px-2 py-1 rounded-lg border ${
+                        campo.visivelImpressao ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-100 text-gray-500 border-gray-200"
+                      }`}
+                      title={campo.visivelImpressao ? "Aparece na impressão" : "Não sai na impressão"}
+                    >
+                      Imprimir
+                    </button>
+
+                    <button onClick={() => editar(campo)} className="text-gray-400 hover:text-gray-600 p-1" title="Editar">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    </button>
+                    <button onClick={() => remover(campo.id)} className="text-gray-400 hover:text-red-500 p-1" title="Excluir">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
+
+      <button
+        onClick={adicionar}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-gray-300 text-sm text-gray-500 hover:border-[#fb4d06]/30 hover:text-[#fb4d06] transition bg-white/50"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+        Adicionar Campo
+      </button>
+
+      <div className="flex items-center gap-3 pb-8">
+        <button
+          onClick={salvar}
+          disabled={salvando}
+          className="bg-[#fb4d06] text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:opacity-90 transition disabled:opacity-50"
+        >
+          {salvando ? "Salvando..." : "Salvar Campos"}
+        </button>
+        {salvo && <span className="text-sm text-green-600 font-medium">Salvo com sucesso!</span>}
+      </div>
     </div>
   );
 }
