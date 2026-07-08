@@ -31,6 +31,18 @@ function extrairAno(iso: string) {
   return parseInt(iso.split("-")[0], 10);
 }
 
+function calcularDataPagtoComissao(dataRecebimento: string): string {
+  if (!dataRecebimento) return "";
+  const d = new Date(dataRecebimento + "T12:00:00");
+  const dia = d.getDate();
+  if (dia >= 1 && dia <= 16) {
+    return `${dataRecebimento.slice(0, 7)}-20`;
+  } else {
+    const prox = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    return `${prox.getFullYear()}-${String(prox.getMonth() + 1).padStart(2, "0")}-10`;
+  }
+}
+
 // ── Modal Vendedor ──
 
 interface ModalVendedorProps {
@@ -164,6 +176,7 @@ function ModalTransacao({ vendedor, orcamentos, transacao, onClose, onSalvar }: 
     valor: transacao?.valor ?? "",
     percentualComissao: String(transacao?.percentualComissao ?? vendedor.percentualComissao),
     observacao: transacao?.observacao || "",
+    dataRecebimentoCliente: transacao?.dataRecebimentoCliente || "",
   });
   const [salvando, setSalvando] = useState(false);
   const [buscaOrc, setBuscaOrc] = useState("");
@@ -193,6 +206,7 @@ function ModalTransacao({ vendedor, orcamentos, transacao, onClose, onSalvar }: 
   }
 
   const comissaoPrev = (parseFloat(String(form.valor)) || 0) * ((parseFloat(String(form.percentualComissao)) || 0) / 100);
+  const dataPagtoComissaoPrev = calcularDataPagtoComissao(form.dataRecebimentoCliente);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -209,6 +223,7 @@ function ModalTransacao({ vendedor, orcamentos, transacao, onClose, onSalvar }: 
       valor: parseFloat(String(form.valor)) || 0,
       percentualComissao: parseFloat(String(form.percentualComissao)) || 0,
       observacao: form.observacao,
+      dataRecebimentoCliente: form.dataRecebimentoCliente || undefined,
     });
     setSalvando(false);
   }
@@ -298,11 +313,20 @@ function ModalTransacao({ vendedor, orcamentos, transacao, onClose, onSalvar }: 
               <label className="text-xs font-medium text-gray-600">Data Emissão NF</label>
               <input type="date" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]" value={form.dataEmissao} onChange={(e) => setForm((p) => ({ ...p, dataEmissao: e.target.value }))} />
             </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Data Recebimento (cliente)</label>
+              <input type="date" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]" value={form.dataRecebimentoCliente} onChange={(e) => setForm((p) => ({ ...p, dataRecebimentoCliente: e.target.value }))} />
+            </div>
           </div>
 
           {comissaoPrev > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm">
-              <span className="text-blue-700 font-medium">Comissão calculada: {fmt(comissaoPrev)}</span>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm flex items-center justify-between">
+              <span className="text-blue-700 font-medium">Comissão: {fmt(comissaoPrev)}</span>
+              {dataPagtoComissaoPrev && (
+                <span className="text-blue-600">
+                  Pagamento previsto: <strong>{fmtData(dataPagtoComissaoPrev)}</strong>
+                </span>
+              )}
             </div>
           )}
 
@@ -646,6 +670,8 @@ export default function VendasComissoesPage() {
                       <th className="text-right px-4 py-2.5 text-[10px] font-semibold text-gray-500 uppercase">Valor</th>
                       <th className="text-right px-4 py-2.5 text-[10px] font-semibold text-gray-500 uppercase">%</th>
                       <th className="text-right px-4 py-2.5 text-[10px] font-semibold text-gray-500 uppercase">Comissão</th>
+                      <th className="text-center px-4 py-2.5 text-[10px] font-semibold text-gray-500 uppercase">Data Receb.</th>
+                      <th className="text-center px-4 py-2.5 text-[10px] font-semibold text-gray-500 uppercase">Data Pagto.</th>
                       <th className="text-center px-4 py-2.5 text-[10px] font-semibold text-gray-500 uppercase">Paga</th>
                       <th className="text-center px-4 py-2.5 text-[10px] font-semibold text-gray-500 uppercase">Ações</th>
                     </tr>
@@ -666,6 +692,8 @@ export default function VendasComissoesPage() {
                           <td className="px-4 py-2.5 text-right font-medium text-gray-800">{fmt(v.valor)}</td>
                           <td className="px-4 py-2.5 text-right text-gray-600">{v.percentualComissao}%</td>
                           <td className="px-4 py-2.5 text-right font-medium text-blue-700">{fmt(v.comissaoCalculada)}</td>
+                          <td className="px-4 py-2.5 text-center text-gray-500">{v.dataRecebimentoCliente ? fmtData(v.dataRecebimentoCliente) : "—"}</td>
+                          <td className="px-4 py-2.5 text-center text-gray-500">{v.dataPagamentoComissao ? fmtData(v.dataPagamentoComissao) : "—"}</td>
                           <td className="px-4 py-2.5 text-center">
                             <button
                               onClick={() => toggleComissaoPaga(v)}

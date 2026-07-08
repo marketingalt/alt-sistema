@@ -19,8 +19,28 @@ export interface Venda {
   observacao?: string;
   orcamentoId?: string;
   comissaoPaga?: boolean;
+  dataRecebimentoCliente?: string; // YYYY-MM-DD — quando o cliente pagou
+  dataPagamentoComissao?: string; // YYYY-MM-DD — calculado pela regra
   createdAt: string;
   updatedAt: string;
+}
+
+function calcularDataPagamentoComissao(dataRecebimento: string): string {
+  const d = new Date(dataRecebimento + "T12:00:00");
+  const dia = d.getDate();
+  const mes = d.getMonth() + 1; // 1-12
+  const ano = d.getFullYear();
+
+  if (dia >= 1 && dia <= 16) {
+    // Paga dia 20 do mesmo mês
+    return `${ano}-${String(mes).padStart(2, "0")}-20`;
+  } else {
+    // Paga dia 10 do mês seguinte
+    const prox = new Date(ano, d.getMonth() + 1, 1);
+    const pAno = prox.getFullYear();
+    const pMes = prox.getMonth() + 1;
+    return `${pAno}-${String(pMes).padStart(2, "0")}-10`;
+  }
 }
 
 function gerarId() {
@@ -40,7 +60,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { vendedorId, data, cliente, cnpj, notaFiscal, dataEmissao, produtoServico, valor, percentualComissao, status, observacao, orcamentoId } = body;
+  const { vendedorId, data, cliente, cnpj, notaFiscal, dataEmissao, produtoServico, valor, percentualComissao, status, observacao, orcamentoId, dataRecebimentoCliente } = body;
 
   if (!vendedorId || !cliente?.trim() || !data || !valor) {
     return NextResponse.json({ error: "vendedorId, cliente, data e valor são obrigatórios." }, { status: 400 });
@@ -48,6 +68,12 @@ export async function POST(req: NextRequest) {
 
   const valorNum = parseFloat(valor) || 0;
   const pct = parseFloat(percentualComissao) || 0;
+
+  // Auto-calc data de pagamento da comissão
+  let dataPagamentoComissao = "";
+  if (dataRecebimentoCliente) {
+    dataPagamentoComissao = calcularDataPagamentoComissao(dataRecebimentoCliente);
+  }
 
   const lista = await dbGet<Venda[]>(DB_KEY, []);
   const nova: Venda = {
@@ -65,6 +91,8 @@ export async function POST(req: NextRequest) {
     status: status === "Cancelada" ? "Cancelada" : "Realizada",
     observacao: observacao || "",
     orcamentoId: orcamentoId || undefined,
+    dataRecebimentoCliente: dataRecebimentoCliente || undefined,
+    dataPagamentoComissao: dataPagamentoComissao || undefined,
     createdAt: agora(),
     updatedAt: agora(),
   };
@@ -97,6 +125,11 @@ export async function PATCH(req: NextRequest) {
     atualizada.valor = v;
     atualizada.percentualComissao = p;
     atualizada.comissaoCalculada = v * (p / 100);
+  }
+
+  // Auto-calc data pagamento comissão se dataRecebimentoCliente foi fornecida
+  if (campos.dataRecebimentoCliente) {
+    atualizada.dataPagamentoComissao = calcularDataPagamentoComissao(campos.dataRecebimentoCliente);
   }
 
   lista[idx] = atualizada;
