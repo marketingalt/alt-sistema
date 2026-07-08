@@ -458,8 +458,7 @@ export default function VisualizarOrcamento() {
     orcamento.margemPadrao !== MARGEM_PADRAO;
   const totalProdutos = orcamento.itens.reduce((a, i) => a + (i.total || 0), 0);
   const totalServicos = orcamento.manuseio && orcamento.custoManuseio ? orcamento.custoManuseio : 0;
-  const freteInfo = orcamento.frete && !orcamento.frete.startsWith("CUSTO ADICIONAL") ? orcamento.frete : null;
-  const freteValorNum = (freteInfo && (orcamento.freteValor ?? 0) > 0) ? (orcamento.freteValor ?? 0) : 0;
+  const freteValorNum = (orcamento.freteValor ?? 0) > 0 ? (orcamento.freteValor ?? 0) : 0;
   const totalGeral = totalProdutos + totalServicos + freteValorNum;
 
   return (
@@ -873,11 +872,21 @@ export default function VisualizarOrcamento() {
                       Calculadora
                     </button>
                   </div>
-                  <input
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
-                    value={orcamento.frete}
-                    onChange={(e) => atualizarCampo("frete", e.target.value)}
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="number" min={0} step="0.01"
+                      className="w-36 border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                      value={orcamento.freteValor && orcamento.freteValor > 0 ? orcamento.freteValor : ""}
+                      onChange={(e) => atualizarCampo("freteValor", e.target.value ? parseFloat(e.target.value) : 0)}
+                      placeholder="Valor (R$)"
+                    />
+                    <input
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                      value={orcamento.frete || ""}
+                      onChange={(e) => atualizarCampo("frete", e.target.value)}
+                      placeholder="Descrição (opcional)"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1309,22 +1318,21 @@ export default function VisualizarOrcamento() {
                         <span className="font-semibold text-purple-700">R$ {totalServicos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                       </div>
                     )}
-                    {freteInfo && freteValorNum > 0 && (
+                    {freteValorNum > 0 ? (
                       <div className="flex justify-between items-center text-sm text-gray-500">
                         <span>Frete de entrega</span>
                         <span className="font-semibold text-blue-700">R$ {freteValorNum.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                       </div>
-                    )}
+                    ) : orcamento.frete ? (
+                      <div className="border-t border-dashed border-gray-200 pt-2 flex justify-between items-center text-sm">
+                        <span className="text-gray-500">Frete de entrega</span>
+                        <span className="font-semibold text-blue-700">{orcamento.frete}</span>
+                      </div>
+                    ) : null}
                     <div className="border-t-2 border-gray-200 pt-2 flex justify-between items-center">
                       <span className="font-semibold text-gray-700">Total Geral</span>
                       <p className="text-2xl font-bold text-[#fb4d06]">R$ {totalGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
                     </div>
-                    {freteInfo && freteValorNum === 0 && (
-                      <div className="mt-1 pt-3 border-t border-dashed border-gray-200 flex justify-between items-center text-sm">
-                        <span className="text-gray-500">Frete de entrega</span>
-                        <span className="font-semibold text-blue-700">{freteInfo}</span>
-                      </div>
-                    )}
                   </div>
 
                   {/* Honorários e Impostos — ativação */}
