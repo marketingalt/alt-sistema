@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dbGet, dbSet } from "@/lib/storage-adapter";
-import type { Tarefa } from "@/app/types";
+import type { Tarefa, StatusKanban } from "@/app/types";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +75,8 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Tarefa não encontrada." }, { status: 404 });
   }
 
+  const oldStatusId = tarefas[idx].statusId;
+
   tarefas[idx] = {
     ...tarefas[idx],
     ...campos,
@@ -83,6 +85,33 @@ export async function PATCH(req: NextRequest) {
   };
 
   await dbSet("financeiro-planejamento-tarefas", tarefas);
+
+  // ── Se moveu para "Nota Fiscal Emitida", atualiza statusNota no faturamento ──
+  if (campos.statusId && campos.statusId !== oldStatusId) {
+    const colunas = await dbGet<StatusKanban[]>("financeiro-planejamento-config", []);
+    const colunaDestino = colunas.find((c) => c.id === campos.statusId);
+    if (colunaDestino && colunaDestino.nome === "Nota Fiscal Emitida") {
+      const task = tarefas[idx];
+      const orcamentoId = task.customFields?.orcamentoId;
+      if (orcamentoId) {
+        try {
+          const fat = await dbGet<{ registros: any[] }>("faturamentos", { registros: [] });
+          const idxFat = fat.registros.findIndex(
+            (r: any) => r.orcamentoId === orcamentoId || r.id === orcamentoId
+          );
+          if (idxFat >= 0) {
+            fat.registros[idxFat].statusNota = "Emitida";
+            fat.registros[idxFat].updatedAt = new Date().toISOString().split("T")[0];
+            await dbSet("faturamentos", fat);
+            console.log(`[NF EMITIDA] Orçamento ${orcamentoId} → statusNota: Emitida`);
+          }
+        } catch (err) {
+          console.error("[NF EMITIDA ERROR]", err);
+        }
+      }
+    }
+  }
+
   return NextResponse.json(tarefas[idx]);
 }
 
