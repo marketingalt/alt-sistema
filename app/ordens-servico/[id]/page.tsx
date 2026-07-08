@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
@@ -10,6 +10,7 @@ import type {
   CampoDinamicoDef,
   Tarefa,
   Cliente,
+  DocumentoFornecedor,
 } from "@/app/types";
 import type { SystemSettings } from "@/lib/admin";
 import StatusRoadmap from "./components/StatusRoadmap";
@@ -24,6 +25,149 @@ function Icone({ d, className = "w-5 h-5" }: { d: string; className?: string }) 
     </svg>
   );
 }
+
+// ── Rótulos dos módulos do roadmap ─────────────────────
+const ROTULOS_MODULOS: Record<string, string> = {
+  orcamento: "Orçamento",
+  financeiro: "Financeiro",
+  fornecedor: "Fornecedor",
+  os: "Ordem de Serviço",
+  planejamento: "Planejamento",
+};
+
+function formatarMoeda(valor: number) {
+  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function formatarTamanho(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODAL DE DOCUMENTOS
+// ═══════════════════════════════════════════════════════════
+
+function ModalDocumentos({
+  modulo,
+  documentos,
+  fechar,
+  orcamentoId,
+}: {
+  modulo: string;
+  documentos: DocumentoFornecedor[];
+  fechar: () => void;
+  orcamentoId: string;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16">
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={fechar} />
+
+      {/* Painel */}
+      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-gray-100 max-h-[75vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            <h2 className="text-lg font-bold text-gray-800">
+              Documentos — {ROTULOS_MODULOS[modulo] || modulo}
+            </h2>
+          </div>
+          <button
+            onClick={fechar}
+            className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Corpo */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {documentos.length === 0 ? (
+            <div className="text-center py-12">
+              <svg className="w-12 h-12 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              <p className="text-sm text-gray-400">Nenhum documento anexado a este orçamento.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {documentos.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100 hover:border-gray-200 transition"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {/* Ícone do tipo */}
+                    <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0">
+                      {doc.tipo?.includes("pdf") ? (
+                        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                      ) : doc.tipo?.includes("image") ? (
+                        <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      )}
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{doc.nome}</p>
+                      <p className="text-[11px] text-gray-400">
+                        {formatarTamanho(doc.tamanho)}
+                        {doc.uploadedBy && ` · ${doc.uploadedBy}`}
+                        {doc.uploadedAt && ` · ${new Date(doc.uploadedAt).toLocaleDateString("pt-BR")}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Ações */}
+                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                    <a
+                      href={`/api/orcamentos/${orcamentoId}/documentos/${doc.id}?inline=1`}
+                      target="_blank"
+                      className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition"
+                      title="Visualizar"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </a>
+                    <a
+                      href={`/api/orcamentos/${orcamentoId}/documentos/${doc.id}`}
+                      download={doc.nome}
+                      className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition"
+                      title="Baixar"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PÁGINA PRINCIPAL
+// ═══════════════════════════════════════════════════════════
 
 export default function DetalheOSPage() {
   const params = useParams();
@@ -46,15 +190,74 @@ export default function DetalheOSPage() {
   const [financeiroColuna, setFinanceiroColuna] = useState<string | undefined>();
   const [planejamentoColuna, setPlanejamentoColuna] = useState<string | undefined>();
 
-  // ── Carregar dados ─────────────────────────────────
+  // Modal de documentos
+  const [modalModulo, setModalModulo] = useState<string | null>(null);
+  const [documentosOrcamento, setDocumentosOrcamento] = useState<DocumentoFornecedor[]>([]);
+  const [carregandoDocs, setCarregandoDocs] = useState(false);
+
+  // Referência para o id do orçamento (usado no polling e no modal)
+  const orcamentoIdRef = useRef<string>("");
+
+  // ── Função que carrega APENAS status (usada no polling) ─
+  const carregarStatus = useCallback(async (orcamentoId: string) => {
+    // Orçamento
+    try {
+      const resO = await fetch(`/api/orcamentos/${orcamentoId}`);
+      if (resO.ok) {
+        const orcamento = await resO.json();
+        setOrcamentoStatus(orcamento.status || "—");
+      }
+    } catch {}
+
+    // Financeiro kanban
+    try {
+      const resF = await fetch("/api/financeiro/kanban");
+      if (resF.ok) {
+        const kanban = await resF.json();
+        const tarefas = kanban.colunas?.flatMap((c: any) =>
+          (c.tarefas || []).map((t: any) => ({ ...t, coluna: c.nome }))
+        ) || [];
+        const fin = tarefas.find(
+          (t: any) => t.orcamentoId === orcamentoId
+        );
+        if (fin) setFinanceiroColuna(fin.coluna || "—");
+      }
+    } catch {}
+
+    // Planejamento
+    try {
+      const resPl = await fetch("/api/planejamento/tarefas");
+      if (resPl.ok) {
+        const todas: Tarefa[] = await resPl.json();
+        const tarefaOrcamento = todas.find(
+          (t) => !t.parentTaskId && t.customFields?.orcamentoId === orcamentoId
+        );
+        if (tarefaOrcamento) {
+          try {
+            const resP = await fetch("/api/planejamento");
+            if (resP.ok) {
+              const dataP = await resP.json();
+              const proj = (dataP.projetos || []).find(
+                (p: any) => p.id === tarefaOrcamento.projectId
+              );
+              if (proj) setPlanejamentoColuna(proj.nome);
+            }
+          } catch {}
+        }
+      }
+    } catch {}
+  }, []);
+
+  // ── Carregar dados completos (primeira carga) ──────────
   async function carregar() {
     try {
       const res = await fetch(`/api/ordens-servico/${osId}`);
       if (!res.ok) throw new Error("Não encontrada");
       const data: OrdemServico = await res.json();
       setOs(data);
+      orcamentoIdRef.current = data.orcamentoId;
 
-      // Campos dinâmicos das configurações
+      // Campos dinâmicos
       try {
         const resC = await fetch("/api/admin/configuracoes");
         if (resC.ok) {
@@ -63,7 +266,7 @@ export default function DetalheOSPage() {
         }
       } catch {}
 
-      // Dados do cliente do cadastro
+      // Cliente
       if (data.cliente) {
         try {
           const resCl = await fetch(`/api/clientes?search=${encodeURIComponent(data.cliente)}`);
@@ -74,28 +277,16 @@ export default function DetalheOSPage() {
         } catch {}
       }
 
-      // Orçamento original
-      try {
-        const resO = await fetch(`/api/orcamentos/${data.orcamentoId}`);
-        if (resO.ok) {
-          const orcamento = await resO.json();
-          setOrcamentoStatus(orcamento.status || "—");
-        }
-      } catch {}
-
-      // Subtarefas vinculadas
+      // Subtarefas
       try {
         const resT = await fetch("/api/planejamento/tarefas");
         if (resT.ok) {
           const todas: Tarefa[] = await resT.json();
-          const vinculadas = todas.filter(
-            (t) => t.parentTaskId && t.customFields?.osId === osId
-          );
-          setSubtarefas(vinculadas);
+          setSubtarefas(todas.filter((t) => t.parentTaskId && t.customFields?.osId === osId));
         }
       } catch {}
 
-      // Projetos para mapear status
+      // Projetos
       try {
         const resP = await fetch("/api/planejamento");
         if (resP.ok) {
@@ -108,37 +299,8 @@ export default function DetalheOSPage() {
         }
       } catch {}
 
-      // Financeiro kanban — busca a coluna da tarefa financeira do orçamento
-      try {
-        const resF = await fetch("/api/financeiro/kanban");
-        if (resF.ok) {
-          const kanban = await resF.json();
-          const tarefas = kanban.colunas?.flatMap((c: any) =>
-            (c.tarefas || []).map((t: any) => ({ ...t, coluna: c.nome }))
-          ) || [];
-          const fin = tarefas.find(
-            (t: any) => t.orcamentoId === data.orcamentoId || t.titulo?.includes(data.orcamentoNumero)
-          );
-          if (fin) setFinanceiroColuna(fin.coluna || "—");
-        }
-      } catch {}
-
-      // Planejamento — busca tarefa do orçamento no kanban
-      try {
-        const resPl = await fetch("/api/planejamento/tarefas");
-        if (resPl.ok) {
-          const todas: Tarefa[] = await resPl.json();
-          const tarefaOrcamento = todas.find(
-            (t) => !t.parentTaskId && t.customFields?.orcamentoId === data.orcamentoId
-          );
-          if (tarefaOrcamento) {
-            const projeto = projetosMap[tarefaOrcamento.projectId];
-            if (projeto) {
-              setPlanejamentoColuna(projeto.nome);
-            }
-          }
-        }
-      } catch {}
+      // Status — carrega junto na primeira vez
+      await carregarStatus(data.orcamentoId);
     } catch {
       setErro("OS não encontrada");
     } finally {
@@ -146,11 +308,58 @@ export default function DetalheOSPage() {
     }
   }
 
+  // ── Carga inicial ─────────────────────────────────────
   useEffect(() => {
     carregar();
   }, [osId]);
 
-  // ── Salvar alterações na OS ────────────────────────
+  // ── POLLING: atualiza status a cada 30s ──────────────
+  useEffect(() => {
+    if (!orcamentoIdRef.current) return;
+    const interval = setInterval(() => {
+      if (orcamentoIdRef.current) {
+        carregarStatus(orcamentoIdRef.current);
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [carregarStatus]);
+
+  // ── POLLING: atualiza ao voltar para a aba ──────────
+  useEffect(() => {
+    function onVisibility() {
+      if (document.visibilityState === "visible" && orcamentoIdRef.current) {
+        carregarStatus(orcamentoIdRef.current);
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [carregarStatus]);
+
+  // ── Abrir modal de documentos de uma área ────────────
+  async function abrirDocumentos(modulo: string) {
+    setModalModulo(modulo);
+    setCarregandoDocs(true);
+    try {
+      const res = await fetch(`/api/orcamentos/${orcamentoIdRef.current}`);
+      if (res.ok) {
+        const orcamento = await res.json();
+        setDocumentosOrcamento(orcamento.documentos || []);
+      } else {
+        setDocumentosOrcamento([]);
+      }
+    } catch {
+      setDocumentosOrcamento([]);
+    } finally {
+      setCarregandoDocs(false);
+    }
+  }
+
+  function fecharModal() {
+    setModalModulo(null);
+    setDocumentosOrcamento([]);
+  }
+
+  // ── Salvar alterações na OS ──────────────────────────
   const salvarOS = useCallback(
     async (updates: Partial<OrdemServico>) => {
       if (!os) return;
@@ -164,18 +373,18 @@ export default function DetalheOSPage() {
         if (res.ok) {
           const atualizada = await res.json();
           setOs(atualizada);
+          // Após salvar, atualiza status no roadmap
+          carregarStatus(orcamentoIdRef.current);
         }
       } catch (err) {
         console.error("[SAVE OS ERROR]", err);
-        alert("Erro ao salvar alterações.");
       } finally {
         setSalvando(false);
       }
     },
-    [os, osId]
+    [os, osId, carregarStatus]
   );
 
-  // ── Alterar status da OS ───────────────────────────
   async function alterarStatus(novoStatus: StatusOS) {
     await salvarOS({ status: novoStatus });
   }
@@ -184,14 +393,9 @@ export default function DetalheOSPage() {
     await salvarOS({ statusFornecedor: novo });
   }
 
-  // ── Formatadores ───────────────────────────────────
-  function formatarMoeda(valor: number) {
-    return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  }
-
   const totalCustos = os?.itens.reduce((acc, i) => acc + i.totalCusto, 0) || 0;
 
-  // ── Loading ────────────────────────────────────────
+  // ── Loading ──────────────────────────────────────────
   if (carregando) {
     return (
       <WorkspaceLayout>
@@ -202,7 +406,7 @@ export default function DetalheOSPage() {
     );
   }
 
-  // ── Error ──────────────────────────────────────────
+  // ── Error ────────────────────────────────────────────
   if (erro || !os) {
     return (
       <WorkspaceLayout>
@@ -231,7 +435,7 @@ export default function DetalheOSPage() {
           <span className="text-gray-800 font-semibold">OS #{os.numero}</span>
 
           {salvando && (
-            <span className="text-xs text-gray-400 ml-auto">Salvando...</span>
+            <span className="text-xs text-gray-400 ml-auto animate-pulse">Salvando...</span>
           )}
         </div>
 
@@ -244,6 +448,7 @@ export default function DetalheOSPage() {
           fornecedorStatus={os.statusFornecedor}
           onStatusOSChange={alterarStatus}
           onFornecedorStatusChange={alterarStatusFornecedor}
+          onModuleClick={abrirDocumentos}
         />
 
         {/* ── CABEÇALHO ──────────────────────────── */}
@@ -372,6 +577,25 @@ export default function DetalheOSPage() {
           </div>
         </div>
       </main>
+
+      {/* ── MODAL DE DOCUMENTOS ───────────────────── */}
+      {modalModulo && (
+        carregandoDocs ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+            <div className="bg-white rounded-2xl p-8 shadow-2xl">
+              <div className="w-8 h-8 border-2 border-gray-300 border-t-[#fb4d06] rounded-full animate-spin mx-auto mb-3" />
+              <p className="text-sm text-gray-500">Carregando documentos...</p>
+            </div>
+          </div>
+        ) : (
+          <ModalDocumentos
+            modulo={modalModulo}
+            documentos={documentosOrcamento}
+            fechar={fecharModal}
+            orcamentoId={orcamentoIdRef.current}
+          />
+        )
+      )}
     </WorkspaceLayout>
   );
 }
