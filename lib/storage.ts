@@ -357,7 +357,17 @@ export async function criarTarefaFinanceira(orcamento: Orcamento): Promise<void>
   if (jaExiste) return;
 
   // Pega o ID da primeira coluna
-  const colunas = await dbGet<any[]>("financeiro-planejamento-config", []);
+  let colunas = await dbGet<any[]>("financeiro-planejamento-config", []);
+  if (!colunas.length) {
+    // Auto-cria colunas padrão se não existirem
+    colunas = [
+      { id: Math.random().toString(36).substring(2, 10), nome: "A RECEBER", cor: "#6b7280", ordem: 0 },
+      { id: Math.random().toString(36).substring(2, 10), nome: "EM ANDAMENTO", cor: "#3b82f6", ordem: 1 },
+      { id: Math.random().toString(36).substring(2, 10), nome: "PENDENTE", cor: "#f97316", ordem: 2 },
+      { id: Math.random().toString(36).substring(2, 10), nome: "CONCLUÍDO", cor: "#22c55e", ordem: 3 },
+    ];
+    await dbSet("financeiro-planejamento-config", colunas);
+  }
   const ordenadas = [...colunas].sort((a, b) => a.ordem - b.ordem);
   const primeiraColuna = ordenadas[0];
   if (!primeiraColuna) return;
