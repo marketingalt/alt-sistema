@@ -1,13 +1,15 @@
 "use client";
 
 import type { OrdemServico, Cliente } from "@/app/types";
+import UserAutocomplete from "@/app/components/UserAutocomplete";
 
 interface Props {
   os: OrdemServico;
   cliente?: Cliente | null;
+  onUpdateOS?: (updates: Partial<OrdemServico>) => void;
 }
 
-export default function CabecalhoOS({ os, cliente }: Props) {
+export default function CabecalhoOS({ os, cliente, onUpdateOS }: Props) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       {/* Número da OS + datas */}
@@ -54,12 +56,19 @@ export default function CabecalhoOS({ os, cliente }: Props) {
         <div className="md:text-right">
           <p className="text-[10px] font-semibold uppercase text-gray-500 tracking-wide mb-0.5">Solicitante</p>
           <p className="text-sm text-gray-800">{os.solicitante || "—"}</p>
-          {os.responsavel && (
-            <>
-              <p className="text-[10px] font-semibold uppercase text-gray-500 tracking-wide mt-3 mb-0.5">Responsável</p>
-              <p className="text-sm text-gray-800">{os.responsavel}</p>
-            </>
-          )}
+          <div className="mt-3">
+            <p className="text-[10px] font-semibold uppercase text-gray-500 tracking-wide mb-1">Responsável</p>
+            {onUpdateOS ? (
+              <UserAutocomplete
+                value={os.responsavel || ""}
+                onChange={(nome) => onUpdateOS({ responsavel: nome })}
+                placeholder="Buscar usuário..."
+                displayNome
+              />
+            ) : (
+              <p className="text-sm text-gray-800">{os.responsavel || "—"}</p>
+            )}
+          </div>
         </div>
       </div>
 

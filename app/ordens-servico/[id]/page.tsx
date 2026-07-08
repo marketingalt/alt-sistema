@@ -247,7 +247,7 @@ export default function DetalheOSPage() {
         />
 
         {/* ── CABEÇALHO ──────────────────────────── */}
-        <CabecalhoOS os={os} cliente={cliente} />
+        <CabecalhoOS os={os} cliente={cliente} onUpdateOS={salvarOS} />
 
         {/* ── ITENS — TABELA DE CUSTOS ───────────── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { OrdemServico, CampoDinamicoDef, AnotacaoInterna, MaterialOS } from "@/app/types";
 import CampoDinamicoRenderer from "./CampoDinamicoRenderer";
+import UserAutocomplete from "@/app/components/UserAutocomplete";
 
 interface Props {
   os: OrdemServico;
@@ -12,6 +13,11 @@ interface Props {
 
 export default function AreaInternaOS({ os, camposDinamicos, onUpdateOS }: Props) {
   const [novaAnotacao, setNovaAnotacao] = useState("");
+
+  // Estado para adicionar responsável com formulário inline
+  const [adicionandoResp, setAdicionandoResp] = useState(false);
+  const [novoProcesso, setNovoProcesso] = useState("");
+  const [novoResponsavel, setNovoResponsavel] = useState("");
 
   // ── Campos internos dinâmicos ──────────────────────
   const camposInternos = camposDinamicos.filter((c) => c.grupo === "interno");
@@ -89,13 +95,19 @@ export default function AreaInternaOS({ os, camposDinamicos, onUpdateOS }: Props
 
   // ── Responsáveis ───────────────────────────────────
   function adicionarResponsavel() {
-    const processo = prompt("Nome do processo / área:");
-    if (!processo?.trim()) return;
-    const usuario = prompt("Nome do responsável:");
-    if (!usuario?.trim()) return;
+    if (!novoProcesso.trim() || !novoResponsavel.trim()) return;
     onUpdateOS({
-      responsaveis: { ...(os.responsaveis || {}), [processo.trim()]: usuario.trim() },
+      responsaveis: { ...(os.responsaveis || {}), [novoProcesso.trim()]: novoResponsavel.trim() },
     });
+    setNovoProcesso("");
+    setNovoResponsavel("");
+    setAdicionandoResp(false);
+  }
+
+  function cancelarAdicionarResp() {
+    setAdicionandoResp(false);
+    setNovoProcesso("");
+    setNovoResponsavel("");
   }
 
   function removerResponsavel(processo: string) {
@@ -139,13 +151,55 @@ export default function AreaInternaOS({ os, camposDinamicos, onUpdateOS }: Props
         ) : (
           <p className="text-sm text-gray-400 italic mb-3">Nenhum responsável definido.</p>
         )}
-        <button
-          onClick={adicionarResponsavel}
-          className="flex items-center gap-1.5 text-sm font-medium text-[#fb4d06] hover:opacity-80 transition"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-          Adicionar responsável
-        </button>
+
+        {/* Formulário inline para adicionar responsável */}
+        {adicionandoResp ? (
+          <div className="space-y-2 bg-gray-50 rounded-xl p-4 border border-gray-100">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Processo / Área</label>
+              <input
+                type="text"
+                value={novoProcesso}
+                onChange={(e) => setNovoProcesso(e.target.value)}
+                placeholder="Ex: Produção, Logística, Qualidade..."
+                className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 focus:border-[#fb4d06]"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
+              <UserAutocomplete
+                value={novoResponsavel}
+                onChange={setNovoResponsavel}
+                placeholder="Buscar usuário..."
+                displayNome
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={adicionarResponsavel}
+                disabled={!novoProcesso.trim() || !novoResponsavel.trim()}
+                className="bg-[#fb4d06] text-white text-xs font-semibold px-4 py-2 rounded-xl hover:opacity-90 transition disabled:opacity-50"
+              >
+                Adicionar
+              </button>
+              <button
+                onClick={cancelarAdicionarResp}
+                className="text-xs font-medium text-gray-500 px-4 py-2 rounded-xl hover:bg-gray-200 transition"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setAdicionandoResp(true)}
+            className="flex items-center gap-1.5 text-sm font-medium text-[#fb4d06] hover:opacity-80 transition"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+            Adicionar responsável
+          </button>
+        )}
       </div>
 
       {/* Materiais */}
