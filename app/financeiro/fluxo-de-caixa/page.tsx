@@ -288,13 +288,18 @@ export default function FluxoDeCaixaPage() {
     return lista;
   }, [lancamentosMes, bancoFiltro, areaFiltro, catFiltro, osFiltro, busca, ordemCampo, ordemDir]);
 
-  // KPIs do mês
+  // KPIs do mês — separa estorno/transferência das entradas/saidas reais
   const kpis = useMemo(() => {
-    const entradas = lancamentosMes.filter((l) => l.valor > 0).reduce((s, l) => s + l.valor, 0);
-    const saidas = lancamentosMes.filter((l) => l.valor < 0).reduce((s, l) => s + l.valor, 0);
-    const resultado = entradas + saidas;
-    const saldoFinal = saldoAnteMes + resultado;
-    return { entradas, saidas, resultado, saldoFinal };
+    const ehNaoOperacional = (l: Lancamento) => l.categoria === "ESTORNO" || l.modalidade === "TRANSFERENCIA";
+    // Totais operacionais (excluindo estorno e transferência entre contas)
+    const entradasOp = lancamentosMes.filter((l) => l.valor > 0 && !ehNaoOperacional(l)).reduce((s, l) => s + l.valor, 0);
+    const saidasOp = lancamentosMes.filter((l) => l.valor < 0 && !ehNaoOperacional(l)).reduce((s, l) => s + l.valor, 0);
+    // Totais gerais (incluindo tudo — usado para saldo real)
+    const entradasTotal = lancamentosMes.filter((l) => l.valor > 0).reduce((s, l) => s + l.valor, 0);
+    const saidasTotal = lancamentosMes.filter((l) => l.valor < 0).reduce((s, l) => s + l.valor, 0);
+    const resultadoOp = entradasOp + saidasOp;
+    const saldoFinal = saldoAnteMes + entradasTotal + saidasTotal;
+    return { entradas: entradasOp, saidas: saidasOp, resultado: resultadoOp, saldoFinal };
   }, [lancamentosMes, saldoAnteMes]);
 
   // Saldo corrido por linha (filtered)
