@@ -3,6 +3,13 @@ import { dbGet, dbSet } from "@/lib/storage-adapter";
 
 export const dynamic = "force-dynamic";
 
+export interface ComissaoItem {
+  item: string;
+  valor: number;
+  percentual: number;
+  comissao: number;
+}
+
 export interface Venda {
   id: string;
   vendedorId: string;
@@ -13,8 +20,9 @@ export interface Venda {
   dataEmissao?: string;
   produtoServico: string;
   valor: number;
-  percentualComissao: number; // % aplicada nesta venda
-  comissaoCalculada: number; // valor * percentual / 100
+  percentualComissao: number; // % aplicada nesta venda (média ponderada)
+  comissaoCalculada: number; // valor * percentual / 100, ou soma de comissaoItens
+  comissaoItens?: ComissaoItem[]; // detalhamento por item do orçamento
   status: "Realizada" | "Cancelada";
   observacao?: string;
   orcamentoId?: string;
@@ -60,7 +68,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { vendedorId, data, cliente, cnpj, notaFiscal, dataEmissao, produtoServico, valor, percentualComissao, status, observacao, orcamentoId, dataRecebimentoCliente } = body;
+  const { vendedorId, data, cliente, cnpj, notaFiscal, dataEmissao, produtoServico, valor, percentualComissao, status, observacao, orcamentoId, dataRecebimentoCliente, comissaoItens } = body;
 
   if (!vendedorId || !cliente?.trim() || !data || !valor) {
     return NextResponse.json({ error: "vendedorId, cliente, data e valor são obrigatórios." }, { status: 400 });
@@ -68,6 +76,14 @@ export async function POST(req: NextRequest) {
 
   const valorNum = parseFloat(valor) || 0;
   const pct = parseFloat(percentualComissao) || 0;
+
+  // Se há detalhamento por itens, usa a soma como comissão calculada
+  let comissaoCalculada = valorNum * (pct / 100);
+  let comissaoItensSalvos: ComissaoItem[] | undefined;
+  if (comissaoItens && Array.isArray(comissaoItens) && comissaoItens.length > 0) {
+    comissaoItensSalvos = comissaoItens;
+    comissaoCalculada = comissaoItens.reduce((s: number, ci: ComissaoItem) => s + (ci.comissao || 0), 0);
+  }
 
   // Auto-calc data de pagamento da comissão
   let dataPagamentoComissao = "";
@@ -87,7 +103,8 @@ export async function POST(req: NextRequest) {
     produtoServico: produtoServico || cliente.trim(),
     valor: valorNum,
     percentualComissao: pct,
-    comissaoCalculada: valorNum * (pct / 100),
+    comissaoCalculada,
+    comissaoItens: comissaoItensSalvos,
     status: status === "Cancelada" ? "Cancelada" : "Realizada",
     observacao: observacao || "",
     orcamentoId: orcamentoId || undefined,
@@ -118,8 +135,14 @@ export async function PATCH(req: NextRequest) {
 
   const atualizada = { ...lista[idx], ...campos, id, updatedAt: agora() };
 
-  // Recalcula comissão se valor ou % mudou
-  if (campos.valor !== undefined || campos.percentualComissao !== undefined) {
+  // Se comissaoItens foi enviado, calcula comissão a partir dos itens
+  if (campos.comissaoItens && Array.isArray(campos.comissaoItens) && campos.comissaoItens.length > 0) {
+    atualizada.comissaoItens = campos.comissaoItens;
+    atualizada.comissaoCalculada = campos.comissaoItens.reduce((s: number, ci: ComissaoItem) => s + (ci.comissao || 0), 0);
+  }
+
+  // Recalcula comissão se valor ou % mudou (e não veio comissaoItens)
+  if ((campos.valor !== undefined || campos.percentualComissao !== undefined) && !campos.comissaoItens) {
     const v = campos.valor !== undefined ? parseFloat(campos.valor) || 0 : lista[idx].valor;
     const p = campos.percentualComissao !== undefined ? parseFloat(campos.percentualComissao) || 0 : lista[idx].percentualComissao;
     atualizada.valor = v;

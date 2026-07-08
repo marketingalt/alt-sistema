@@ -46,7 +46,7 @@ function itemVazio(margem: number): ItemOrcamento {
   return {
     id: gerarId(), kit: "", referencia: "", item: "", acabamento: "Silk", descricao: "",
     quantidade: 1, custoUnitario: 0, freteProducao: 0, custoPersonalizacao: 0,
-    margem, valorUnitario: 0, valorAjustado: false, total: 0, diasProducao: undefined, ncm: "",
+    margem, percentualComissao: PERC_COMISSAO_PADRAO, valorUnitario: 0, valorAjustado: false, total: 0, diasProducao: undefined, ncm: "",
     categoria: "brindes",
   };
 }
@@ -71,6 +71,7 @@ function migrarItem(i: Partial<ItemOrcamento>, margemPadrao: number): ItemOrcame
     custoEmbalagemIndividual: i.custoEmbalagemIndividual !== undefined ? Number(i.custoEmbalagemIndividual) : undefined,
     custoEmbalagemTransporte: i.custoEmbalagemTransporte !== undefined ? Number(i.custoEmbalagemTransporte) : undefined,
     margem: i.margem !== undefined ? Number(i.margem) : margemPadrao,
+    percentualComissao: i.percentualComissao !== undefined ? Number(i.percentualComissao) : PERC_COMISSAO_PADRAO,
     valorUnitario: Number(i.valorUnitario) || 0,
     valorAjustado: i.valorAjustado || false,
     total: Number(i.total) || 0,
@@ -1077,6 +1078,14 @@ export default function VisualizarOrcamento() {
                                     R$ {item.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                                   </div>
                                 </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-purple-600 mb-1">% Comissão</label>
+                                  <input type="number" min={0} max={100} step="0.1"
+                                    className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm text-purple-700 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                                    value={item.percentualComissao ?? ""}
+                                    onChange={(e) => atualizarItem(item.id, "percentualComissao", parseFloat(e.target.value) || 0)}
+                                  />
+                                </div>
                               </div>
                             </div>
                           </>
@@ -1186,6 +1195,15 @@ export default function VisualizarOrcamento() {
                                   {(orcamento.percComissao || 0) > 0 && ` · Com. ${orcamento.percComissao}%`}
                                 </p>
                               )}
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 mb-1">% Comissão</label>
+                              <input
+                                type="number" min={0} max={100} step="0.1"
+                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                                value={item.percentualComissao ?? ""}
+                                onChange={(e) => atualizarItem(item.id, "percentualComissao", parseFloat(e.target.value) || 0)}
+                              />
                             </div>
                           </div>
                           {/* Embalagem */}

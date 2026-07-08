@@ -45,6 +45,7 @@ export interface ItemOrcamento {
   custoEmbalagemIndividual?: number;  // custo por item de embalagem individual (não dividido)
   custoEmbalagemTransporte?: number;  // custo total de embalagem de transporte (dividido pela qtd)
   margem: number;              // margem em % (ex: 40 = 40%)
+  percentualComissao?: number; // % de comissão deste item (fallback: % do vendedor)
   valorUnitario: number;       // preço final ao cliente
   valorAjustado: boolean;      // true = usuário sobrescreveu o valor calculado
   total: number;

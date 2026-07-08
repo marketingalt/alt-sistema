@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import type { Vendedor } from "@/app/api/financeiro/vendas-comissoes/vendedores/route";
-import type { Venda } from "@/app/api/financeiro/vendas-comissoes/vendas/route";
+import type { Venda, ComissaoItem } from "@/app/api/financeiro/vendas-comissoes/vendas/route";
 import type { ComissaoNF } from "@/app/api/financeiro/vendas-comissoes/comissoes-nf/route";
 import type { Orcamento } from "@/app/types";
 
@@ -177,6 +177,7 @@ function ModalTransacao({ vendedor, orcamentos, transacao, onClose, onSalvar }: 
     percentualComissao: String(transacao?.percentualComissao ?? vendedor.percentualComissao),
     observacao: transacao?.observacao || "",
     dataRecebimentoCliente: transacao?.dataRecebimentoCliente || "",
+    comissaoItens: transacao?.comissaoItens || null as ComissaoItem[] | null,
   });
   const [salvando, setSalvando] = useState(false);
   const [buscaOrc, setBuscaOrc] = useState("");
@@ -194,6 +195,22 @@ function ModalTransacao({ vendedor, orcamentos, transacao, onClose, onSalvar }: 
   function selecionarOrcamento(orc: Orcamento) {
     const subtotal = (orc.itens || []).reduce((s, it) => s + (it.total || 0), 0);
     const valor = subtotal + (orc.freteValor || 0) + (orc.custoManuseio || 0);
+
+    // Calcula comissão por item
+    const itensComissao: ComissaoItem[] = (orc.itens || [])
+      .filter((it) => (it.total || 0) > 0)
+      .map((it) => {
+        const pct = it.percentualComissao ?? (vendedor.percentualComissao ?? 0);
+        return {
+          item: it.item || `Item #${orc.itens!.indexOf(it) + 1}`,
+          valor: it.total || 0,
+          percentual: pct,
+          comissao: (it.total || 0) * (pct / 100),
+        };
+      });
+    const comissaoTotal = itensComissao.reduce((s, ci) => s + ci.comissao, 0);
+    const pctMedia = valor > 0 ? (comissaoTotal / valor) * 100 : 0;
+
     setForm((p) => ({
       ...p,
       orcamentoId: orc.id,
@@ -201,6 +218,8 @@ function ModalTransacao({ vendedor, orcamentos, transacao, onClose, onSalvar }: 
       cnpj: "",
       produtoServico: orc.nomeProjeto || `Orçamento #${orc.numero}`,
       valor,
+      percentualComissao: String(pctMedia.toFixed(2)),
+      comissaoItens: itensComissao,
     }));
     setBuscaOrc("");
   }
@@ -224,6 +243,7 @@ function ModalTransacao({ vendedor, orcamentos, transacao, onClose, onSalvar }: 
       percentualComissao: parseFloat(String(form.percentualComissao)) || 0,
       observacao: form.observacao,
       dataRecebimentoCliente: form.dataRecebimentoCliente || undefined,
+      comissaoItens: form.comissaoItens || undefined,
     });
     setSalvando(false);
   }
@@ -297,7 +317,7 @@ function ModalTransacao({ vendedor, orcamentos, transacao, onClose, onSalvar }: 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-600">Comissão (%)</label>
               <div className="relative">
-                <input type="number" step="0.1" min="0" max="100" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-6" value={form.percentualComissao} onChange={(e) => setForm((p) => ({ ...p, percentualComissao: e.target.value }))} />
+                <input type="number" step="0.1" min="0" max="100" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-6" value={form.percentualComissao} onChange={(e) => setForm((p) => ({ ...p, percentualComissao: e.target.value, comissaoItens: null }))} />
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">%</span>
               </div>
             </div>
@@ -320,12 +340,25 @@ function ModalTransacao({ vendedor, orcamentos, transacao, onClose, onSalvar }: 
           </div>
 
           {comissaoPrev > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm flex items-center justify-between">
-              <span className="text-blue-700 font-medium">Comissão: {fmt(comissaoPrev)}</span>
-              {dataPagtoComissaoPrev && (
-                <span className="text-blue-600">
-                  Pagamento previsto: <strong>{fmtData(dataPagtoComissaoPrev)}</strong>
-                </span>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-blue-700 font-medium">Comissão total: {fmt(comissaoPrev)}</span>
+                {dataPagtoComissaoPrev && (
+                  <span className="text-blue-600">
+                    Pagamento previsto: <strong>{fmtData(dataPagtoComissaoPrev)}</strong>
+                  </span>
+                )}
+              </div>
+              {form.comissaoItens && form.comissaoItens.length > 1 && (
+                <div className="mt-2 pt-2 border-t border-blue-200">
+                  <p className="text-[11px] font-semibold text-blue-600 mb-1">Detalhamento por item:</p>
+                  {form.comissaoItens.map((ci, i) => (
+                    <div key={i} className="flex items-center justify-between text-[11px] text-blue-700/80">
+                      <span className="truncate max-w-[240px]">{ci.item}</span>
+                      <span>{fmt(ci.valor)} × {ci.percentual}% = {fmt(ci.comissao)}</span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -695,7 +728,12 @@ export default function VendasComissoesPage() {
                           <td className="px-4 py-2.5 text-gray-600 max-w-[200px] truncate">{v.produtoServico}</td>
                           <td className="px-4 py-2.5 text-right font-medium text-gray-800">{fmt(v.valor)}</td>
                           <td className="px-4 py-2.5 text-right text-gray-600">{v.percentualComissao}%</td>
-                          <td className="px-4 py-2.5 text-right font-medium text-blue-700">{fmt(v.comissaoCalculada)}</td>
+                          <td className="px-4 py-2.5 text-right font-medium text-blue-700">
+                            {fmt(v.comissaoCalculada)}
+                            {v.comissaoItens && v.comissaoItens.length > 0 && (
+                              <span className="ml-1 text-[9px] text-blue-400" title="Comissão calculada por item">∑</span>
+                            )}
+                          </td>
                           <td className="px-4 py-2.5 text-center text-gray-500">{v.dataRecebimentoCliente ? fmtData(v.dataRecebimentoCliente) : "—"}</td>
                           <td className="px-4 py-2.5 text-center text-gray-500">{v.dataPagamentoComissao ? fmtData(v.dataPagamentoComissao) : "—"}</td>
                           <td className="px-4 py-2.5 text-center">
