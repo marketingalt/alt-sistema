@@ -4,10 +4,21 @@ import type { Orcamento, OrdemServico } from "@/app/types";
 
 export const dynamic = "force-dynamic";
 
+// ── GET /api/migrar/os-numero ──
+// Também aceita GET pra facilitar rodar pelo navegador
+
+export async function GET() {
+  return executarMigracao();
+}
+
 // ── POST /api/migrar/os-numero ──
 // Migração única: atualiza o numero das OS existentes para o numero do orçamento
 
 export async function POST() {
+  return executarMigracao();
+}
+
+async function executarMigracao() {
   try {
     const orcamentos = await dbGet<Orcamento[]>("orcamentos", []);
     const ordens = await dbGet<OrdemServico[]>("ordens-servico", []);
