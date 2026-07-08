@@ -9,7 +9,9 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 const TODOS_STATUS = Object.keys(STATUS_CONFIG) as StatusOrcamento[];
 
 function totalOrcamento(o: Orcamento) {
-  return o.itens.reduce((a, i) => a + (i.total || 0), 0);
+  const itens = o.itens.reduce((a, i) => a + (i.total || 0), 0);
+  const frete = (o.freteValor ?? 0) > 0 ? (o.freteValor ?? 0) : 0;
+  return itens + frete;
 }
 
 function custoTotalOrcamento(o: Orcamento) {
