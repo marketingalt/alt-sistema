@@ -10,6 +10,9 @@ import { calcularCustoTotal } from "@/lib/calculos";
 interface RegistroFaturamento {
   orcamentoId: string;
   custosReais?: number;
+  custo?: number;
+  imposto?: number;
+  comissao?: number;
   statusNota: "Pendente" | "Emitida" | "Cancelada";
   numeroNota?: string;
   dataEmissao?: string;
@@ -149,7 +152,12 @@ export default function FaturamentosPage() {
 
   const kpis = useMemo(() => {
     const totalAprovado = rows.reduce((s, r) => s + valorAprovado(r), 0);
-    const totalCustos   = rows.reduce((s, r) => s + (r.fat.custosReais ?? custosCalculados(r)), 0);
+    const totalCustos   = rows.reduce((s, r) => {
+      const imposto = r.fat.imposto ?? 0;
+      const comissao = r.fat.comissao ?? 0;
+      const custo = r.fat.custo ?? r.fat.custosReais ?? custosCalculados(r);
+      return s + imposto + comissao + custo;
+    }, 0);
     const totalPago     = rows.filter((r) => r.fat.pago).reduce((s, r) => s + valorAprovado(r), 0);
     const aPagar        = totalAprovado - totalPago;
     return { totalAprovado, totalCustos, totalPago, aPagar, rent: totalAprovado - totalCustos };
@@ -262,7 +270,7 @@ export default function FaturamentosPage() {
               <tr className="border-b border-gray-100 bg-gray-50/80">
                 {[
                   "CLIENTE", "JOB", "RESPONSÁVEL", "STATUS DO JOB",
-                  "VALOR APROVADO", "CUSTOS REAIS", "A PAGAR", "RENTABILIDADE",
+                  "VALOR APROVADO", "IMPOSTO", "COMISSÃO", "CUSTO", "A PAGAR", "RENTABILIDADE",
                   "STATUS NOTA", "Nº NOTA", "EMISSÃO", "VENCIMENTO", "PAGO",
                 ].map((h) => (
                   <th key={h} className="text-left px-3 py-2.5 font-semibold text-[10px] text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
@@ -271,14 +279,17 @@ export default function FaturamentosPage() {
             </thead>
             <tbody>
               {filtrados.length === 0 && (
-                <tr><td colSpan={13} className="text-center py-12 text-gray-400">Nenhum faturamento encontrado.</td></tr>
+                <tr><td colSpan={15} className="text-center py-12 text-gray-400">Nenhum faturamento encontrado.</td></tr>
               )}
               {filtrados.map((row) => {
-                const vAprov   = valorAprovado(row);
-                const vCusto   = row.fat.custosReais ?? custosCalculados(row);
-                const aPagar   = row.fat.pago ? 0 : vAprov;
-                const rent     = vAprov - vCusto;
-                const rentPct  = vAprov > 0 ? (rent / vAprov) * 100 : 0;
+                const vAprov     = valorAprovado(row);
+                const imposto   = row.fat.imposto ?? 0;
+                const comissao  = row.fat.comissao ?? 0;
+                const custo     = row.fat.custo ?? row.fat.custosReais ?? custosCalculados(row);
+                const despesas  = imposto + comissao + custo;
+                const aPagar    = row.fat.pago ? 0 : vAprov - despesas;
+                const rent      = vAprov - despesas;
+                const rentPct   = vAprov > 0 ? (rent / vAprov) * 100 : 0;
                 const jobCfg   = JOB_STATUS_CFG[row.status];
                 const notaCfg  = NOTA_STATUS_CFG[row.fat.statusNota];
                 const isSaving = salvando.has(row.id);
@@ -327,14 +338,34 @@ export default function FaturamentosPage() {
                       <p className="font-bold text-gray-800 whitespace-nowrap">{fmt(vAprov)}</p>
                     </td>
 
-                    {/* CUSTOS REAIS */}
+                    {/* IMPOSTO */}
                     <td className="px-3 py-2.5 text-right">
                       <CelulaEditavel
-                        valor={vCusto > 0 ? vCusto.toFixed(2) : ""}
+                        valor={imposto > 0 ? imposto.toFixed(2) : ""}
+                        tipo="number"
+                        placeholder="0,00"
+                        className="text-right text-red-600 font-medium"
+                        onSalvar={(v) => atualizarFat(row.id, { imposto: parseFloat(v) || 0 })}
+                      />
+                    </td>
+                    {/* COMISSÃO */}
+                    <td className="px-3 py-2.5 text-right">
+                      <CelulaEditavel
+                        valor={comissao > 0 ? comissao.toFixed(2) : ""}
+                        tipo="number"
+                        placeholder="0,00"
+                        className="text-right text-purple-700 font-medium"
+                        onSalvar={(v) => atualizarFat(row.id, { comissao: parseFloat(v) || 0 })}
+                      />
+                    </td>
+                    {/* CUSTO */}
+                    <td className="px-3 py-2.5 text-right">
+                      <CelulaEditavel
+                        valor={custo > 0 ? custo.toFixed(2) : ""}
                         tipo="number"
                         placeholder={fmt(custosCalculados(row))}
                         className="text-right text-orange-700 font-medium"
-                        onSalvar={(v) => atualizarFat(row.id, { custosReais: parseFloat(v) || 0 })}
+                        onSalvar={(v) => atualizarFat(row.id, { custo: parseFloat(v) || 0 })}
                       />
                     </td>
 
@@ -426,10 +457,12 @@ export default function FaturamentosPage() {
                 <tr className="border-t-2 border-gray-200 bg-gray-50">
                   <td colSpan={4} className="px-3 py-2.5 text-[10px] font-semibold text-gray-500 uppercase">Total</td>
                   <td className="px-3 py-2.5 text-right font-bold text-gray-800">{fmt(filtrados.reduce((s, r) => s + valorAprovado(r), 0))}</td>
-                  <td className="px-3 py-2.5 text-right font-bold text-orange-700">{fmt(filtrados.reduce((s, r) => s + (r.fat.custosReais ?? custosCalculados(r)), 0))}</td>
-                  <td className="px-3 py-2.5 text-right font-bold text-blue-700">{fmt(filtrados.filter((r) => !r.fat.pago).reduce((s, r) => s + valorAprovado(r), 0))}</td>
+                  <td className="px-3 py-2.5 text-right font-bold text-red-600">{fmt(filtrados.reduce((s, r) => s + (r.fat.imposto ?? 0), 0))}</td>
+                  <td className="px-3 py-2.5 text-right font-bold text-purple-700">{fmt(filtrados.reduce((s, r) => s + (r.fat.comissao ?? 0), 0))}</td>
+                  <td className="px-3 py-2.5 text-right font-bold text-orange-700">{fmt(filtrados.reduce((s, r) => s + (r.fat.custo ?? r.fat.custosReais ?? custosCalculados(r)), 0))}</td>
+                  <td className="px-3 py-2.5 text-right font-bold text-blue-700">{fmt(filtrados.filter((r) => !r.fat.pago).reduce((s, r) => s + Math.max(0, valorAprovado(r) - (r.fat.imposto ?? 0) - (r.fat.comissao ?? 0) - (r.fat.custo ?? r.fat.custosReais ?? custosCalculados(r))), 0))}</td>
                   <td className="px-3 py-2.5 text-right font-bold text-green-700">
-                    {fmt(filtrados.reduce((s, r) => s + (valorAprovado(r) - (r.fat.custosReais ?? custosCalculados(r))), 0))}
+                    {fmt(filtrados.reduce((s, r) => s + (valorAprovado(r) - (r.fat.imposto ?? 0) - (r.fat.comissao ?? 0) - (r.fat.custo ?? r.fat.custosReais ?? custosCalculados(r))), 0))}
                   </td>
                   <td colSpan={5} />
                 </tr>

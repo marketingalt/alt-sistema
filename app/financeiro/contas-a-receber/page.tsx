@@ -16,9 +16,14 @@ interface RegistroFaturamento {
   statusJob?: string;
   valorAprovadoManual?: number;
   custosReais?: number;
+  /** Substitui custosReais */
+  custo?: number;
+  imposto?: number;
+  comissao?: number;
   statusNota?: "Pendente" | "Emitida" | "Cancelada";
   numeroNota?: string;
   dataEmissao?: string;
+  diasPagamento?: number;
   vencimento?: string;
   pago?: boolean;
   dataPagamento?: string;
@@ -49,6 +54,13 @@ function calcCustosOrcamento(orc: Orcamento): number {
 function valorAprovadoOrcamento(orc: Orcamento): number {
   const subtotal = (orc.itens || []).reduce((s: number, it: ItemOrcamento) => s + (it.total || 0), 0);
   return subtotal + (orc.freteValor || 0) + (orc.custoManuseio || 0);
+}
+
+/** Tenta extrair número de dias de uma string tipo "20 dias", "30 dias à vista". Retorna undefined se não achar número. */
+function extrairDiasPrazo(prazo?: string): number | undefined {
+  if (!prazo) return undefined;
+  const match = prazo.match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : undefined;
 }
 
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -385,14 +397,36 @@ function NovoLancamentoModal({ onClose, onSalvar, ordensServico = [] }: NovoLanc
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-600">Custos Reais (R$)</label>
+              <label className="text-xs font-medium text-gray-600">Imposto (R$)</label>
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
-                value={form.custosReais || ""}
-                onChange={(e) => set("custosReais", parseFloat(e.target.value) || 0)}
+                value={form.imposto || ""}
+                onChange={(e) => set("imposto", parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Comissão (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                value={form.comissao || ""}
+                onChange={(e) => set("comissao", parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Custo (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                value={form.custo ?? form.custosReais ?? ""}
+                onChange={(e) => set("custo", parseFloat(e.target.value) || 0)}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -421,7 +455,33 @@ function NovoLancamentoModal({ onClose, onSalvar, ordensServico = [] }: NovoLanc
                 type="date"
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
                 value={form.dataEmissao || ""}
-                onChange={(e) => set("dataEmissao", e.target.value)}
+                onChange={(e) => {
+                  set("dataEmissao", e.target.value);
+                  if (form.diasPagamento && e.target.value) {
+                    const base = new Date(e.target.value + "T12:00:00");
+                    base.setDate(base.getDate() + form.diasPagamento);
+                    set("vencimento", base.toISOString().split("T")[0]);
+                  }
+                }}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Dias Pagamento</label>
+              <input
+                type="number"
+                min="0"
+                placeholder="Ex: 20"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                value={form.diasPagamento ?? ""}
+                onChange={(e) => {
+                  const dias = parseInt(e.target.value, 10) || 0;
+                  set("diasPagamento", dias);
+                  if (dias > 0 && form.dataEmissao) {
+                    const base = new Date(form.dataEmissao + "T12:00:00");
+                    base.setDate(base.getDate() + dias);
+                    set("vencimento", base.toISOString().split("T")[0]);
+                  }
+                }}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -485,17 +545,27 @@ interface DrawerDetalheProps {
 }
 
 function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheProps) {
+  const diasInicial = row.fat.diasPagamento ?? extrairDiasPrazo(row.orcamento?.prazoPagamento);
   const [form, setForm] = useState<Partial<RegistroFaturamento>>({
     cliente: row.fat.cliente || row.cliente,
     job: row.fat.job || row.job,
     responsavel: row.fat.responsavel || row.responsavel,
     statusJob: row.fat.statusJob || row.statusJob,
     valorAprovadoManual: row.fat.valorAprovadoManual || (row.tipo === "manual" ? row.valorAprovado : undefined),
-    custosReais: row.fat.custosReais,
+    custo: row.fat.custo ?? row.fat.custosReais,
+    imposto: row.fat.imposto,
+    comissao: row.fat.comissao,
     statusNota: row.fat.statusNota || "Pendente",
     numeroNota: row.fat.numeroNota,
     dataEmissao: row.fat.dataEmissao,
-    vencimento: row.fat.vencimento,
+    diasPagamento: diasInicial,
+    vencimento: row.fat.vencimento ?? (diasInicial && row.fat.dataEmissao
+      ? (() => {
+          const base = new Date(row.fat.dataEmissao + "T12:00:00");
+          base.setDate(base.getDate() + diasInicial);
+          return base.toISOString().split("T")[0];
+        })()
+      : undefined),
     pago: row.fat.pago || false,
     dataPagamento: row.fat.dataPagamento,
     ordemServicoId: row.fat.ordemServicoId,
@@ -601,14 +671,36 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-600">Custos Reais (R$)</label>
+              <label className="text-xs font-medium text-gray-600">Imposto (R$)</label>
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
-                value={form.custosReais ?? ""}
-                onChange={(e) => set("custosReais", parseFloat(e.target.value) || 0)}
+                value={form.imposto ?? ""}
+                onChange={(e) => set("imposto", parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Comissão (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                value={form.comissao ?? ""}
+                onChange={(e) => set("comissao", parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Custo (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                value={form.custo ?? ""}
+                onChange={(e) => set("custo", parseFloat(e.target.value) || 0)}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -637,7 +729,33 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
                 type="date"
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
                 value={form.dataEmissao || ""}
-                onChange={(e) => set("dataEmissao", e.target.value)}
+                onChange={(e) => {
+                  set("dataEmissao", e.target.value);
+                  if (form.diasPagamento && e.target.value) {
+                    const base = new Date(e.target.value + "T12:00:00");
+                    base.setDate(base.getDate() + form.diasPagamento);
+                    set("vencimento", base.toISOString().split("T")[0]);
+                  }
+                }}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600">Dias Pagamento</label>
+              <input
+                type="number"
+                min="0"
+                placeholder="Ex: 20"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                value={form.diasPagamento ?? ""}
+                onChange={(e) => {
+                  const dias = parseInt(e.target.value, 10) || 0;
+                  set("diasPagamento", dias);
+                  if (dias > 0 && form.dataEmissao) {
+                    const base = new Date(form.dataEmissao + "T12:00:00");
+                    base.setDate(base.getDate() + dias);
+                    set("vencimento", base.toISOString().split("T")[0]);
+                  }
+                }}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -810,7 +928,7 @@ export default function ContasAReceberPage() {
 
   const kpis = useMemo(() => {
     const totalAprovado = rowsMes.reduce((s, r) => s + r.valorAprovado, 0);
-    const totalCustos = rowsMes.reduce((s, r) => s + (r.fat.custosReais ?? r.custosCalculados), 0);
+    const totalCustos = rowsMes.reduce((s, r) => s + (r.fat.imposto ?? 0) + (r.fat.comissao ?? 0) + (r.fat.custo ?? r.fat.custosReais ?? r.custosCalculados), 0);
     const aReceber = rowsMes.filter((r) => !r.fat.pago).reduce((s, r) => s + r.valorAprovado, 0);
     const recebido = rowsMes.filter((r) => r.fat.pago).reduce((s, r) => s + r.valorAprovado, 0);
     const inadimplente = rowsMes.filter((r) => statusReceber(r) === "inadimplente").reduce((s, r) => s + r.valorAprovado, 0);
@@ -836,7 +954,7 @@ export default function ContasAReceberPage() {
 
     let parsed: unknown = value;
     if (field === "pago") parsed = value === "true";
-    if (field === "valorAprovadoManual" || field === "custosReais") parsed = parseFloat(value) || 0;
+    if (field === "valorAprovadoManual" || field === "custosReais" || field === "custo" || field === "imposto" || field === "comissao" || field === "diasPagamento") parsed = parseFloat(value) || 0;
     if (field === "ordemServicoId") parsed = value;
 
     const id = row.tipo === "manual" ? row.fat.id : row.orcamento?.id;
@@ -858,11 +976,15 @@ export default function ContasAReceberPage() {
   const mesAnoLabel = `${String(mesSel + 1).padStart(2, "0")}-${anoSel}`;
 
   function exportCSV() {
-    const headers = ["Cliente", "Job", "Responsável", "Status Job", "Valor Aprovado", "Custos Reais", "A Pagar", "Rentabilidade (%)", "Status Nota", "Nº Nota", "Emissão", "Vencimento", "Pago", "OS"];
+    const headers = ["Cliente", "Job", "Responsável", "Status Job", "Valor Aprovado", "Imposto", "Comissão", "Custo", "A Pagar", "Rentabilidade (%)", "Status Nota", "Nº Nota", "Emissão", "Vencimento", "Pago", "OS"];
     const fmtData = (d?: string) => d ? `${d.split("-")[2]}/${d.split("-")[1]}/${d.split("-")[0]}` : "";
     const rowsData = rowsFiltradas.map((r) => {
-      const aPagar = r.valorAprovado - (r.fat.custosReais ?? r.custosCalculados);
-      const rentab = r.valorAprovado > 0 ? ((r.valorAprovado - (r.fat.custosReais ?? r.custosCalculados)) / r.valorAprovado * 100) : 0;
+      const _imposto = r.fat.imposto ?? 0;
+      const _comissao = r.fat.comissao ?? 0;
+      const _custo = r.fat.custo ?? r.fat.custosReais ?? r.custosCalculados;
+      const despesas = _imposto + _comissao + _custo;
+      const aPagar = r.valorAprovado - despesas;
+      const rentab = r.valorAprovado > 0 ? ((r.valorAprovado - despesas) / r.valorAprovado * 100) : 0;
       const os = r.fat.ordemServicoId
         ? `#${ordensServico.find((os) => os.id === r.fat.ordemServicoId)?.numero ?? ""}`
         : "";
@@ -872,7 +994,9 @@ export default function ContasAReceberPage() {
         r.responsavel,
         r.statusJob,
         String(r.valorAprovado),
-        String(r.fat.custosReais ?? r.custosCalculados),
+        String(_imposto),
+        String(_comissao),
+        String(_custo),
         String(aPagar),
         String(rentab.toFixed(1)),
         r.fat.statusNota ?? "",
@@ -888,8 +1012,12 @@ export default function ContasAReceberPage() {
 
   async function exportPDF() {
     const linhas = rowsFiltradas.map((r) => {
-      const aPagar = r.valorAprovado - (r.fat.custosReais ?? r.custosCalculados);
-      const rentab = r.valorAprovado > 0 ? ((r.valorAprovado - (r.fat.custosReais ?? r.custosCalculados)) / r.valorAprovado * 100) : 0;
+      const _imposto = r.fat.imposto ?? 0;
+      const _comissao = r.fat.comissao ?? 0;
+      const _custo = r.fat.custo ?? r.fat.custosReais ?? r.custosCalculados;
+      const despesas = _imposto + _comissao + _custo;
+      const aPagar = r.valorAprovado - despesas;
+      const rentab = r.valorAprovado > 0 ? ((r.valorAprovado - despesas) / r.valorAprovado * 100) : 0;
       const os = r.fat.ordemServicoId
         ? `#${ordensServico.find((os) => os.id === r.fat.ordemServicoId)?.numero ?? ""}`
         : "";
@@ -899,7 +1027,9 @@ export default function ContasAReceberPage() {
         responsavel: r.responsavel,
         statusJob: r.statusJob,
         valorAprovado: r.valorAprovado,
-        custos: r.fat.custosReais ?? r.custosCalculados,
+        imposto: _imposto,
+        comissao: _comissao,
+        custos: _custo,
         aPagar,
         rentabilidade: rentab,
         statusNota: r.fat.statusNota ?? "",
@@ -1090,7 +1220,7 @@ export default function ContasAReceberPage() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-100">
-                  {["CLIENTE", "JOB", "RESPONSÁVEL", "STATUS DO JOB", "VALOR APROVADO", "CUSTOS REAIS", "A PAGAR", "RENTABILIDADE", "STATUS NOTA", "OS", "Nº NOTA", "EMISSÃO", "VENCIMENTO", "PAGO", ""].map((h) => (
+                  {["CLIENTE", "JOB", "RESPONSÁVEL", "STATUS DO JOB", "VALOR APROVADO", "IMPOSTO", "COMISSÃO", "CUSTO", "A PAGAR", "RENTABILIDADE", "STATUS NOTA", "OS", "Nº NOTA", "EMISSÃO", "VENCIMENTO", "PAGO", ""].map((h) => (
                     <th key={h} className="text-left px-4 py-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
                       {h}
                     </th>
@@ -1099,9 +1229,12 @@ export default function ContasAReceberPage() {
               </thead>
               <tbody>
                 {rowsFiltradas.map((row) => {
-                  const custos = row.fat.custosReais ?? row.custosCalculados;
-                  const aPagar = row.valorAprovado - custos;
-                  const rent = row.valorAprovado > 0 ? ((row.valorAprovado - custos) / row.valorAprovado) * 100 : 0;
+                  const imposto = row.fat.imposto ?? 0;
+                  const comissao = row.fat.comissao ?? 0;
+                  const custo = row.fat.custo ?? row.fat.custosReais ?? row.custosCalculados;
+                  const despesasTotais = imposto + comissao + custo;
+                  const aPagar = row.valorAprovado - despesasTotais;
+                  const rent = row.valorAprovado > 0 ? ((row.valorAprovado - despesasTotais) / row.valorAprovado) * 100 : 0;
 
                   return (
                     <tr key={row.rowId} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => setDetalheAberto(row)}>
@@ -1159,10 +1292,26 @@ export default function ContasAReceberPage() {
                       </td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                         <Cell
-                          value={custos > 0 ? custos.toFixed(2) : ""}
+                          value={imposto > 0 ? imposto.toFixed(2) : ""}
+                          mode="number"
+                          placeholder="0,00"
+                          onSave={(v) => salvarCelula(row.rowId, "imposto", v)}
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                        <Cell
+                          value={comissao > 0 ? comissao.toFixed(2) : ""}
+                          mode="number"
+                          placeholder="0,00"
+                          onSave={(v) => salvarCelula(row.rowId, "comissao", v)}
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                        <Cell
+                          value={custo > 0 ? custo.toFixed(2) : ""}
                           mode="number"
                           placeholder={row.custosCalculados > 0 ? `≈ ${fmt(row.custosCalculados)}` : "—"}
-                          onSave={(v) => salvarCelula(row.rowId, "custosReais", v)}
+                          onSave={(v) => salvarCelula(row.rowId, "custo", v)}
                         />
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
