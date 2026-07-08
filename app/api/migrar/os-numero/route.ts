@@ -12,7 +12,6 @@ export async function GET() {
 }
 
 // ── POST /api/migrar/os-numero ──
-// Migração única: atualiza o numero das OS existentes para o numero do orçamento
 
 export async function POST() {
   return executarMigracao();
@@ -23,12 +22,20 @@ async function executarMigracao() {
     const orcamentos = await dbGet<Orcamento[]>("orcamentos", []);
     const ordens = await dbGet<OrdemServico[]>("ordens-servico", []);
 
+    // Debug: mostra o que encontrou
+    const debug: string[] = [];
+    debug.push(`Orçamentos encontrados: ${orcamentos.length}`);
+    debug.push(`OS encontradas: ${ordens.length}`);
+    debug.push(`Orçamento 1670: ${JSON.stringify(orcamentos.find(o => o.numero === '1670')?.id)}`);
+    debug.push(`OS 1001: ${JSON.stringify(ordens.find(o => o.numero === '1001'), null, 2)}`);
+
     const orcNumMap = new Map(orcamentos.map((o) => [o.id, o.numero]));
 
     let mudancas = 0;
     for (const os of ordens) {
       const numOrc = orcNumMap.get(os.orcamentoId);
       if (numOrc && os.numero !== numOrc) {
+        debug.push(`OS ${os.numero} → ${numOrc} (orcamentoId=${os.orcamentoId})`);
         os.numero = numOrc;
         mudancas++;
       }
@@ -41,9 +48,10 @@ async function executarMigracao() {
     return NextResponse.json({
       ok: true,
       mensagem: `${mudancas} OS atualizada(s) com o número do orçamento.`,
+      debug,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: msg, debug: [] }, { status: 500 });
   }
 }
