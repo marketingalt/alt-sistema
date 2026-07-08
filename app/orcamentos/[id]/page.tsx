@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import type { Orcamento, ItemOrcamento, StatusOrcamento, Fornecedor } from "@/app/types";
+import type { Orcamento, ItemOrcamento, StatusOrcamento, Fornecedor, VersaoOrcamento } from "@/app/types";
 import { STATUS_CONFIG } from "@/app/types";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima } from "@/lib/calculos";
@@ -101,6 +101,14 @@ export default function VisualizarOrcamento() {
   const [modo, setModo] = useState<ModoVisualizacao>("visualizacao");
   const [osVinculada, setOsVinculada] = useState<{ id: string; numero: string } | null>(null);
 
+  // ── Estado de versões ──
+  const [mostrarPainelVersoes, setMostrarPainelVersoes] = useState(false);
+  const [versoes, setVersoes] = useState<VersaoOrcamento[]>([]);
+  const [mostrarModalVersao, setMostrarModalVersao] = useState(false);
+  const [novaVersaoNome, setNovaVersaoNome] = useState("");
+  const [salvandoVersao, setSalvandoVersao] = useState(false);
+  const [carregandoVersoes, setCarregandoVersoes] = useState(false);
+
   // ── Efeitos (existente) ──
   useEffect(() => {
     fetch(`/api/orcamentos/${id}`)
@@ -146,6 +154,13 @@ export default function VisualizarOrcamento() {
     }).catch(() => {});
   }, [orcamento?.id]);
 
+  // Carrega versões ao abrir o painel
+  useEffect(() => {
+    if (mostrarPainelVersoes) {
+      carregarVersoes();
+    }
+  }, [mostrarPainelVersoes]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const draftKey = `${DRAFT_KEY_PREFIX}${id}`;
   const { savedAt: draftSavedAt, isSaving: draftIsSaving } = useAutoSave(draftKey, orcamento, orcamento !== null);
 
@@ -173,6 +188,13 @@ export default function VisualizarOrcamento() {
       })
       .catch(() => {});
   }, [modalFreteProducao]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Preenche nome da versão ao abrir modal
+  useEffect(() => {
+    if (mostrarModalVersao) {
+      setNovaVersaoNome(sugerirNomeVersao());
+    }
+  }, [mostrarModalVersao]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Funções (existente) ──
   function atualizarCampo(campo: keyof Orcamento, valor: string | number | boolean) {
@@ -335,6 +357,74 @@ export default function VisualizarOrcamento() {
       console.error("[PDF CLIENT]", msg);
     } finally {
       setGerandoPdf(false);
+    }
+  }
+
+  // ── Versões ──
+  function sugerirNomeVersao(): string {
+    return `v${versoes.length + 1}`;
+  }
+
+  async function carregarVersoes() {
+    setCarregandoVersoes(true);
+    try {
+      const res = await fetch(`/api/orcamentos/${id}/versoes`);
+      if (res.ok) {
+        const data = await res.json();
+        setVersoes(data);
+      }
+    } catch {
+      // silencioso — lista não crítica
+    } finally {
+      setCarregandoVersoes(false);
+    }
+  }
+
+  async function handleSalvarVersao() {
+    if (!orcamento || !novaVersaoNome.trim()) return;
+    setSalvandoVersao(true);
+    try {
+      const { versoes: _, ...dadosSnapshot } = orcamento;
+      const res = await fetch(`/api/orcamentos/${id}/versoes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome: novaVersaoNome.trim(), dados: dadosSnapshot }),
+      });
+      if (!res.ok) throw new Error("Erro ao salvar versão");
+      const novaVersao: VersaoOrcamento = await res.json();
+      setVersoes((prev) => [novaVersao, ...prev]);
+      setMostrarModalVersao(false);
+      setNovaVersaoNome("");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao salvar versão";
+      alert(msg);
+    } finally {
+      setSalvandoVersao(false);
+    }
+  }
+
+  async function handleRestaurarVersao(versaoId: string) {
+    if (!confirm("Restaurar esta versão? Alterações não salvas serão perdidas.")) return;
+    try {
+      const res = await fetch(`/api/orcamentos/${id}/versoes/${versaoId}/restaurar`, { method: "POST" });
+      if (!res.ok) throw new Error("Erro ao restaurar versão");
+      const dadosRestaurados = await res.json();
+      setOrcamento((prev) => {
+        if (!prev) return prev;
+        const margem = dadosRestaurados.margemPadrao ?? MARGEM_PADRAO;
+        return {
+          ...dadosRestaurados,
+          id: prev.id,
+          createdAt: prev.createdAt,
+          versoes: prev.versoes,
+          itens: (dadosRestaurados.itens || []).map((i: Partial<ItemOrcamento>) => migrarItem(i, margem)),
+        };
+      });
+      setSalvo(false);
+      setMostrarPainelVersoes(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao restaurar versão";
+      alert(msg);
     }
   }
 
@@ -614,6 +704,71 @@ export default function VisualizarOrcamento() {
                 </button>
               </div>
             </div>
+
+            {/* Botões de versão */}
+            <div className="flex items-center gap-2 mb-6">
+              <button
+                onClick={() => setMostrarModalVersao(true)}
+                className="text-xs font-semibold py-2 px-4 rounded-lg bg-white border border-gray-200 text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition flex items-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Salvar Versão
+              </button>
+              <button
+                onClick={() => setMostrarPainelVersoes(!mostrarPainelVersoes)}
+                className={`text-xs font-semibold py-2 px-4 rounded-lg border transition flex items-center gap-1.5 ${
+                  mostrarPainelVersoes
+                    ? "bg-gray-800 text-white border-gray-800"
+                    : "bg-white text-gray-700 border-gray-200 hover:border-gray-400 hover:bg-gray-50"
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Versões
+                {versoes.length > 0 && (
+                  <span className="ml-0.5 text-[10px] bg-current rounded-full px-1.5 py-0.5"
+                    style={{ color: mostrarPainelVersoes ? "#fff" : "#6b7280", background: mostrarPainelVersoes ? "#fff" : "#e5e7eb" }}>
+                    {versoes.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Painel de versões */}
+            {mostrarPainelVersoes && (
+              <div className="mb-6 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Histórico de Versões</h3>
+                </div>
+                {carregandoVersoes ? (
+                  <div className="px-4 py-6 text-center text-sm text-gray-400">Carregando...</div>
+                ) : versoes.length === 0 ? (
+                  <div className="px-4 py-6 text-center text-sm text-gray-400">Nenhuma versão salva ainda.</div>
+                ) : (
+                  <div className="divide-y divide-gray-50 max-h-64 overflow-y-auto">
+                    {versoes.map((v) => (
+                      <div key={v.id} className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-800 truncate">{v.nome}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {new Date(v.criadaEm).toLocaleString("pt-BR")}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleRestaurarVersao(v.id)}
+                          className="text-xs font-semibold py-1.5 px-3 rounded-lg text-blue-600 hover:bg-blue-50 border border-blue-200 hover:border-blue-300 transition shrink-0 ml-3"
+                        >
+                          Restaurar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Informações gerais */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
@@ -1262,6 +1417,44 @@ export default function VisualizarOrcamento() {
           />
         );
       })()}
+
+      {/* Modal de salvar versão */}
+      {mostrarModalVersao && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => { setMostrarModalVersao(false); setNovaVersaoNome(""); }}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-gray-800 mb-1">Salvar Versão</h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Cria um snapshot do estado atual do orçamento.
+            </p>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Nome da versão</label>
+            <input
+              type="text"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+              value={novaVersaoNome}
+              onChange={(e) => setNovaVersaoNome(e.target.value)}
+              placeholder={sugerirNomeVersao()}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSalvarVersao(); }}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => { setMostrarModalVersao(false); setNovaVersaoNome(""); }}
+                className="text-sm font-semibold py-2 px-4 rounded-lg text-gray-500 hover:bg-gray-100 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSalvarVersao}
+                disabled={salvandoVersao || !novaVersaoNome.trim()}
+                className="text-sm font-semibold py-2 px-4 rounded-lg bg-[#fb4d06] text-white hover:opacity-90 transition disabled:opacity-50"
+              >
+                {salvandoVersao ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </WorkspaceLayout>
   );
 }

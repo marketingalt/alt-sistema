@@ -167,6 +167,13 @@ export interface Produto {
   userName?: string;
 }
 
+export interface VersaoOrcamento {
+  id: string;
+  nome: string;
+  dados: Omit<Orcamento, 'versoes'>;
+  criadaEm: string;
+}
+
 export interface Orcamento {
   id: string;
   userId?: string;
@@ -198,6 +205,7 @@ export interface Orcamento {
   tags?: string[]; // IDs dos projetos de Planejamento
   documentos?: DocumentoFornecedor[];
   createdAt: string;
+  versoes?: VersaoOrcamento[];
 }
 
 // ── Planejamento (ClickUp-style) ─────────────────────

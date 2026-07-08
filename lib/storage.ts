@@ -1,4 +1,4 @@
-import type { Orcamento, Fornecedor, Cliente, Produto, Projeto, Tarefa, OrdemServico, ItemOS } from "@/app/types";
+import type { Orcamento, Fornecedor, Cliente, Produto, Projeto, Tarefa, OrdemServico, ItemOS, VersaoOrcamento } from "@/app/types";
 import { dbGet, dbSet } from "./storage-adapter";
 
 // ── Fornecedores ────────────────────────────
@@ -161,6 +161,39 @@ export async function salvarOrcamento(orcamento: Orcamento): Promise<Orcamento> 
 export async function deletarOrcamento(id: string): Promise<void> {
   const lista = await getOrcamentos();
   await dbSet("orcamentos", lista.filter((o) => o.id !== id));
+}
+
+// ── Versões de Orçamento ────────────────────────
+
+export async function salvarVersao(orcamentoId: string, nome: string, dadosSnapshot: Omit<Orcamento, 'versoes'>): Promise<VersaoOrcamento | null> {
+  const lista = await getOrcamentos();
+  const idx = lista.findIndex((o) => o.id === orcamentoId);
+  if (idx < 0) return null;
+  const novaVersao: VersaoOrcamento = {
+    id: Math.random().toString(36).substring(2, 10),
+    nome,
+    dados: dadosSnapshot,
+    criadaEm: new Date().toISOString(),
+  };
+  const orcamento = lista[idx];
+  orcamento.versoes = [...(orcamento.versoes || []), novaVersao];
+  lista[idx] = orcamento;
+  await dbSet("orcamentos", lista);
+  return novaVersao;
+}
+
+export async function restaurarVersao(orcamentoId: string, versaoId: string): Promise<Omit<Orcamento, 'versoes'> | null> {
+  const lista = await getOrcamentos();
+  const orcamento = lista.find((o) => o.id === orcamentoId);
+  if (!orcamento || !orcamento.versoes) return null;
+  const versao = orcamento.versoes.find((v) => v.id === versaoId);
+  return versao?.dados ?? null;
+}
+
+export async function listarVersoes(orcamentoId: string): Promise<VersaoOrcamento[]> {
+  const lista = await getOrcamentos();
+  const orcamento = lista.find((o) => o.id === orcamentoId);
+  return orcamento?.versoes || [];
 }
 
 // ── Sincronização Planejamento ─────────────────
