@@ -421,7 +421,12 @@ function NovoLancamentoModal({ onClose, onSalvar, ordensServico = [] }: NovoLanc
                     max="100"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-6"
                     value={form.percentualImposto ?? ""}
-                    onChange={(e) => set("percentualImposto", parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const pct = parseFloat(e.target.value) || 0;
+                      set("percentualImposto", pct);
+                      const base = form.valorAprovadoManual || 0;
+                      set("imposto", base * (pct / 100));
+                    }}
                   />
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">%</span>
                 </div>
@@ -450,7 +455,12 @@ function NovoLancamentoModal({ onClose, onSalvar, ordensServico = [] }: NovoLanc
                     max="100"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-6"
                     value={form.percentualComissao ?? ""}
-                    onChange={(e) => set("percentualComissao", parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const pct = parseFloat(e.target.value) || 0;
+                      set("percentualComissao", pct);
+                      const base = form.valorAprovadoManual || 0;
+                      set("comissao", base * (pct / 100));
+                    }}
                   />
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">%</span>
                 </div>
@@ -733,7 +743,12 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
                     max="100"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-6"
                     value={form.percentualImposto ?? ""}
-                    onChange={(e) => set("percentualImposto", parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const pct = parseFloat(e.target.value) || 0;
+                      set("percentualImposto", pct);
+                      const base = row.valorAprovado;
+                      set("imposto", base * (pct / 100));
+                    }}
                   />
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">%</span>
                 </div>
@@ -762,7 +777,12 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
                     max="100"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-6"
                     value={form.percentualComissao ?? ""}
-                    onChange={(e) => set("percentualComissao", parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const pct = parseFloat(e.target.value) || 0;
+                      set("percentualComissao", pct);
+                      const base = row.valorAprovado;
+                      set("comissao", base * (pct / 100));
+                    }}
                   />
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">%</span>
                 </div>
