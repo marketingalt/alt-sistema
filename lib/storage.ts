@@ -344,3 +344,46 @@ export async function gerarOSdeOrcamento(orcamento: Orcamento): Promise<OrdemSer
   await salvarOrdemServico(nova);
   return nova;
 }
+
+// ── Financeiro Kanban (auto-criação ao aprovar) ────────
+
+export async function criarTarefaFinanceira(orcamento: Orcamento): Promise<void> {
+  if (orcamento.status !== "Aprovado") return;
+
+  const tarefas = await dbGet<Tarefa[]>("financeiro-planejamento-tarefas", []);
+
+  // Verifica se já existe tarefa pra este orçamento
+  const jaExiste = tarefas.some((t) => t.customFields?.orcamentoId === orcamento.id);
+  if (jaExiste) return;
+
+  // Pega o ID da primeira coluna
+  const colunas = await dbGet<any[]>("financeiro-planejamento-config", []);
+  const ordenadas = [...colunas].sort((a, b) => a.ordem - b.ordem);
+  const primeiraColuna = ordenadas[0];
+  if (!primeiraColuna) return;
+
+  const valorTotal = orcamento.itens.reduce((s, i) => s + (i.total || 0), 0) + ((orcamento.freteValor ?? 0) > 0 ? (orcamento.freteValor ?? 0) : 0);
+
+  const nova: Tarefa = {
+    id: Math.random().toString(36).substring(2, 10),
+    projectId: "financeiro",
+    statusId: primeiraColuna.id,
+    titulo: `${orcamento.cliente}${orcamento.nomeProjeto ? ` - ${orcamento.nomeProjeto}` : ""}`,
+    descricao: `Orçamento #${orcamento.numero}`,
+    dataVencimento: "",
+    etiquetas: [],
+    responsaveis: [],
+    ordem: tarefas.filter((t) => t.statusId === primeiraColuna.id).length,
+    customFields: {
+      orcamentoId: orcamento.id,
+      orcamentoNumero: orcamento.numero,
+      orcamentoValor: valorTotal,
+    },
+    timeTracking: { totalSeconds: 0, logs: [] },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  tarefas.push(nova);
+  await dbSet("financeiro-planejamento-tarefas", tarefas);
+}

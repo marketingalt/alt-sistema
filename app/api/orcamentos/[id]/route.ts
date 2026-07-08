@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buscarOrcamento, salvarOrcamento, deletarOrcamento, listarOrcamentos, sincronizarTarefasOrcamento, gerarOSdeOrcamento } from "@/lib/storage";
+import { buscarOrcamento, salvarOrcamento, deletarOrcamento, listarOrcamentos, sincronizarTarefasOrcamento, gerarOSdeOrcamento, criarTarefaFinanceira } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +30,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // Gerar OS automaticamente se o orçamento foi aprovado
     gerarOSdeOrcamento(salvo).catch((err) =>
       console.error("[ORCAMENTO OS ERROR]", err)
+    );
+
+    // Criar tarefa no Financeiro Kanban se aprovado
+    criarTarefaFinanceira(salvo).catch((err) =>
+      console.error("[FINANCEIRO TASK ERROR]", err)
     );
 
     return NextResponse.json(salvo, { headers: NO_CACHE_HEADERS });
