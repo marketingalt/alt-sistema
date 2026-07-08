@@ -12,7 +12,9 @@ interface RegistroFaturamento {
   custosReais?: number;
   custo?: number;
   imposto?: number;
+  percentualImposto?: number;
   comissao?: number;
+  percentualComissao?: number;
   statusNota: "Pendente" | "Emitida" | "Cancelada";
   numeroNota?: string;
   dataEmissao?: string;
@@ -340,23 +342,47 @@ export default function FaturamentosPage() {
 
                     {/* IMPOSTO */}
                     <td className="px-3 py-2.5 text-right">
-                      <CelulaEditavel
-                        valor={imposto > 0 ? imposto.toFixed(2) : ""}
-                        tipo="number"
-                        placeholder="0,00"
-                        className="text-right text-red-600 font-medium"
-                        onSalvar={(v) => atualizarFat(row.id, { imposto: parseFloat(v) || 0 })}
-                      />
+                      <div className="flex items-center justify-end gap-1">
+                        <CelulaEditavel
+                          valor={imposto > 0 ? imposto.toFixed(2) : ""}
+                          tipo="number"
+                          placeholder="0,00"
+                          className="text-right text-red-600 font-medium"
+                          onSalvar={(v) => {
+                            if (v.endsWith("%")) {
+                              const pct = parseFloat(v) || 0;
+                              atualizarFat(row.id, { imposto: vAprov * (pct / 100), percentualImposto: pct });
+                            } else {
+                              atualizarFat(row.id, { imposto: parseFloat(v) || 0 });
+                            }
+                          }}
+                        />
+                        {row.fat.percentualImposto != null && (
+                          <span className="text-[10px] text-gray-400 font-medium">({row.fat.percentualImposto}%)</span>
+                        )}
+                      </div>
                     </td>
                     {/* COMISSÃO */}
                     <td className="px-3 py-2.5 text-right">
-                      <CelulaEditavel
-                        valor={comissao > 0 ? comissao.toFixed(2) : ""}
-                        tipo="number"
-                        placeholder="0,00"
-                        className="text-right text-purple-700 font-medium"
-                        onSalvar={(v) => atualizarFat(row.id, { comissao: parseFloat(v) || 0 })}
-                      />
+                      <div className="flex items-center justify-end gap-1">
+                        <CelulaEditavel
+                          valor={comissao > 0 ? comissao.toFixed(2) : ""}
+                          tipo="number"
+                          placeholder="0,00"
+                          className="text-right text-purple-700 font-medium"
+                          onSalvar={(v) => {
+                            if (v.endsWith("%")) {
+                              const pct = parseFloat(v) || 0;
+                              atualizarFat(row.id, { comissao: vAprov * (pct / 100), percentualComissao: pct });
+                            } else {
+                              atualizarFat(row.id, { comissao: parseFloat(v) || 0 });
+                            }
+                          }}
+                        />
+                        {row.fat.percentualComissao != null && (
+                          <span className="text-[10px] text-gray-400 font-medium">({row.fat.percentualComissao}%)</span>
+                        )}
+                      </div>
                     </td>
                     {/* CUSTO */}
                     <td className="px-3 py-2.5 text-right">

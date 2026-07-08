@@ -46,7 +46,9 @@ export type DbKey =
   | "planejamento-tarefas"
   | "ordens-servico"
   | "financeiro-planejamento-config"
-  | "financeiro-planejamento-tarefas";
+  | "financeiro-planejamento-tarefas"
+  | "financeiro-vendedores"
+  | "financeiro-vendas";
 
 // ── Detecta ambiente ──
 

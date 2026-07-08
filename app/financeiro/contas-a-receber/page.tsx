@@ -19,7 +19,9 @@ interface RegistroFaturamento {
   /** Substitui custosReais */
   custo?: number;
   imposto?: number;
+  percentualImposto?: number;
   comissao?: number;
+  percentualComissao?: number;
   statusNota?: "Pendente" | "Emitida" | "Cancelada";
   numeroNota?: string;
   dataEmissao?: string;
@@ -396,27 +398,63 @@ function NovoLancamentoModal({ onClose, onSalvar, ordensServico = [] }: NovoLanc
                 ))}
               </select>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-600">Imposto (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
-                value={form.imposto || ""}
-                onChange={(e) => set("imposto", parseFloat(e.target.value) || 0)}
-              />
+            <div className="flex flex-col gap-1 col-span-2">
+              <label className="text-xs font-medium text-gray-600">Imposto</label>
+              <div className="flex gap-2 items-center">
+                <div className="flex-1 relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-7"
+                    value={form.imposto || ""}
+                    onChange={(e) => set("imposto", parseFloat(e.target.value) || 0)}
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">R$</span>
+                </div>
+                <span className="text-gray-300 text-xs">ou</span>
+                <div className="flex-shrink-0 relative" style={{ width: 100 }}>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-6"
+                    value={form.percentualImposto ?? ""}
+                    onChange={(e) => set("percentualImposto", parseFloat(e.target.value) || 0)}
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">%</span>
+                </div>
+              </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-600">Comissão (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
-                value={form.comissao || ""}
-                onChange={(e) => set("comissao", parseFloat(e.target.value) || 0)}
-              />
+            <div className="flex flex-col gap-1 col-span-2">
+              <label className="text-xs font-medium text-gray-600">Comissão</label>
+              <div className="flex gap-2 items-center">
+                <div className="flex-1 relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-7"
+                    value={form.comissao || ""}
+                    onChange={(e) => set("comissao", parseFloat(e.target.value) || 0)}
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">R$</span>
+                </div>
+                <span className="text-gray-300 text-xs">ou</span>
+                <div className="flex-shrink-0 relative" style={{ width: 100 }}>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-6"
+                    value={form.percentualComissao ?? ""}
+                    onChange={(e) => set("percentualComissao", parseFloat(e.target.value) || 0)}
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">%</span>
+                </div>
+              </div>
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-600">Custo (R$)</label>
@@ -554,7 +592,9 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
     valorAprovadoManual: row.fat.valorAprovadoManual || (row.tipo === "manual" ? row.valorAprovado : undefined),
     custo: row.fat.custo ?? row.fat.custosReais,
     imposto: row.fat.imposto,
+    percentualImposto: row.fat.percentualImposto,
     comissao: row.fat.comissao,
+    percentualComissao: row.fat.percentualComissao,
     statusNota: row.fat.statusNota || "Pendente",
     numeroNota: row.fat.numeroNota,
     dataEmissao: row.fat.dataEmissao,
@@ -670,27 +710,63 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
                 onChange={(e) => set("valorAprovadoManual", parseFloat(e.target.value) || 0)}
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-600">Imposto (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
-                value={form.imposto ?? ""}
-                onChange={(e) => set("imposto", parseFloat(e.target.value) || 0)}
-              />
+            <div className="flex flex-col gap-1 col-span-2">
+              <label className="text-xs font-medium text-gray-600">Imposto</label>
+              <div className="flex gap-2 items-center">
+                <div className="flex-1 relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-7"
+                    value={form.imposto ?? ""}
+                    onChange={(e) => set("imposto", parseFloat(e.target.value) || 0)}
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">R$</span>
+                </div>
+                <span className="text-gray-300 text-xs">ou</span>
+                <div className="flex-shrink-0 relative" style={{ width: 100 }}>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-6"
+                    value={form.percentualImposto ?? ""}
+                    onChange={(e) => set("percentualImposto", parseFloat(e.target.value) || 0)}
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">%</span>
+                </div>
+              </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-600">Comissão (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
-                value={form.comissao ?? ""}
-                onChange={(e) => set("comissao", parseFloat(e.target.value) || 0)}
-              />
+            <div className="flex flex-col gap-1 col-span-2">
+              <label className="text-xs font-medium text-gray-600">Comissão</label>
+              <div className="flex gap-2 items-center">
+                <div className="flex-1 relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-7"
+                    value={form.comissao ?? ""}
+                    onChange={(e) => set("comissao", parseFloat(e.target.value) || 0)}
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">R$</span>
+                </div>
+                <span className="text-gray-300 text-xs">ou</span>
+                <div className="flex-shrink-0 relative" style={{ width: 100 }}>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-6"
+                    value={form.percentualComissao ?? ""}
+                    onChange={(e) => set("percentualComissao", parseFloat(e.target.value) || 0)}
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">%</span>
+                </div>
+              </div>
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-600">Custo (R$)</label>
@@ -952,16 +1028,32 @@ export default function ContasAReceberPage() {
     const row = rows.find((r) => r.rowId === rowId);
     if (!row) return;
 
-    let parsed: unknown = value;
-    if (field === "pago") parsed = value === "true";
-    if (field === "valorAprovadoManual" || field === "custosReais" || field === "custo" || field === "imposto" || field === "comissao" || field === "diasPagamento") parsed = parseFloat(value) || 0;
-    if (field === "ordemServicoId") parsed = value;
+    let body: Record<string, unknown> = {};
+
+    if (field === "pago") {
+      body.pago = value === "true";
+    } else if (field === "imposto" || field === "comissao") {
+      if (value.endsWith("%")) {
+        const pct = parseFloat(value) || 0;
+        const percentKey = field === "imposto" ? "percentualImposto" : "percentualComissao";
+        body[field] = row.valorAprovado * (pct / 100);
+        body[percentKey] = pct;
+      } else {
+        body[field] = parseFloat(value) || 0;
+      }
+    } else if (["valorAprovadoManual", "custosReais", "custo", "diasPagamento"].includes(field)) {
+      body[field] = parseFloat(value) || 0;
+    } else {
+      body[field] = value;
+    }
+
+    if (row.tipo === "orcamento") body.orcamentoId = row.orcamento?.id;
 
     const id = row.tipo === "manual" ? row.fat.id : row.orcamento?.id;
     await fetch(`/api/faturamentos/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: parsed, ...(row.tipo === "orcamento" ? { orcamentoId: row.orcamento?.id } : {}) }),
+      body: JSON.stringify(body),
     });
     await carregar();
   }
@@ -1291,20 +1383,30 @@ export default function ContasAReceberPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                        <Cell
-                          value={imposto > 0 ? imposto.toFixed(2) : ""}
-                          mode="number"
-                          placeholder="0,00"
-                          onSave={(v) => salvarCelula(row.rowId, "imposto", v)}
-                        />
+                        <div className="flex items-center gap-1">
+                          <Cell
+                            value={imposto > 0 ? imposto.toFixed(2) : ""}
+                            mode="number"
+                            placeholder="0,00"
+                            onSave={(v) => salvarCelula(row.rowId, "imposto", v)}
+                          />
+                          {row.fat.percentualImposto != null && (
+                            <span className="text-[10px] text-gray-400 font-medium">({row.fat.percentualImposto}%)</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                        <Cell
-                          value={comissao > 0 ? comissao.toFixed(2) : ""}
-                          mode="number"
-                          placeholder="0,00"
-                          onSave={(v) => salvarCelula(row.rowId, "comissao", v)}
-                        />
+                        <div className="flex items-center gap-1">
+                          <Cell
+                            value={comissao > 0 ? comissao.toFixed(2) : ""}
+                            mode="number"
+                            placeholder="0,00"
+                            onSave={(v) => salvarCelula(row.rowId, "comissao", v)}
+                          />
+                          {row.fat.percentualComissao != null && (
+                            <span className="text-[10px] text-gray-400 font-medium">({row.fat.percentualComissao}%)</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                         <Cell
