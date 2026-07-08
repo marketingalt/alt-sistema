@@ -46,12 +46,34 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const orcamento = await buscarOrcamento(id);
-  if (!orcamento) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
-  const patch = await req.json();
-  const salvo = await salvarOrcamento({ ...orcamento, ...patch });
-  return NextResponse.json(salvo, { headers: NO_CACHE_HEADERS });
+  try {
+    const { id } = await params;
+    const orcamento = await buscarOrcamento(id);
+    if (!orcamento) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
+    const patch = await req.json();
+    const salvo = await salvarOrcamento({ ...orcamento, ...patch });
+
+    // Sincronizar tarefas no Planejamento
+    sincronizarTarefasOrcamento(salvo).catch((err) =>
+      console.error("[ORCAMENTO SYNC ERROR]", err)
+    );
+
+    // Gerar OS automaticamente se o orçamento foi aprovado
+    gerarOSdeOrcamento(salvo).catch((err) =>
+      console.error("[ORCAMENTO OS ERROR]", err)
+    );
+
+    // Criar tarefa no Financeiro Kanban se aprovado
+    criarTarefaFinanceira(salvo).catch((err) =>
+      console.error("[FINANCEIRO TASK ERROR]", err)
+    );
+
+    return NextResponse.json(salvo, { headers: NO_CACHE_HEADERS });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[PATCH ORCAMENTO ERROR]", msg);
+    return NextResponse.json({ error: `Erro ao alterar: ${msg}` }, { status: 500, headers: NO_CACHE_HEADERS });
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
