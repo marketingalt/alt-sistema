@@ -59,6 +59,7 @@ function migrarItem(i: Partial<ItemOrcamento>, margemPadrao: number): ItemOrcame
     fornecedorNome: i.fornecedorNome || "",
     item: i.item || "",
     cor: i.cor || "",
+    imagemReferencia: i.imagemReferencia || "",
     ncm: i.ncm || "",
     quantidadeMinima: i.quantidadeMinima ? Number(i.quantidadeMinima) : undefined,
     diasProducao: i.diasProducao ? Number(i.diasProducao) : undefined,
