@@ -317,9 +317,14 @@ export default function VisualizarOrcamento() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
+      const nomeProj = (orcamento?.nomeProjeto || "sem-nome")
+        .toLowerCase()
+        .normalize("NFD").replace(/[̀-ͯ]/g, "") // remove acentos
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
       a.download = tipo === "os"
-        ? `os-${orcamento?.numero}.pdf`
-        : `orcamento-${orcamento?.numero}-${tipo}.pdf`;
+        ? `altmkt_${orcamento?.numero}_${nomeProj}.pdf`
+        : `altmkt_${orcamento?.numero}_${nomeProj}_${tipo}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
