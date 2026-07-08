@@ -244,6 +244,38 @@ export async function sincronizarTarefasOrcamento(orcamento: Orcamento): Promise
   }
 }
 
+/** Move a tarefa do Planejamento para o status "Concluído" quando o orçamento é aprovado */
+export async function moverTarefaPlanejamentoParaConcluido(orcamento: Orcamento): Promise<void> {
+  if (orcamento.status !== "Aprovado") return;
+
+  const projetos = await dbGet<Projeto[]>("planejamento", []);
+  const tarefas = await dbGet<Tarefa[]>("planejamento-tarefas", []);
+  let modificou = false;
+
+  for (const tarefa of tarefas) {
+    if (tarefa.customFields?.orcamentoId !== orcamento.id) continue;
+
+    // Encontra o último status do projeto (considerado "Concluído")
+    const projeto = projetos.find((p) => p.id === tarefa.projectId);
+    if (!projeto || !projeto.statuses.length) continue;
+
+    const statusesOrdenados = [...projeto.statuses].sort((a, b) => a.ordem - b.ordem);
+    const statusConcluido = statusesOrdenados[statusesOrdenados.length - 1];
+
+    // Se já está no último status, pula
+    if (tarefa.statusId === statusConcluido.id) continue;
+
+    tarefa.statusId = statusConcluido.id;
+    tarefa.updatedAt = new Date().toISOString();
+    tarefa.dataVencimento = new Date().toISOString().split("T")[0];
+    modificou = true;
+  }
+
+  if (modificou) {
+    await dbSet("planejamento-tarefas", tarefas);
+  }
+}
+
 // ── Ordem de Serviço (OS) ──────────────────────
 
 async function getOrdensServico(): Promise<OrdemServico[]> {

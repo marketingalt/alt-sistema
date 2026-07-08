@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buscarOrcamento, salvarOrcamento, deletarOrcamento, listarOrcamentos, sincronizarTarefasOrcamento, gerarOSdeOrcamento, criarTarefaFinanceira } from "@/lib/storage";
+import { buscarOrcamento, salvarOrcamento, deletarOrcamento, listarOrcamentos, sincronizarTarefasOrcamento, gerarOSdeOrcamento, criarTarefaFinanceira, moverTarefaPlanejamentoParaConcluido } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +37,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       console.error("[FINANCEIRO TASK ERROR]", err)
     );
 
+    // Mover card do Planejamento para Concluído se aprovado
+    moverTarefaPlanejamentoParaConcluido(salvo).catch((err) =>
+      console.error("[PLANEJAMENTO CONCLUIR ERROR]", err)
+    );
+
     return NextResponse.json(salvo, { headers: NO_CACHE_HEADERS });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -66,6 +71,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // Criar tarefa no Financeiro Kanban se aprovado
     criarTarefaFinanceira(salvo).catch((err) =>
       console.error("[FINANCEIRO TASK ERROR]", err)
+    );
+
+    // Mover card do Planejamento para Concluído se aprovado
+    moverTarefaPlanejamentoParaConcluido(salvo).catch((err) =>
+      console.error("[PLANEJAMENTO CONCLUIR ERROR]", err)
     );
 
     return NextResponse.json(salvo, { headers: NO_CACHE_HEADERS });
