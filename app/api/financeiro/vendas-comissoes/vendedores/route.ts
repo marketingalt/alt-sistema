@@ -8,6 +8,11 @@ export interface Vendedor {
   nome: string;
   email?: string;
   telefone?: string;
+  cnpj?: string;
+  banco?: string;
+  agencia?: string;
+  contaCorrente?: string;
+  chavePix?: string;
   percentualComissao: number;
   metaMensal?: number;
   ativo: boolean;
@@ -32,7 +37,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { nome, email, telefone, percentualComissao, metaMensal } = body;
+  const { nome, email, telefone, cnpj, banco, agencia, contaCorrente, chavePix, percentualComissao, metaMensal } = body;
 
   if (!nome?.trim()) {
     return NextResponse.json({ error: "Nome é obrigatório." }, { status: 400 });
@@ -44,6 +49,11 @@ export async function POST(req: NextRequest) {
     nome: nome.trim(),
     email: email || "",
     telefone: telefone || "",
+    cnpj: cnpj || "",
+    banco: banco || "",
+    agencia: agencia || "",
+    contaCorrente: contaCorrente || "",
+    chavePix: chavePix || "",
     percentualComissao: parseFloat(percentualComissao) || 0,
     metaMensal: parseFloat(metaMensal) || 0,
     ativo: true,

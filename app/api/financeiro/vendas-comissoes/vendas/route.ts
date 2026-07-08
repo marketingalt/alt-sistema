@@ -6,14 +6,19 @@ export const dynamic = "force-dynamic";
 export interface Venda {
   id: string;
   vendedorId: string;
-  cliente: string;
   data: string; // YYYY-MM-DD
+  cliente: string;
+  cnpj?: string;
+  notaFiscal?: "EMITIDA" | "A EMITIR" | "CANCELADA";
+  dataEmissao?: string;
+  produtoServico: string;
   valor: number;
   percentualComissao: number; // % aplicada nesta venda
   comissaoCalculada: number; // valor * percentual / 100
   status: "Realizada" | "Cancelada";
   observacao?: string;
   orcamentoId?: string;
+  comissaoPaga?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -35,7 +40,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { vendedorId, cliente, data, valor, percentualComissao, status, observacao, orcamentoId } = body;
+  const { vendedorId, data, cliente, cnpj, notaFiscal, dataEmissao, produtoServico, valor, percentualComissao, status, observacao, orcamentoId } = body;
 
   if (!vendedorId || !cliente?.trim() || !data || !valor) {
     return NextResponse.json({ error: "vendedorId, cliente, data e valor são obrigatórios." }, { status: 400 });
@@ -48,8 +53,12 @@ export async function POST(req: NextRequest) {
   const nova: Venda = {
     id: gerarId(),
     vendedorId,
-    cliente: cliente.trim(),
     data,
+    cliente: cliente.trim(),
+    cnpj: cnpj || "",
+    notaFiscal: notaFiscal || "A EMITIR",
+    dataEmissao: dataEmissao || "",
+    produtoServico: produtoServico || cliente.trim(),
     valor: valorNum,
     percentualComissao: pct,
     comissaoCalculada: valorNum * (pct / 100),
