@@ -203,6 +203,7 @@ export default function FluxoDeCaixaPage() {
   const [catFiltro, setCatFiltro] = useState("Todas");
   const [osFiltro, setOsFiltro] = useState("Todas");
   const [busca, setBusca] = useState("");
+  const [buscaGlobal, setBuscaGlobal] = useState(false);
   const [ordemCampo, setOrdemCampo] = useState<"data" | "valor" | "categoria">("data");
   const [ordemDir, setOrdemDir] = useState<"asc" | "desc">("asc");
 
@@ -268,7 +269,8 @@ export default function FluxoDeCaixaPage() {
 
   // Aplicar filtros adicionais
   const lancamentosFiltrados = useMemo(() => {
-    let lista = lancamentosMes;
+    // Quando buscaGlobal está ativo, pesquisa em TODOS os lançamentos (ignora mês)
+    let lista = buscaGlobal && busca.trim() ? (dados?.lancamentos ?? []) : lancamentosMes;
     if (bancoFiltro !== "Todos") lista = lista.filter((l) => l.banco === bancoFiltro);
     if (areaFiltro !== "Todas") lista = lista.filter((l) => l.area === areaFiltro);
     if (catFiltro !== "Todas") lista = lista.filter((l) => l.categoria === catFiltro);
@@ -277,16 +279,21 @@ export default function FluxoDeCaixaPage() {
       const q = busca.toLowerCase();
       lista = lista.filter((l) => (l.obs ?? "").toLowerCase().includes(q) || (l.categoria ?? "").toLowerCase().includes(q));
     }
-    lista = [...lista].sort((a, b) => {
-      let va: string | number = a[ordemCampo];
-      let vb: string | number = b[ordemCampo];
-      if (ordemCampo === "valor") { va = Math.abs(a.valor); vb = Math.abs(b.valor); }
-      if (va < vb) return ordemDir === "asc" ? -1 : 1;
-      if (va > vb) return ordemDir === "asc" ? 1 : -1;
-      return 0;
-    });
+    // Em modo global, ordena por data decrescente (mais recente primeiro)
+    if (buscaGlobal) {
+      lista = [...lista].sort((a, b) => b.data.localeCompare(a.data));
+    } else {
+      lista = [...lista].sort((a, b) => {
+        let va: string | number = a[ordemCampo];
+        let vb: string | number = b[ordemCampo];
+        if (ordemCampo === "valor") { va = Math.abs(a.valor); vb = Math.abs(b.valor); }
+        if (va < vb) return ordemDir === "asc" ? -1 : 1;
+        if (va > vb) return ordemDir === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
     return lista;
-  }, [lancamentosMes, bancoFiltro, areaFiltro, catFiltro, osFiltro, busca, ordemCampo, ordemDir]);
+  }, [lancamentosMes, bancoFiltro, areaFiltro, catFiltro, osFiltro, busca, ordemCampo, ordemDir, dados, buscaGlobal]);
 
   // KPIs do mês — separa estorno/transferência das entradas/saidas reais
   const kpis = useMemo(() => {
@@ -664,12 +671,25 @@ export default function FluxoDeCaixaPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
               {/* Filtros */}
               <div className="px-4 py-3 border-b border-gray-100 flex flex-wrap gap-2 items-center">
-                <input
-                  placeholder="Buscar em observações..."
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 w-52"
-                />
+                <div className="relative flex items-center gap-1">
+                  <input
+                    placeholder="Buscar em observações..."
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 w-52"
+                  />
+                  <button
+                    onClick={() => setBuscaGlobal((v) => !v)}
+                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded border transition ${
+                      buscaGlobal
+                        ? "bg-[#fb4d06] text-white border-[#fb4d06]"
+                        : "bg-gray-50 text-gray-400 border-gray-200 hover:border-gray-300"
+                    }`}
+                    title={buscaGlobal ? "Pesquisando no histórico completo" : "Pesquisar apenas no mês atual"}
+                  >
+                    {buscaGlobal ? "Global" : "Mês"}
+                  </button>
+                </div>
                 <select value={bancoFiltro} onChange={(e) => setBancoFiltro(e.target.value)}
                   className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
                   <option>Todos</option>
@@ -692,7 +712,10 @@ export default function FluxoDeCaixaPage() {
                     <option key={os.id} value={os.id}>#{os.numero}</option>
                   ))}
                 </select>
-                <span className="text-xs text-gray-400 ml-auto">{lancamentosFiltrados.length} lançamentos</span>
+                <span className="text-xs text-gray-400 ml-auto">
+                  {lancamentosFiltrados.length} lançamento{lancamentosFiltrados.length !== 1 ? "s" : ""}
+                  {buscaGlobal && <span className="text-[#fb4d06] font-medium"> · Histórico</span>}
+                </span>
               </div>
 
               {/* Tabela */}
