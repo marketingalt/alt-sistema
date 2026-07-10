@@ -45,14 +45,26 @@ export async function POST(req: Request) {
     const textoSemBOM = texto.replace(/^﻿/, "");
     // Converte tabs pra ; — o export do C6 Bank é tab-delimitado
     const textoComDelim = textoSemBOM.replace(/\t/g, ";");
-    // Remove linhas de info antes do cabeçalho (ex: "Razão Social: ...").
-    // A linha do cabeçalho tem colunas com nomes reconhecíveis.
-    const linhas = textoComDelim.split("\n");
-    const headerIdx = linhas.findIndex(
-      (l) =>
-        !l.match(/^razao/i) &&
-        l.split(";").filter((c) => c.trim().length > 0).length >= 5
-    );
+
+    // Encontra a linha de cabeçalho usando a MESMA normalização do parseCSV
+    // (lowercase, sem acentos, não-alfanumérico → underscore).
+    const normHeader = (s: string) =>
+      s
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_|_$/g, "");
+
+    const linhas = textoComDelim.split("\n").map((l) => l.trim()).filter(Boolean);
+    const headerIdx = linhas.findIndex((l) => {
+      const cols = l.split(";").map((c) => normHeader(c.trim()));
+      return (
+        cols.includes("data_de_compra") &&
+        cols.includes("descricao") &&
+        cols.includes("valor_em_r")
+      );
+    });
     if (headerIdx === -1) {
       return NextResponse.json({ error: "CSV sem formato de colunas reconhecido." }, { status: 400 });
     }
