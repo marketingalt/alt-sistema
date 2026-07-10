@@ -17,6 +17,8 @@ import StatusRoadmap from "./components/StatusRoadmap";
 import CabecalhoOS from "./components/CabecalhoOS";
 import DetalhamentoOS from "./components/DetalhamentoOS";
 import AreaInternaOS from "./components/AreaInternaOS";
+import { downloadCSV } from "@/lib/export-csv";
+import type { ResumoFluxoOS, ItemFluxoOS } from "@/app/api/ordens-servico/[id]/fluxo-caixa/route";
 
 function Icone({ d, className = "w-5 h-5" }: { d: string; className?: string }) {
   return (
@@ -166,6 +168,84 @@ function ModalDocumentos({
 }
 
 // ═══════════════════════════════════════════════════════════
+// COMPONENTE DE DETALHES EXPANSÍVEIS
+// ═══════════════════════════════════════════════════════════
+
+function ItemDetalhes({ item }: { item: ItemFluxoOS }) {
+  const d = item.detalhes as Record<string, any>;
+
+  if (item.tipo === "conta-pagar") {
+    return (
+      <div className="bg-gray-50/80 px-6 py-4 border-t border-gray-100">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div><span className="text-gray-400 block">Fornecedor</span><span className="font-medium text-gray-700">{String(d.fornecedor || "—")}</span></div>
+          <div><span className="text-gray-400 block">Categoria</span><span className="font-medium text-gray-700">{String(d.categoria || "—")}</span></div>
+          <div><span className="text-gray-400 block">Área</span><span className="font-medium text-gray-700">{String(d.area || "—")}</span></div>
+          <div><span className="text-gray-400 block">Modalidade</span><span className="font-medium text-gray-700">{String(d.modalidade || "—")}</span></div>
+          <div><span className="text-gray-400 block">Banco</span><span className="font-medium text-gray-700">{String(d.banco || "—")}</span></div>
+          {d.dataPagamento && <div><span className="text-gray-400 block">Data Pagamento</span><span className="font-medium text-gray-700">{String(d.dataPagamento)}</span></div>}
+          {d.obs && <div className="col-span-2"><span className="text-gray-400 block">Obs</span><span className="font-medium text-gray-700">{String(d.obs)}</span></div>}
+          {d.dadosBancarios && (
+            <div className="col-span-2">
+              <span className="text-gray-400 block">Dados Bancários</span>
+              <span className="font-medium text-gray-700">{d.dadosBancarios?.banco || ""} {d.dadosBancarios?.chavePix || ""}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (item.tipo === "reembolso") {
+    return (
+      <div className="bg-gray-50/80 px-6 py-4 border-t border-gray-100">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div><span className="text-gray-400 block">Motorista</span><span className="font-medium text-gray-700">{String(d.motorista || "—")}</span></div>
+          <div><span className="text-gray-400 block">Origem</span><span className="font-medium text-gray-700">{String(d.origem || "—")}</span></div>
+          <div><span className="text-gray-400 block">Destino</span><span className="font-medium text-gray-700">{String(d.destino || "—")}</span></div>
+          <div><span className="text-gray-400 block">Distância</span><span className="font-medium text-gray-700">{String(d.distanciaKm || "0")} km</span></div>
+          <div><span className="text-gray-400 block">Valor/km</span><span className="font-medium text-gray-700">{Number(d.valorKm || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span></div>
+          <div><span className="text-gray-400 block">Total</span><span className="font-medium text-gray-700">{Number(d.total || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span></div>
+          {d.motivo && <div><span className="text-gray-400 block">Motivo</span><span className="font-medium text-gray-700">{String(d.motivo)}</span></div>}
+          {d.observacao && <div className="col-span-2"><span className="text-gray-400 block">Observação</span><span className="font-medium text-gray-700">{String(d.observacao)}</span></div>}
+          <div><span className="text-gray-400 block">Odômetro</span><span className="font-medium text-gray-700">{String(d.odometroInicial || "0")} → {String(d.odometroFinal || "0")} km</span></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (item.tipo === "faturamento") {
+    return (
+      <div className="bg-gray-50/80 px-6 py-4 border-t border-gray-100">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div><span className="text-gray-400 block">Cliente</span><span className="font-medium text-gray-700">{String(d.cliente || "—")}</span></div>
+          <div><span className="text-gray-400 block">Status Nota</span><span className={`font-medium ${d.statusNota === "Emitida" ? "text-green-600" : "text-yellow-600"}`}>{String(d.statusNota || "—")}</span></div>
+          {d.numeroNota && <div><span className="text-gray-400 block">Nº Nota</span><span className="font-medium text-gray-700">{String(d.numeroNota)}</span></div>}
+          {d.dataEmissao && <div><span className="text-gray-400 block">Emissão</span><span className="font-medium text-gray-700">{String(d.dataEmissao)}</span></div>}
+          {d.vencimento && <div><span className="text-gray-400 block">Vencimento</span><span className="font-medium text-gray-700">{String(d.vencimento)}</span></div>}
+          {d.dataPagamento && <div><span className="text-gray-400 block">Data Pagamento</span><span className="font-medium text-gray-700">{String(d.dataPagamento)}</span></div>}
+          {d.imposto !== undefined && <div><span className="text-gray-400 block">Imposto</span><span className="font-medium text-gray-700">{Number(d.imposto || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span></div>}
+          {d.comissao !== undefined && <div><span className="text-gray-400 block">Comissão</span><span className="font-medium text-gray-700">{Number(d.comissao || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span></div>}
+        </div>
+      </div>
+    );
+  }
+
+  // fluxo-caixa genérico
+  return (
+    <div className="bg-gray-50/80 px-6 py-4 border-t border-gray-100">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <div><span className="text-gray-400 block">Modalidade</span><span className="font-medium text-gray-700">{String(d.modalidade || "—")}</span></div>
+        <div><span className="text-gray-400 block">Banco</span><span className="font-medium text-gray-700">{String(d.banco || "—")}</span></div>
+        <div><span className="text-gray-400 block">Área</span><span className="font-medium text-gray-700">{String(d.area || "—")}</span></div>
+        <div><span className="text-gray-400 block">Categoria</span><span className="font-medium text-gray-700">{String(d.categoria || "—")}</span></div>
+        {d.obs && <div className="col-span-2"><span className="text-gray-400 block">Observação</span><span className="font-medium text-gray-700">{String(d.obs)}</span></div>}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 // PÁGINA PRINCIPAL
 // ═══════════════════════════════════════════════════════════
 
@@ -184,6 +264,11 @@ export default function DetalheOSPage() {
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [subtarefas, setSubtarefas] = useState<Tarefa[]>([]);
   const [projetosMap, setProjetosMap] = useState<Record<string, { nome: string; cor: string }>>({});
+
+  // Fluxo de caixa da OS
+  const [fluxoCaixa, setFluxoCaixa] = useState<ResumoFluxoOS | null>(null);
+  const [carregandoFluxo, setCarregandoFluxo] = useState(false);
+  const [itemExpandido, setItemExpandido] = useState<string | null>(null);
 
   // Status de outros módulos para o roadmap
   const [orcamentoStatus, setOrcamentoStatus] = useState<string | undefined>();
@@ -301,10 +386,29 @@ export default function DetalheOSPage() {
 
       // Status — carrega junto na primeira vez
       await carregarStatus(data.orcamentoId);
+
+      // Fluxo de caixa da OS
+      carregarFluxoCaixa();
     } catch {
       setErro("OS não encontrada");
     } finally {
       setCarregando(false);
+    }
+  }
+
+  // ── Carregar fluxo de caixa agregado ─────────────────
+  async function carregarFluxoCaixa() {
+    setCarregandoFluxo(true);
+    try {
+      const res = await fetch(`/api/ordens-servico/${osId}/fluxo-caixa`);
+      if (res.ok) {
+        const data: ResumoFluxoOS = await res.json();
+        setFluxoCaixa(data);
+      }
+    } catch {
+      // silencioso
+    } finally {
+      setCarregandoFluxo(false);
     }
   }
 
@@ -329,6 +433,7 @@ export default function DetalheOSPage() {
     function onVisibility() {
       if (document.visibilityState === "visible" && orcamentoIdRef.current) {
         carregarStatus(orcamentoIdRef.current);
+        carregarFluxoCaixa();
       }
     }
     document.addEventListener("visibilitychange", onVisibility);
@@ -575,6 +680,143 @@ export default function DetalheOSPage() {
               </div>
             )}
           </div>
+        </div>
+        {/* ^^ fim Subtarefas ^^ */}
+
+        {/* ── FLUXO DE CAIXA / CUSTOS DA OS ─────────── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Fluxo de Caixa / Custos
+              {fluxoCaixa && <span className="text-gray-400 font-normal ml-1">({fluxoCaixa.itens.length})</span>}
+            </h2>
+            {fluxoCaixa && fluxoCaixa.itens.length > 0 && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const headers = ["Data", "Tipo", "Descrição", "Valor", "Status"];
+                    const rows = fluxoCaixa.itens.map((i) => [
+                      i.data ? new Date(i.data + (i.data.includes("T") ? "" : "T12:00:00")).toLocaleDateString("pt-BR") : "",
+                      i.tipo,
+                      i.descricao,
+                      `R$ ${Math.abs(i.valor).toFixed(2)} ${i.valor < 0 ? "(D)" : "(R)"}`,
+                      i.status,
+                    ]);
+                    downloadCSV(`fluxo-caixa-os-${os.numero}_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+                  }}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  Exportar CSV
+                </button>
+              </div>
+            )}
+          </div>
+
+          {carregandoFluxo ? (
+            <div className="p-8 text-center">
+              <div className="w-8 h-8 border-2 border-gray-300 border-t-[#fb4d06] rounded-full animate-spin mx-auto mb-3" />
+              <p className="text-sm text-gray-400">Carregando custos...</p>
+            </div>
+          ) : !fluxoCaixa || fluxoCaixa.itens.length === 0 ? (
+            <div className="p-8 text-center">
+              <svg className="w-12 h-12 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+              </svg>
+              <p className="text-sm text-gray-400">Nenhum lançamento financeiro vinculado a esta OS.</p>
+              <p className="text-xs text-gray-300 mt-1">Custos aparecerão automaticamente ao vincular contas a pagar, reembolsos ou faturamentos.</p>
+            </div>
+          ) : (
+            <>
+              {/* ── CARDS DE RESUMO ──────────────────── */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-6 py-4 bg-gray-50/50 border-b border-gray-100">
+                <div className="bg-white rounded-xl px-4 py-3 border border-gray-100 shadow-sm">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-green-600">Receitas</p>
+                  <p className="text-lg font-bold text-green-700 mt-0.5">{formatarMoeda(fluxoCaixa.receitas)}</p>
+                </div>
+                <div className="bg-white rounded-xl px-4 py-3 border border-gray-100 shadow-sm">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-red-600">Despesas</p>
+                  <p className="text-lg font-bold text-red-700 mt-0.5">{formatarMoeda(fluxoCaixa.despesas)}</p>
+                </div>
+                <div className="bg-white rounded-xl px-4 py-3 border border-gray-100 shadow-sm">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-600">Saldo</p>
+                  <p className={`text-lg font-bold mt-0.5 ${fluxoCaixa.saldo >= 0 ? "text-blue-700" : "text-red-700"}`}>
+                    {formatarMoeda(fluxoCaixa.saldo)}
+                  </p>
+                </div>
+                <div className="bg-white rounded-xl px-4 py-3 border border-gray-100 shadow-sm">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Contas / Reemb.</p>
+                  <p className="text-sm font-bold text-gray-700 mt-0.5">
+                    {formatarMoeda(fluxoCaixa.contasPagar)} / {formatarMoeda(fluxoCaixa.reembolsos)}
+                  </p>
+                </div>
+              </div>
+
+              {/* ── TABELA DE ITENS ──────────────────── */}
+              <div className="divide-y divide-gray-50">
+                {fluxoCaixa.itens.map((item) => (
+                  <div key={`${item.tipo}-${item.id}`} className="transition">
+                    {/* Linha principal */}
+                    <button
+                      onClick={() => setItemExpandido(itemExpandido === `${item.tipo}-${item.id}` ? null : `${item.tipo}-${item.id}`)}
+                      className="w-full flex items-center gap-3 px-6 py-3 hover:bg-gray-50/80 transition text-left"
+                    >
+                      {/* Tipo */}
+                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded shrink-0 ${
+                        item.tipo === "faturamento"
+                          ? "bg-green-100 text-green-700"
+                          : item.tipo === "conta-pagar"
+                          ? "bg-orange-100 text-orange-700"
+                          : item.tipo === "reembolso"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-gray-100 text-gray-600"
+                      }`}>
+                        {item.tipo === "conta-pagar" ? "C. Pagar" : item.tipo === "reembolso" ? "Reemb." : item.tipo}
+                      </span>
+
+                      {/* Data */}
+                      <span className="text-xs text-gray-500 font-mono w-20 shrink-0">
+                        {item.data ? new Date(item.data + (item.data.includes("T") ? "" : "T12:00:00")).toLocaleDateString("pt-BR") : "—"}
+                      </span>
+
+                      {/* Descrição */}
+                      <span className="text-sm text-gray-800 truncate flex-1 min-w-0">{item.descricao}</span>
+
+                      {/* Status */}
+                      <span className={`text-[10px] font-semibold uppercase w-16 text-center shrink-0 ${
+                        item.status === "pago" ? "text-green-600" :
+                        item.status === "pendente" ? "text-yellow-600" :
+                        item.status === "Cancelada" ? "text-red-500" :
+                        "text-gray-500"
+                      }`}>
+                        {item.status === "realizado" ? "OK" : item.status}
+                      </span>
+
+                      {/* Valor */}
+                      <span className={`text-sm font-semibold w-28 text-right shrink-0 ${
+                        item.valor >= 0 ? "text-green-700" : "text-red-700"
+                      }`}>
+                        {formatarMoeda(item.valor)}
+                      </span>
+
+                      {/* Seta expandir */}
+                      <svg className={`w-4 h-4 text-gray-300 shrink-0 transition-transform ${itemExpandido === `${item.tipo}-${item.id}` ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {/* Conteúdo expandido */}
+                    {itemExpandido === `${item.tipo}-${item.id}` && (
+                      <ItemDetalhes item={item} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </main>
 
