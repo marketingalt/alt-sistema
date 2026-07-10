@@ -51,7 +51,7 @@ interface FornecedorItem {
   status: string;
 }
 
-const MODALIDADES = ["PIX", "TED", "DÉBITO", "BOLETO", "FATURA", "INVESTIMENTO", "TRANSFERENCIA"];
+const MODALIDADES = ["PIX", "TED", "DÉBITO", "BOLETO", "FATURA", "INVESTIMENTO", "TRANSFERENCIA", "CRÉDITO"];
 
 const CATEGORIAS_FALLBACK = [
   "RECEITA OPERACIONAL BRUTA", "CUSTOS DIRETOS DOS SERVIÇOS", "DESPESAS ADM E GERAIS",
@@ -185,6 +185,12 @@ export default function ContasAPagarPage() {
   const [showModalImportar, setShowModalImportar] = useState(false);
   const [importPreview, setImportPreview] = useState<ImportPreview>(null);
   const [importando, setImportando] = useState(false);
+
+  // Importar fatura C6
+  const [showModalFaturaC6, setShowModalFaturaC6] = useState(false);
+  const [importC6Preview, setImportC6Preview] = useState<any[] | null>(null);
+  const [importandoC6, setImportandoC6] = useState(false);
+  const [c6Contagem, setC6Contagem] = useState({ total: 0, validas: 0, erros: 0 });
 
   // Painel de detalhe
   const [detalhe, setDetalhe] = useState<Conta | null>(null);
@@ -596,6 +602,10 @@ export default function ContasAPagarPage() {
             <button onClick={() => setShowModalImportar(true)} className="border border-gray-200 text-gray-600 font-semibold py-2 px-5 rounded-xl hover:bg-gray-50 transition flex items-center gap-2 text-sm">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
               Importar Planilha
+            </button>
+            <button onClick={() => setShowModalFaturaC6(true)} className="border border-gray-200 text-gray-600 font-semibold py-2 px-5 rounded-xl hover:bg-gray-50 transition flex items-center gap-2 text-sm">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+              Fatura C6
             </button>
           </div>
         </div>
@@ -1745,6 +1755,26 @@ export default function ContasAPagarPage() {
           }}
         />
       )}
+
+      {/* ── Modal: Importar Fatura C6 ── */}
+      {showModalFaturaC6 && (
+        <ModalImportarFaturaC6
+          onClose={() => { setShowModalFaturaC6(false); setImportC6Preview(null); }}
+          preview={importC6Preview}
+          setPreview={setImportC6Preview}
+          importando={importandoC6}
+          setImportando={setImportandoC6}
+          contagem={c6Contagem}
+          setContagem={setC6Contagem}
+          onImportado={() => {
+            fetch("/api/contas-a-pagar")
+              .then((r) => r.json())
+              .then((d) => setContas(d.contas ?? []));
+            setShowModalFaturaC6(false);
+            setImportC6Preview(null);
+          }}
+        />
+      )}
     </WorkspaceLayout>
   );
 }
@@ -2131,6 +2161,233 @@ function ModalImportarPlanilha({
             <button onClick={onClose} className="py-2.5 px-4 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">
               Cancelar
             </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// COMPONENTE: Importar Fatura C6
+// ═══════════════════════════════════════════════════════════
+
+function ModalImportarFaturaC6({
+  onClose, preview, setPreview, importando, setImportando, contagem, setContagem, onImportado,
+}: {
+  onClose: () => void;
+  preview: any[] | null;
+  setPreview: (v: any[] | null) => void;
+  importando: boolean;
+  setImportando: (v: boolean) => void;
+  contagem: { total: number; validas: number; erros: number };
+  setContagem: (v: { total: number; validas: number; erros: number }) => void;
+  onImportado: () => void;
+}) {
+  const [dragOver, setDragOver] = useState(false);
+  const [arquivoNome, setArquivoNome] = useState("");
+  const [haMais, setHaMais] = useState(false);
+  const [ignorados, setIgnorados] = useState<string[]>([]);
+
+  async function handleFile(file: File) {
+    if (!file.name.endsWith(".csv") && !file.name.endsWith(".CSV") && !file.name.endsWith(".tsv")) {
+      alert("Apenas arquivos CSV são aceitos.");
+      return;
+    }
+    setArquivoNome(file.name);
+    setImportando(true);
+    const formData = new FormData();
+    formData.append("arquivo", file);
+    try {
+      const res = await fetch("/api/contas-a-pagar/importar-fatura-c6", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "Erro ao processar arquivo.");
+        return;
+      }
+      const data = await res.json();
+      setPreview(data.linhas || []);
+      setContagem({ total: data.total, validas: data.validas, erros: data.erros });
+      setHaMais(data.haMais || false);
+      setIgnorados(data.ignoradosLista || []);
+    } catch {
+      alert("Erro ao enviar arquivo.");
+    } finally {
+      setImportando(false);
+    }
+  }
+
+  async function confirmarImportacao() {
+    if (!arquivoNome) return;
+    setImportando(true);
+    const input = document.querySelector<HTMLInputElement>("#fatura-c6-input");
+    const file = input?.files?.[0];
+    if (!file) { setImportando(false); return; }
+
+    const formData = new FormData();
+    formData.append("arquivo", file);
+    formData.append("confirmar", "true");
+    try {
+      const res = await fetch("/api/contas-a-pagar/importar-fatura-c6", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "Erro ao importar.");
+        return;
+      }
+      const data = await res.json();
+      alert(data.importadas + " conta(s) importada(s) com sucesso!" + (data.erros > 0 ? "\n" + data.erros + " linha(s) ignoradas (pagamentos/estornos)." : ""));
+      onImportado();
+    } catch {
+      alert("Erro ao importar.");
+    } finally {
+      setImportando(false);
+    }
+  }
+
+  const fmtValor = (v: number) =>
+    v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 shrink-0">
+          <div>
+            <h2 className="text-base font-bold text-gray-800">Importar Fatura C6</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Faça upload do CSV exportado do <strong>Cartão C6 Business</strong>.
+            </p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1 px-6 py-5">
+          {!preview && (
+            <div>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="text-xs text-blue-800">
+                    <p className="font-semibold mb-1">Formato esperado:</p>
+                    <code className="block bg-white/70 rounded-lg p-2.5 text-[10px] leading-relaxed">
+                      Data de compra;Nome no cartão;Final do Cartão;Categoria;Descrição;Parcela;Valor (em US$);Cotação (em R$);Valor (em R$)
+                    </code>
+                    <p className="mt-1">
+                      Exporte do app C6 Bank como CSV. Valores negativos (pagamentos/estornos) são ignorados.
+                      Contas criadas como <strong>CRÉDITO</strong>, <strong>C6 BANK</strong>, <strong>MISTO</strong>, <strong>DESPESAS ADM E GERAIS</strong>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <label
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+                className={"cursor-pointer flex flex-col items-center gap-4 border-2 border-dashed rounded-xl p-10 transition " + (dragOver ? "border-[#fb4d06] bg-[#fb4d06]/5" : "border-gray-200 hover:border-gray-300")}
+              >
+                <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-gray-600">Clique para selecionar ou arraste o CSV</p>
+                  <p className="text-xs text-gray-400 mt-1">CSV exportado do app C6 Bank</p>
+                </div>
+                <input id="fatura-c6-input" type="file" accept=".csv,.tsv,.txt" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+              </label>
+            </div>
+          )}
+          {importando && !preview && (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 border-2 border-[#fb4d06] border-t-transparent rounded-full animate-spin" />
+              <span className="ml-3 text-sm text-gray-500">Processando arquivo...</span>
+            </div>
+          )}
+          {preview && (
+            <div>
+              <div className="grid grid-cols-4 gap-3 mb-5">
+                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                  <p className="text-2xl font-bold text-gray-700">{contagem.total}</p>
+                  <p className="text-xs text-gray-500">Total de linhas</p>
+                </div>
+                <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
+                  <p className="text-2xl font-bold text-green-600">{contagem.validas}</p>
+                  <p className="text-xs text-green-600">Importáveis</p>
+                </div>
+                <div className={"rounded-xl p-3 text-center border " + (ignorados.length > 0 ? "bg-amber-50 border-amber-100" : "bg-gray-50 border-gray-100")}>
+                  <p className={"text-2xl font-bold " + (ignorados.length > 0 ? "text-amber-600" : "text-gray-400")}>{ignorados.length}</p>
+                  <p className={"text-xs " + (ignorados.length > 0 ? "text-amber-500" : "text-gray-400")}>Ignorados</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-3 text-center border border-blue-100">
+                  <p className="text-2xl font-bold text-blue-600">R$ {fmtValor((preview as any[]).reduce((s: number, l: any) => s + (l.valor || 0), 0))}</p>
+                  <p className="text-xs text-blue-500">Valor total</p>
+                </div>
+              </div>
+              {ignorados.length > 0 && (
+                <details className="mb-4">
+                  <summary className="text-xs text-amber-600 font-medium cursor-pointer hover:text-amber-700">
+                    {ignorados.length} ignorada(s) (pagamentos/estornos)
+                  </summary>
+                  <div className="mt-2 max-h-32 overflow-y-auto bg-amber-50/50 rounded-lg p-3 space-y-1">
+                    {ignorados.map((msg, i) => <p key={i} className="text-[11px] text-amber-700">{msg}</p>)}
+                  </div>
+                </details>
+              )}
+              {(preview as any[]).length > 0 && (
+                <div className="overflow-x-auto border border-gray-100 rounded-xl">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100">
+                        <th className="text-left px-3 py-2 font-semibold text-gray-500">#</th>
+                        <th className="text-left px-3 py-2 font-semibold text-gray-500">Data</th>
+                        <th className="text-left px-3 py-2 font-semibold text-gray-500">Fornecedor</th>
+                        <th className="text-left px-3 py-2 font-semibold text-gray-500">Parcela</th>
+                        <th className="text-right px-3 py-2 font-semibold text-gray-500">Valor (R$)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(preview as any[]).map((linha, idx) => (
+                        <tr key={idx} className="border-b border-gray-50">
+                          <td className="px-3 py-2 text-gray-400">{linha.linha}</td>
+                          <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{(() => { const p = (linha.data || "").split("-"); return p[2] && p[1] ? p[2] + "/" + p[1] : linha.data; })()}</td>
+                          <td className="px-3 py-2 font-medium text-gray-800 max-w-[250px] truncate">{linha.fornecedor}</td>
+                          <td className="px-3 py-2 text-gray-500">{linha.parcela}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-gray-700">R$ {fmtValor(linha.valor)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {haMais && <p className="text-xs text-gray-400 text-center py-2 border-t border-gray-50">... e mais {contagem.total - 50} linha(s)</p>}
+                </div>
+              )}
+              {contagem.validas === 0 && <p className="text-sm text-red-600 mt-4 text-center font-medium">Nenhuma linha válida.</p>}
+            </div>
+          )}
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 shrink-0 flex items-center justify-between gap-3">
+          {preview ? (
+            <>
+              <button onClick={() => { setPreview(null); setArquivoNome(""); setIgnorados([]); }}
+                className="py-2.5 px-4 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Escolher outro arquivo</button>
+              <div className="flex gap-2">
+                <button onClick={onClose} className="py-2.5 px-4 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancelar</button>
+                <button onClick={confirmarImportacao} disabled={importando || contagem.validas === 0}
+                  className="py-2.5 px-6 rounded-xl bg-[#fb4d06] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition flex items-center gap-2">
+                  {importando ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Importando...</> : <>Importar {contagem.validas} conta(s)</>}
+                </button>
+              </div>
+            </>
+          ) : (
+            <button onClick={onClose} className="py-2.5 px-4 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancelar</button>
           )}
         </div>
       </div>
