@@ -41,33 +41,32 @@ export async function POST(req: Request) {
     }
 
     const texto = await arquivo.text();
-    const linhasRaw = parseCSV(texto);
+    // Remove BOM (Byte Order Mark) se presente
+    const textoSemBOM = texto.replace(/^﻿/, "");
+    const linhasRaw = parseCSV(textoSemBOM);
 
     if (linhasRaw.length === 0) {
       return NextResponse.json({ error: "CSV vazio ou sem dados." }, { status: 400 });
     }
 
     // Mapeia colunas por nome normalizado
-    const normalizarCab = (s: string) =>
-      s.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-
+    // O parseCSV já normaliza as chaves: lowercase, sem acentos,
+    // caracteres não alfanuméricos viram underscore.
+    // Ex: "Valor (em R$)" → "valor_em_r"
     const cabecalho = linhasRaw[0];
-    const colunas: Record<string, string> = {};
-    for (const [key] of Object.entries(cabecalho)) {
-      const nk = normalizarCab(key);
-      colunas[nk] = key;
-    }
+    const colunas = Object.keys(cabecalho);
+    const chk = (nome: string) => colunas.find((k) => k === nome);
 
-    const colData = colunas["data de compra"] ?? colunas["data"];
-    const colDescricao = colunas["descricao"] ?? colunas["descrição"];
-    const colNome = colunas["nome no cartao"] ?? colunas["nome no cartão"];
-    const colFinal = colunas["final do cartao"] ?? colunas["final do cartão"];
-    const colCat = colunas["categoria"];
-    const colParcela = colunas["parcela"];
-    const colValorRS = colunas["valor (em r$)"] ?? colunas["valor"];
-    const colValorUS = colunas["valor (em us$)"] ?? colunas["valor (us$)"];
-    const colCotacao = colunas["cotacao (em r$)"] ?? colunas["cotação (em r$)"];
-    const colRazao = colunas["razao social"];
+    const colData = chk("data_de_compra") ?? chk("data");
+    const colDescricao = chk("descricao");
+    const colNome = chk("nome_no_cartao");
+    const colFinal = chk("final_do_cartao");
+    const colCat = chk("categoria");
+    const colParcela = chk("parcela");
+    const colValorRS = chk("valor_em_r") ?? chk("valor");
+    const colValorUS = chk("valor_em_us");
+    const colCotacao = chk("cotacao_em_r");
+    const colRazao = chk("razao_social");
 
     if (!colData || !colDescricao || !colValorRS) {
       return NextResponse.json({
