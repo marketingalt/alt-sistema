@@ -36,6 +36,7 @@ export interface Reembolso {
   contaPagarId: string | null;
   dataVencimento: string;
   dataPagamento?: string;
+  ordemServicoId?: string;
   createdAt: string;
 }
 

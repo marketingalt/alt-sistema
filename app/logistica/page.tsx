@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import type { OrdemServico } from "@/app/types";
 
 type Aba = "reembolsos" | "entregas";
 
@@ -37,6 +38,7 @@ interface Reembolso {
   contaPagarId: string | null;
   dataVencimento: string;
   dataPagamento?: string;
+  ordemServicoId?: string;
   createdAt: string;
 }
 
@@ -315,12 +317,20 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
   const [salvando, setSalvando] = useState(false);
   const [editandoReb, setEditandoReb] = useState<Reembolso | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string | number>>({});
+  const [ordensServico, setOrdensServico] = useState<OrdemServico[]>([]);
+  const [buscaOS, setBuscaOS] = useState("");
+  const [osSelecionada, setOsSelecionada] = useState<OrdemServico | null>(null);
 
   function carregar() {
     setCarregando(true);
-    fetch("/api/reembolsos")
-      .then((r) => r.json())
-      .then(setReembolsos)
+    Promise.all([
+      fetch("/api/reembolsos").then((r) => r.json()),
+      fetch("/api/ordens-servico").then((r) => r.json()),
+    ])
+      .then(([reembolsosData, osData]: [Reembolso[], OrdemServico[]]) => {
+        setReembolsos(reembolsosData);
+        setOrdensServico(osData);
+      })
       .catch(() => {})
       .finally(() => setCarregando(false));
   }
@@ -390,12 +400,15 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
 
     setSalvando(true);
     try {
+      setBuscaOS("");
+      setOsSelecionada(null);
       const res = await fetch("/api/reembolsos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           lote: true,
           motorista: motorista,
+          ordemServicoId: osSelecionada?.id || undefined,
           itens: validos.map((i) => ({
             motorista: motorista.nome.trim(),
             email: motorista.email.trim(),
@@ -570,6 +583,7 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Distância</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Valor Km</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Total</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600">OS</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Status</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Comprovante</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Ações</th>
@@ -578,7 +592,7 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
             <tbody>
               {reembolsos.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-12 text-gray-400">
+                  <td colSpan={11} className="text-center py-12 text-gray-400">
                     Nenhum reembolso encontrado.
                   </td>
                 </tr>
@@ -613,6 +627,25 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
                     </td>
                     <td className="px-4 py-3 text-center font-semibold text-gray-700">
                       {fmt(reb.total)}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {(() => {
+                        const os = ordensServico.find((o) => o.id === reb.ordemServicoId);
+                        return reb.ordemServicoId ? (
+                          <a
+                            href={`/ordens-servico/${reb.ordemServicoId}`}
+                            target="_blank"
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 transition"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                            OS {os ? `#${os.numero}` : "vinculada"}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-gray-300">—</span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-center">
                       {reb.status === "pago" ? (
@@ -723,6 +756,56 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
             <p className="text-sm text-gray-500 mb-5">
               Reembolso de quilometragem rodada. Os valores de <strong>Distância</strong> e <strong>Total</strong> são calculados automaticamente. Todos serão lançados no <strong>Contas a Pagar</strong>.
             </p>
+
+            {/* ── Seletor de Ordem de Serviço ── */}
+            <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+              <label className="text-xs font-semibold text-blue-700 mb-2 block">Vincular a uma Ordem de Serviço (opcional)</label>
+              <input
+                type="text"
+                placeholder="Buscar por cliente, número ou nome do projeto..."
+                className="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] mb-2"
+                value={buscaOS}
+                onChange={(e) => setBuscaOS(e.target.value)}
+              />
+              {buscaOS && (
+                <div className="max-h-40 overflow-y-auto border border-blue-100 rounded-lg bg-white divide-y divide-gray-50">
+                  {ordensServico
+                    .filter((os) => {
+                      const q = buscaOS.toLowerCase();
+                      return os.cliente.toLowerCase().includes(q) ||
+                             os.numero.toLowerCase().includes(q) ||
+                             (os.responsavel || "").toLowerCase().includes(q);
+                    })
+                    .slice(0, 20)
+                    .map((os) => (
+                      <button
+                        key={os.id}
+                        type="button"
+                        onClick={() => { setOsSelecionada(os); setBuscaOS(""); }}
+                        className={`w-full text-left px-3 py-2 text-xs hover:bg-blue-50 transition flex items-center gap-3 ${osSelecionada?.id === os.id ? "bg-blue-50" : ""}`}
+                      >
+                        <span className="font-medium text-gray-800 shrink-0">#{os.numero}</span>
+                        <span className="text-gray-600 truncate">{os.cliente}</span>
+                        {os.responsavel && <span className="text-gray-400 truncate">— {os.responsavel}</span>}
+                      </button>
+                    ))}
+                  {ordensServico.filter((os) => {
+                    const q = buscaOS.toLowerCase();
+                    return os.cliente.toLowerCase().includes(q) || os.numero.toLowerCase().includes(q) || (os.responsavel || "").toLowerCase().includes(q);
+                  }).length === 0 && <p className="px-3 py-2 text-xs text-gray-400">Nenhuma OS encontrada</p>}
+                </div>
+              )}
+              {osSelecionada && (
+                <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-100/50 rounded-lg px-3 py-2 mt-1">
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <span className="font-medium">OS #{osSelecionada.numero}</span>
+                  <span className="text-blue-500">— {osSelecionada.cliente}</span>
+                  <button onClick={() => setOsSelecionada(null)} className="ml-auto text-blue-400 hover:text-red-500 transition">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              )}
+            </div>
 
             <div className="space-y-5">
               {items.map((item, idx) => (

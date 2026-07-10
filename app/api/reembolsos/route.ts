@@ -22,6 +22,7 @@ async function criarContaPagar(dados: {
   categoria: string;
   dadosBancarios: Record<string, string>;
   reembolsoId: string;
+  ordemServicoId?: string;
 }): Promise<string> {
   const db = await dbGet<any>("contas-a-pagar", { contas: [] });
   const id = `cp${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
@@ -94,7 +95,15 @@ export async function POST(req: NextRequest) {
     // ── Criação em lote ──
     if (body.lote && Array.isArray(body.itens)) {
       const loteId = `lote${Date.now()}`;
-      const reembolsos = await criarLoteReembolsos(body.itens, loteId);
+      const ordemServicoId = body.ordemServicoId || undefined;
+
+      // Propagar ordemServicoId para os itens
+      const itensComOS = body.itens.map((item: any) => ({
+        ...item,
+        ordemServicoId: ordemServicoId || item.ordemServicoId || undefined,
+      }));
+
+      const reembolsos = await criarLoteReembolsos(itensComOS, loteId);
 
       // Criar contas a pagar automaticamente
       const contasCriadas: { reembolsoId: string; contaPagarId: string }[] = [];
@@ -110,6 +119,7 @@ export async function POST(req: NextRequest) {
           categoria: "CUSTOS DIRETOS DOS SERVIÇOS",
           dadosBancarios: reb.dadosBancarios,
           reembolsoId: reb.id,
+          ordemServicoId: reb.ordemServicoId,
         });
         await vincularContaPagar(reb.id, contaPagarId);
         contasCriadas.push({ reembolsoId: reb.id, contaPagarId });
