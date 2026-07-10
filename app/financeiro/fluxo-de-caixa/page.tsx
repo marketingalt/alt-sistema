@@ -204,6 +204,7 @@ export default function FluxoDeCaixaPage() {
   const [osFiltro, setOsFiltro] = useState("Todas");
   const [busca, setBusca] = useState("");
   const [buscaGlobal, setBuscaGlobal] = useState(false);
+  const [showUltimos, setShowUltimos] = useState(false);
   const [ordemCampo, setOrdemCampo] = useState<"data" | "valor" | "categoria">("data");
   const [ordemDir, setOrdemDir] = useState<"asc" | "desc">("asc");
 
@@ -345,6 +346,15 @@ export default function FluxoDeCaixaPage() {
     }
     return map;
   }, [contasPagar]);
+
+  // Últimos lançamentos manuais (sem contaPagarId) — para histórico rápido
+  const ultimosManuais = useMemo(() => {
+    if (!dados || !Array.isArray(dados.lancamentos)) return [];
+    return [...dados.lancamentos]
+      .filter((l) => !l.contaPagarId)
+      .sort((a, b) => b.data.localeCompare(a.data))
+      .slice(0, 15);
+  }, [dados]);
 
   function toggleOrdem(campo: "data" | "valor" | "categoria") {
     if (ordemCampo === campo) setOrdemDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -712,11 +722,55 @@ export default function FluxoDeCaixaPage() {
                     <option key={os.id} value={os.id}>#{os.numero}</option>
                   ))}
                 </select>
-                <span className="text-xs text-gray-400 ml-auto">
+                <span className="text-xs text-gray-400 ml-auto flex items-center gap-2">
+                  <button
+                    onClick={() => setShowUltimos((v) => !v)}
+                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded border transition ${
+                      showUltimos
+                        ? "bg-gray-100 text-gray-500 border-gray-300"
+                        : "text-gray-300 border-transparent hover:text-gray-400 hover:border-gray-200"
+                    }`}
+                    title="Ver últimos lançamentos manuais"
+                  >
+                    Últimos
+                  </button>
                   {lancamentosFiltrados.length} lançamento{lancamentosFiltrados.length !== 1 ? "s" : ""}
                   {buscaGlobal && <span className="text-[#fb4d06] font-medium"> · Histórico</span>}
                 </span>
               </div>
+
+              {/* Últimos lançamentos manuais */}
+              {showUltimos && (
+                <div className="border-b border-gray-100 px-4 py-3 bg-gray-50/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-gray-500">Últimos lançamentos manuais</span>
+                    <button
+                      onClick={() => setShowUltimos(false)}
+                      className="text-xs text-gray-300 hover:text-gray-500 transition"
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto space-y-1">
+                    {ultimosManuais.length === 0 ? (
+                      <p className="text-xs text-gray-400 py-2">Nenhum lançamento manual encontrado.</p>
+                    ) : ultimosManuais.map((l) => (
+                      <div key={l.id} className="flex items-center justify-between py-1 px-2 rounded hover:bg-white text-xs">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-gray-400 whitespace-nowrap font-mono text-[10px]">
+                            {l.data ? (() => { const [a,m,d] = l.data.split("-"); return `${d}/${m}`; })() : "--"}
+                          </span>
+                          <span className="text-gray-700 truncate max-w-[300px]">{l.obs || l.categoria}</span>
+                          <span className="text-gray-400">{l.categoria}</span>
+                        </div>
+                        <span className={`font-medium whitespace-nowrap ${l.valor >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                          {l.valor >= 0 ? "+" : ""}R$ {Math.abs(l.valor).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Tabela */}
               <div className="overflow-x-auto">
