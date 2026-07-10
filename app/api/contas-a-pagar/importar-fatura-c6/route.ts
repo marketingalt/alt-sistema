@@ -43,7 +43,16 @@ export async function POST(req: Request) {
     const texto = await arquivo.text();
     // Remove BOM (Byte Order Mark) se presente
     const textoSemBOM = texto.replace(/^﻿/, "");
-    const linhasRaw = parseCSV(textoSemBOM);
+    // Converte tabs pra ; — o export do C6 Bank é tab-delimitado
+    const textoComDelim = textoSemBOM.replace(/\t/g, ";");
+    // Remove linhas de info antes do cabeçalho (ex: "Razão Social: ...")
+    const linhas = textoComDelim.split("\n");
+    const headerIdx = linhas.findIndex((l) => l.includes(";"));
+    if (headerIdx === -1) {
+      return NextResponse.json({ error: "CSV sem formato de colunas reconhecido." }, { status: 400 });
+    }
+    const textoLimpo = linhas.slice(headerIdx).join("\n");
+    const linhasRaw = parseCSV(textoLimpo);
 
     if (linhasRaw.length === 0) {
       return NextResponse.json({ error: "CSV vazio ou sem dados." }, { status: 400 });
