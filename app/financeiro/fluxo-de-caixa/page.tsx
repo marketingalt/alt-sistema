@@ -347,12 +347,16 @@ export default function FluxoDeCaixaPage() {
     return map;
   }, [contasPagar]);
 
-  // Últimos lançamentos manuais (sem contaPagarId) — para histórico rápido
+  // Últimos lançamentos (qualquer origem) — para histórico rápido
   const ultimosManuais = useMemo(() => {
     if (!dados || !Array.isArray(dados.lancamentos)) return [];
     return [...dados.lancamentos]
-      .filter((l) => !l.contaPagarId)
-      .sort((a, b) => b.data.localeCompare(a.data))
+      .sort((a, b) => {
+        // Tenta por createdAt, fallback pra data
+        const da = a.createdAt || a.data || "";
+        const db = b.createdAt || b.data || "";
+        return db.localeCompare(da);
+      })
       .slice(0, 15);
   }, [dados]);
 
