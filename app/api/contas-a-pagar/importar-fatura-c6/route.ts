@@ -45,9 +45,14 @@ export async function POST(req: Request) {
     const textoSemBOM = texto.replace(/^﻿/, "");
     // Converte tabs pra ; — o export do C6 Bank é tab-delimitado
     const textoComDelim = textoSemBOM.replace(/\t/g, ";");
-    // Remove linhas de info antes do cabeçalho (ex: "Razão Social: ...")
+    // Remove linhas de info antes do cabeçalho (ex: "Razão Social: ...").
+    // A linha do cabeçalho tem colunas com nomes reconhecíveis.
     const linhas = textoComDelim.split("\n");
-    const headerIdx = linhas.findIndex((l) => l.includes(";"));
+    const headerIdx = linhas.findIndex(
+      (l) =>
+        !l.match(/^razao/i) &&
+        l.split(";").filter((c) => c.trim().length > 0).length >= 5
+    );
     if (headerIdx === -1) {
       return NextResponse.json({ error: "CSV sem formato de colunas reconhecido." }, { status: 400 });
     }
