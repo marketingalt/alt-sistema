@@ -347,15 +347,19 @@ export default function FluxoDeCaixaPage() {
     return map;
   }, [contasPagar]);
 
-  // Últimos lançamentos (qualquer origem) — para histórico rápido
+  // Últimos lançamentos — ordena por data decrescente com desempate pelo id (Date.now())
   const ultimosManuais = useMemo(() => {
     if (!dados || !Array.isArray(dados.lancamentos)) return [];
     return [...dados.lancamentos]
       .sort((a, b) => {
-        // Tenta por createdAt, fallback pra data
-        const da = a.createdAt || a.data || "";
-        const db = b.createdAt || b.data || "";
-        return db.localeCompare(da);
+        const da = a.createdAt || a.data || "0";
+        const db = b.createdAt || b.data || "0";
+        const cmp = db.localeCompare(da);
+        if (cmp !== 0) return cmp;
+        // Mesma data: desempata pelo id (fc<timestamp>)
+        const idA = (a.id || "").replace("fc", "");
+        const idB = (b.id || "").replace("fc", "");
+        return idB.localeCompare(idA);
       })
       .slice(0, 15);
   }, [dados]);
