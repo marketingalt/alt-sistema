@@ -941,6 +941,7 @@ export default function ContasAReceberPage() {
   const [anoSel, setAnoSel] = useState(hoje.getFullYear());
   const [statusFiltro, setStatusFiltro] = useState("todos");
   const [busca, setBusca] = useState("");
+  const [showUltimos, setShowUltimos] = useState(false);
 
   async function carregar() {
     const [resOrc, resFat, resOS] = await Promise.all([
@@ -1043,6 +1044,12 @@ export default function ContasAReceberPage() {
     }
     return lista;
   }, [rowsMes, statusFiltro, busca]);
+
+  const ultimosManuais = useMemo(() => {
+    return [...faturamentos]
+      .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
+      .slice(0, 15);
+  }, [faturamentos]);
 
   async function salvarCelula(rowId: string, field: keyof RegistroFaturamento, value: string) {
     const row = rows.find((r) => r.rowId === rowId);
@@ -1314,8 +1321,48 @@ export default function ContasAReceberPage() {
                 </button>
               ))}
             </div>
-            <span className="text-xs text-gray-400 ml-auto">{rowsFiltradas.length} registro(s)</span>
+            <span className="text-xs text-gray-400 ml-auto flex items-center gap-2">
+              <button
+                onClick={() => setShowUltimos((v) => !v)}
+                className={`text-[10px] font-medium px-1.5 py-0.5 rounded border transition ${
+                  showUltimos
+                    ? "bg-gray-100 text-gray-500 border-gray-300"
+                    : "text-gray-300 border-transparent hover:text-gray-400 hover:border-gray-200"
+                }`}
+                title="Ver últimos registros cadastrados"
+              >
+                Últimos
+              </button>
+              {rowsFiltradas.length} registro(s)
+            </span>
           </div>
+
+          {showUltimos && (
+            <div className="border-b border-gray-100 px-4 py-3 bg-gray-50/30">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-gray-500">Últimos registros cadastrados</span>
+                <button onClick={() => setShowUltimos(false)} className="text-xs text-gray-300 hover:text-gray-500 transition">Fechar</button>
+              </div>
+              <div className="max-h-64 overflow-y-auto space-y-1">
+                {ultimosManuais.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-2">Nenhum registro encontrado.</p>
+                ) : ultimosManuais.map((f) => (
+                  <div key={f.id} className="flex items-center justify-between py-1 px-2 rounded hover:bg-white text-xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-gray-400 font-mono text-[10px] whitespace-nowrap">
+                        {f.vencimento ? (() => { const [a,m,d] = f.vencimento.split("-"); return `${d}/${m}`; })() : "--"}
+                      </span>
+                      <span className="text-gray-600 font-medium truncate max-w-[200px]">{f.cliente || "—"}</span>
+                      <span className="text-gray-400 truncate max-w-[180px]">{f.job || (f.numeroNota ? `NF ${f.numeroNota}` : "")}</span>
+                    </div>
+                    <span className="font-medium whitespace-nowrap text-emerald-600">
+                      R$ {(f.valorAprovadoManual || 0).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {carregando ? (
             <div className="flex items-center justify-center py-20 text-gray-400 text-sm">Carregando...</div>

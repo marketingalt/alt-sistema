@@ -165,6 +165,7 @@ export default function ContasAPagarPage() {
   const [areaFiltro, setAreaFiltro] = useState("Todas");
   const [catFiltro, setCatFiltro] = useState("Todas");
   const [busca, setBusca] = useState("");
+  const [showUltimos, setShowUltimos] = useState(false);
 
   // Modal editar/criar
   const [modalForm, setModalForm] = useState(false);
@@ -240,6 +241,12 @@ export default function ContasAPagarPage() {
     }
     return lista.sort((a, b) => a.dataVencimento.localeCompare(b.dataVencimento));
   }, [contasMes, statusFiltro, areaFiltro, catFiltro, busca]);
+
+  const ultimosManuais = useMemo(() => {
+    return [...contas]
+      .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
+      .slice(0, 15);
+  }, [contas]);
 
   const osPorId = useMemo(() => {
     const map: Record<string, OrdemServicoItem> = {};
@@ -678,8 +685,49 @@ export default function ContasAPagarPage() {
               <option value="Todas">Todas categorias</option>
               {(categorias.length ? categorias : CATEGORIAS_FALLBACK).map((c) => <option key={c}>{c}</option>)}
             </select>
-            <span className="text-xs text-gray-400 ml-auto">{contasFiltradas.length} conta(s)</span>
+            <span className="text-xs text-gray-400 ml-auto flex items-center gap-2">
+              <button
+                onClick={() => setShowUltimos((v) => !v)}
+                className={`text-[10px] font-medium px-1.5 py-0.5 rounded border transition ${
+                  showUltimos
+                    ? "bg-gray-100 text-gray-500 border-gray-300"
+                    : "text-gray-300 border-transparent hover:text-gray-400 hover:border-gray-200"
+                }`}
+                title="Ver últimas contas cadastradas"
+              >
+                Últimos
+              </button>
+              {contasFiltradas.length} conta(s)
+            </span>
           </div>
+
+          {showUltimos && (
+            <div className="border-b border-gray-100 px-4 py-3 bg-gray-50/30">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-gray-500">Últimas contas cadastradas</span>
+                <button onClick={() => setShowUltimos(false)} className="text-xs text-gray-300 hover:text-gray-500 transition">Fechar</button>
+              </div>
+              <div className="max-h-64 overflow-y-auto space-y-1">
+                {ultimosManuais.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-2">Nenhuma conta encontrada.</p>
+                ) : ultimosManuais.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between py-1 px-2 rounded hover:bg-white text-xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`text-[10px] font-mono whitespace-nowrap ${
+                        statusEfetivo(c) === "vencido" ? "text-red-400" :
+                        statusEfetivo(c) === "pendente" ? "text-amber-400" : "text-gray-400"
+                      }`}>
+                        {(() => { const [a,m,d] = c.dataVencimento.split("-"); return `${d}/${m}`; })()}
+                      </span>
+                      <span className="text-gray-600 font-medium truncate max-w-[200px]">{c.fornecedor}</span>
+                      <span className="text-gray-400 truncate max-w-[180px]">{c.descricao}</span>
+                    </div>
+                    <span className="font-medium whitespace-nowrap text-red-500">R$ {c.valor.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
