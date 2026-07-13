@@ -111,6 +111,9 @@ export default function VisualizarOrcamento() {
   const [salvandoVersao, setSalvandoVersao] = useState(false);
   const [carregandoVersoes, setCarregandoVersoes] = useState(false);
 
+  // ── Logo ──
+  const [logoBase64, setLogoBase64] = useState<string | null>(null);
+
   // ── Efeitos (existente) ──
   useEffect(() => {
     fetch(`/api/orcamentos/${id}`)
@@ -145,6 +148,14 @@ export default function VisualizarOrcamento() {
         setProjetosPlanejamento(data.projetos.map((p: any) => ({ id: p.id, nome: p.nome, cor: p.cor || "#6366f1" })));
       }
     }).catch(() => {});
+  }, []);
+
+  // Carrega a logo salva (para usar no PDF)
+  useEffect(() => {
+    fetch("/api/admin/logo")
+      .then((r) => r.json())
+      .then((data) => { if (data.logoBase64) setLogoBase64(data.logoBase64); })
+      .catch(() => {});
   }, []);
 
   // Busca OS vinculada
@@ -329,7 +340,11 @@ export default function VisualizarOrcamento() {
   async function gerarPdf(tipo: "especificacoes" | "valores" | "os") {
     setGerandoPdf(true);
     try {
-      const res = await fetch(`/api/pdf/${id}?tipo=${tipo}`);
+      const res = await fetch(`/api/pdf/${id}?tipo=${tipo}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoBase64 }),
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: `Erro HTTP ${res.status}` }));
         throw new Error(err.error || `Erro HTTP ${res.status}`);
@@ -612,6 +627,8 @@ export default function VisualizarOrcamento() {
               onUpdateItem={atualizarItem}
               onDownloadPdf={() => gerarPdf("valores")}
               gerandoPdf={gerandoPdf}
+              logoBase64={logoBase64}
+              onLogoChange={(b64) => setLogoBase64(b64)}
             />
           </div>
         ) : (

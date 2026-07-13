@@ -23,24 +23,30 @@ type Props = {
   onUpdateItem: (itemId: string, campo: keyof ItemOrcamento, valor: string | number | boolean | undefined) => void;
   onDownloadPdf: () => void;
   gerandoPdf: boolean;
+  logoBase64?: string | null;
+  onLogoChange?: (b64: string | null) => void;
 };
 
-export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateItem, onDownloadPdf, gerandoPdf }: Props) {
+export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateItem, onDownloadPdf, gerandoPdf, logoBase64: externalLogo, onLogoChange }: Props) {
   const imgRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [hoveredImg, setHoveredImg] = useState<string | null>(null);
   const [logoBase64, setLogoBase64] = useState<string | null>(null);
   const [hoverLogo, setHoverLogo] = useState(false);
   const logoSelRef = useRef<HTMLInputElement | null>(null);
 
-  // Carrega a logo salva
+  // Sincroniza com a prop externa (vinda da página pai)
+  const logo = externalLogo ?? logoBase64;
+
+  // Carrega a logo salva (apenas se não veio do pai)
   useEffect(() => {
+    if (externalLogo !== undefined) return;
     fetch("/api/admin/logo")
       .then((r) => r.json())
       .then((data) => {
         if (data.logoBase64) setLogoBase64(data.logoBase64);
       })
       .catch(() => {});
-  }, []);
+  }, [externalLogo]);
 
   // Upload de logo
   const uploadLogo = useCallback((file: File) => {
@@ -48,6 +54,7 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
     reader.onload = () => {
       const b64 = reader.result as string;
       setLogoBase64(b64);
+      onLogoChange?.(b64);
       fetch("/api/admin/logo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -55,12 +62,13 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
       }).catch(() => alert("Erro ao salvar logo"));
     };
     reader.readAsDataURL(file);
-  }, []);
+  }, [onLogoChange]);
 
   const removerLogo = useCallback(() => {
     setLogoBase64(null);
+    onLogoChange?.(null);
     fetch("/api/admin/logo", { method: "DELETE" }).catch(() => {});
-  }, []);
+  }, [onLogoChange]);
 
   const totalProdutos = orcamento.itens.reduce((a, i) => a + (i.total || 0), 0);
   const totalServicos = orcamento.manuseio && orcamento.custoManuseio ? orcamento.custoManuseio : 0;
@@ -156,10 +164,10 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                 onMouseLeave={() => setHoverLogo(false)}
                 onClick={() => logoSelRef.current?.click()}
               >
-                {logoBase64 ? (
+                {logo ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={logoBase64} className="max-h-14 max-w-full object-contain" alt="Logo" />
+                    <img src={logo} className="max-h-14 max-w-full object-contain" alt="Logo" />
                     {hoverLogo && (
                       <button
                         onClick={(e) => { e.stopPropagation(); removerLogo(); }}

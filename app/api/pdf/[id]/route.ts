@@ -8,7 +8,7 @@ import { getSystemSettings } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function gerarPdfResponse(req: NextRequest, params: Promise<{ id: string }>, usePostBody: boolean) {
   try {
     const { id } = await params;
     const tipo = req.nextUrl.searchParams.get("tipo") || "valores";
@@ -23,8 +23,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Orçamento não encontrado" }, { status: 404 });
     }
 
-    const settings = await getSystemSettings();
-    const logoBase64 = settings.logoBase64;
+    // Aceita logo do body (enviado pelo cliente) ou do settings (servidor)
+    let logoBase64: string | undefined;
+    if (usePostBody) {
+      try {
+        const body = await req.json();
+        logoBase64 = body.logoBase64 || undefined;
+      } catch {}
+    }
+    if (!logoBase64) {
+      const settings = await getSystemSettings();
+      logoBase64 = settings.logoBase64;
+    }
 
     const Componente =
       tipo === "especificacoes"
@@ -65,4 +75,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       { status: 500 }
     );
   }
+}
+
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  return gerarPdfResponse(req, params, false);
+}
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  return gerarPdfResponse(req, params, true);
 }
