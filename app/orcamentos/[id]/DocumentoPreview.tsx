@@ -75,7 +75,6 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
   const valorFrete = orcamento.freteValor || 0;
   const totalGeral = totalProdutos + totalServicos + valorFrete;
   const aprovado = orcamento.status === "Aprovado";
-  const tiposNota = (orcamento.tiposNota || []).join(" + ") || "—";
   const mostrarTotalItem = orcamento.mostrarValorTotalItem === true;
 
   const titulo = [
@@ -144,19 +143,36 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                   value={orcamento.dataOrcamento}
                   onChange={(v) => onUpdateCampo("dataOrcamento", v)}
                 />
-                <HeaderField
-                  label="TIPO DE NOTA:"
-                  value={tiposNota}
-                  onChange={(v) => {
-                    // Simplified: alternates between DANFE and NFSE
-                    const val = v.toUpperCase();
-                    const atuais = orcamento.tiposNota || [];
-                    const novo = atuais.includes(val as any)
-                      ? atuais.filter((t) => t !== val)
-                      : [...atuais, val as "DANFE" | "NFSE"];
-                    onUpdateCampo("tiposNota" as keyof Orcamento, novo as unknown as string);
-                  }}
-                />
+                <div className="flex">
+                  <span className="text-[6.5px] text-gray-400 shrink-0" style={{ width: 95 }}>
+                    TIPO DE NOTA:
+                  </span>
+                  <div className="flex gap-1">
+                    {(["DANFE", "NFSE"] as const).map((tipo) => {
+                      const ativo = (orcamento.tiposNota || []).includes(tipo);
+                      return (
+                        <button
+                          key={tipo}
+                          type="button"
+                          onClick={() => {
+                            const atuais = orcamento.tiposNota || [];
+                            const novo = atuais.includes(tipo)
+                              ? atuais.filter((t) => t !== tipo)
+                              : [...atuais, tipo];
+                            onUpdateCampo("tiposNota" as keyof Orcamento, novo as unknown as string);
+                          }}
+                          className={`text-[8px] font-bold px-1.5 py-0.5 rounded border transition ${
+                            ativo
+                              ? "bg-amber-500 text-white border-amber-500"
+                              : "bg-transparent text-gray-400 border-gray-600 hover:border-gray-400"
+                          }`}
+                        >
+                          {tipo}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
               {/* Logo */}
               <div
