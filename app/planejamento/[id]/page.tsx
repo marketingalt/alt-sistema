@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import {
   DndContext,
@@ -112,6 +113,7 @@ export default function KanbanPage() {
   const params = useParams();
   const router = useRouter();
   const projetoId = params?.id as string;
+  const { user } = useUser();
 
   const [projetos, setProjetos] = useState<Projeto[]>([]);
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
@@ -121,6 +123,12 @@ export default function KanbanPage() {
   const [visao, setVisao] = useState<"kanban" | "calendario">("kanban");
   const [mesCalendario, setMesCalendario] = useState(() => new Date().getMonth());
   const [anoCalendario, setAnoCalendario] = useState(() => new Date().getFullYear());
+
+  // Modal de nova tarefa enriquecida
+  const [modalNovaTarefa, setModalNovaTarefa] = useState<{ statusId: string } | null>(null);
+  const [novoTitulo, setNovoTitulo] = useState("");
+  const [novoCliente, setNovoCliente] = useState("");
+  const [novaDescricao, setNovaDescricao] = useState("");
 
   // Timer ativo
   const [timerAtivo, setTimerAtivo] = useState<{ tarefaId: string; startTime: string } | null>(null);
@@ -195,22 +203,41 @@ export default function KanbanPage() {
   }
 
   // ═════════════════════════════════════════════
-  // NOVA TAREFA
+  // NOVA TAREFA (modal enriquecido)
   // ═════════════════════════════════════════════
 
-  async function handleNovaTarefa(statusId: string) {
+  function handleNovaTarefa(statusId: string) {
     if (!projetoAtivo) return;
-    const titulo = prompt("Título da tarefa:");
-    if (!titulo?.trim()) return;
+    setNovoTitulo("");
+    setNovoCliente("");
+    setNovaDescricao("");
+    setModalNovaTarefa({ statusId });
+  }
+
+  async function confirmarNovaTarefa() {
+    if (!projetoAtivo || !modalNovaTarefa) return;
+    const titulo = novoTitulo.trim();
+    if (!titulo) return;
+
+    const customFields: Record<string, any> = {};
+    if (novoCliente.trim()) customFields.clienteOrcamento = novoCliente.trim();
+
     const res = await fetch("/api/planejamento/tarefas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectId: projetoAtivo.id, statusId, titulo: titulo.trim() }),
+      body: JSON.stringify({
+        projectId: projetoAtivo.id,
+        statusId: modalNovaTarefa.statusId,
+        titulo,
+        descricao: novaDescricao.trim() || undefined,
+        customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
+      }),
     });
     if (res.ok) {
       const nova = await res.json();
       setTarefas((prev) => [...prev, nova]);
     }
+    setModalNovaTarefa(null);
   }
 
   async function handleDeletarTarefa(id: string) {
@@ -218,6 +245,69 @@ export default function KanbanPage() {
     await fetch(`/api/planejamento/tarefas?id=${id}`, { method: "DELETE" });
     setTarefas((prev) => prev.filter((t) => t.id !== id && t.parentTaskId !== id));
     if (tarefaAberta?.id === id) setTarefaAberta(null);
+  }
+
+  // ═════════════════════════════════════════════
+  // AUTO-CRIAÇÃO DE ORÇAMENTO
+  // ═════════════════════════════════════════════
+
+  async function criarOrcamentoDaTarefa(tarefa: Tarefa) {
+    try {
+      const resNum = await fetch("/api/numero");
+      if (!resNum.ok) return;
+      const { numero } = await resNum.json();
+
+      const cliente = (tarefa.customFields?.clienteOrcamento as string) || tarefa.titulo;
+      const solicitante = user?.fullName || user?.emailAddresses?.[0]?.emailAddress || "Sistema";
+      const id = gerarId();
+      const hoje = new Date().toLocaleDateString("pt-BR");
+
+      const payload = {
+        id,
+        numero,
+        cliente,
+        solicitante,
+        nomeProjeto: tarefa.titulo,
+        dataOrcamento: hoje,
+        dataSolicitacao: hoje,
+        prazoPagamento: "à combinar",
+        prazoEntrega: "30 dias após aprovação",
+        observacoes: "Valores válidos por 7 dias. Após esse prazo, consultar",
+        frete: "CUSTO ADICIONAL - ORÇADO APÓS O ENVIO DA PLANILHA DE ENDEREÇOS DE ENTREGA PARA TODO O BRASIL",
+        margemPadrao: 30,
+        percHonorarios: 10,
+        percImpostos: 19,
+        percComissao: 5,
+        status: "Em andamento" as const,
+        itens: [{
+          id: gerarId(),
+          kit: "", referencia: "", item: tarefa.titulo,
+          cor: "", ncm: "", categoria: "brindes" as const,
+          acabamento: "Silk",
+          descricao: tarefa.descricao || "",
+          quantidade: 1,
+          custoUnitario: 0, freteProducao: 0, custoPersonalizacao: 0,
+          margem: 30, valorUnitario: 0, valorAjustado: false, total: 0,
+        }],
+        tags: [projetoAtivo!.id],
+        createdAt: new Date().toISOString(),
+      };
+
+      const res = await fetch("/api/orcamentos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        await atualizarTarefa(tarefa.id, {
+          customFields: { ...tarefa.customFields, orcamentoId: id },
+        });
+        setOrcamentoStatuses((prev) => ({ ...prev, [id]: "Em andamento" }));
+      }
+    } catch (err) {
+      console.error("Erro ao criar orçamento:", err);
+    }
   }
 
   // ═════════════════════════════════════════════
@@ -259,6 +349,14 @@ export default function KanbanPage() {
       .sort((a, b) => a.ordem - b.ordem);
 
     await atualizarTarefa(tarefaId, { statusId: colunaDestinoId, ordem: tarefasNaColuna.length });
+
+    // ═══════════════════════════════════════════════════════════
+    // Auto-criação de orçamento quando sai de BRIEFING
+    // ═══════════════════════════════════════════════════════════
+    const colunaOrigem = projetoAtivo.statuses.find((s) => s.id === tarefaAtual.statusId);
+    if (colunaOrigem?.nome === "BRIEFING" && !tarefaAtual.customFields?.orcamentoId) {
+      await criarOrcamentoDaTarefa(tarefaAtual);
+    }
   }
 
   // ═════════════════════════════════════════════
@@ -510,6 +608,63 @@ export default function KanbanPage() {
               ) : null}
             </DragOverlay>
           </DndContext>
+        )}
+
+        {/* Modal de nova tarefa enriquecida */}
+        {modalNovaTarefa && (
+          <>
+            <div className="fixed inset-0 z-50 bg-black/30" onClick={() => setModalNovaTarefa(null)} />
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 w-full max-w-md mx-4">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">Nova Tarefa</h3>
+
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Título *</label>
+                <input
+                  type="text"
+                  value={novoTitulo}
+                  onChange={(e) => setNovoTitulo(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") confirmarNovaTarefa(); }}
+                  placeholder="Ex: Uniformes personalizados"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 focus:border-[#fb4d06] mb-4"
+                  autoFocus
+                />
+
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Cliente</label>
+                <input
+                  type="text"
+                  value={novoCliente}
+                  onChange={(e) => setNovoCliente(e.target.value)}
+                  placeholder="Ex: Empresa ABC Ltda"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 focus:border-[#fb4d06] mb-4"
+                />
+
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Descrição</label>
+                <textarea
+                  value={novaDescricao}
+                  onChange={(e) => setNovaDescricao(e.target.value)}
+                  rows={3}
+                  placeholder="Detalhes do briefing..."
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 focus:border-[#fb4d06] resize-none mb-4"
+                />
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setModalNovaTarefa(null)}
+                    className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmarNovaTarefa}
+                    disabled={!novoTitulo.trim()}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-[#fb4d06] rounded-xl hover:opacity-90 transition disabled:opacity-50"
+                  >
+                    Criar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Footer description */}
@@ -1127,12 +1282,29 @@ function TaskDrawer({
                   <p className="text-xs text-gray-400 italic">Nenhum campo</p>
                 ) : (
                   <div className="space-y-2">
-                    {Object.entries(tarefa.customFields).map(([key, value]) => (
-                      <div key={key} className="bg-white rounded-lg border border-gray-100 px-3 py-2">
-                        <p className="text-[10px] font-semibold text-gray-500 uppercase">{key}</p>
-                        <p className="text-sm text-gray-800">{String(value)}</p>
-                      </div>
-                    ))}
+                    {Object.entries(tarefa.customFields).map(([key, value]) => {
+                      if (key === "orcamentoId" && value) {
+                        return (
+                          <Link
+                            key={key}
+                            href={`/orcamentos/${value}`}
+                            className="block bg-[#fb4d06]/5 rounded-lg border border-[#fb4d06]/20 px-3 py-2 hover:bg-[#fb4d06]/10 transition group"
+                          >
+                            <p className="text-[10px] font-semibold text-[#fb4d06] uppercase">Orçamento</p>
+                            <p className="text-sm text-gray-800 font-medium group-hover:text-[#fb4d06] transition flex items-center gap-1">
+                              <Icone d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" className="w-3.5 h-3.5" />
+                              Abrir orçamento
+                            </p>
+                          </Link>
+                        );
+                      }
+                      return (
+                        <div key={key} className="bg-white rounded-lg border border-gray-100 px-3 py-2">
+                          <p className="text-[10px] font-semibold text-gray-500 uppercase">{key}</p>
+                          <p className="text-sm text-gray-800">{String(value)}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
