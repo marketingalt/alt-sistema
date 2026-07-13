@@ -358,6 +358,22 @@ export default function Sidebar() {
 
         {!recolhido && <div className="mt-1 mb-1 border-t border-white/10" />}
 
+        {/* Reembolsos — todos os usuários */}
+        <div className="mb-1">
+          <Link href="/reembolsos" title={recolhido ? "Reembolsos" : undefined}>
+            <div className={`flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
+              pathname.startsWith("/reembolsos")
+                ? "bg-[#fb4d06] text-white"
+                : "text-gray-400 hover:bg-white/5 hover:text-white"
+            }`}>
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              {!recolhido && <span>Reembolsos</span>}
+            </div>
+          </Link>
+        </div>
+
         {/* Seções dinâmicas — ordem definida pelo usuário */}
         {(() => {
           function renderNavItem(item: NavItem) {
