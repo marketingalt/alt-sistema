@@ -182,6 +182,8 @@ export default function PainelDeControlePage() {
   const [analiseValor, setAnaliseValor] = useState("");
   const [analiseTipo, setAnaliseTipo] = useState<"entrada" | "saida">("saida");
   const [sugestoesAtivas, setSugestoesAtivas] = useState(false);
+  const [dreMesOffset, setDreMesOffset] = useState(0);
+  const [dreTab, setDreTab] = useState<"mes" | "ano">("mes");
 
   useEffect(() => {
     Promise.all([
@@ -489,6 +491,138 @@ export default function PainelDeControlePage() {
       return { ...row, simMes, saldoSim: row.saldo + simCumulative };
     });
   }, [yearRows, yearValue, simulacoes]);
+
+  // ─── DRE (Demonstração do Resultado) ──────────────────────────────────────────
+
+  interface DreLinha {
+    label: string;
+    valor: number;
+    isSubtotal: boolean;
+    indentLevel: number;
+    isNegativo?: boolean; // true = esse item subtrai (valor exibido como negativo mesmo sendo positivo)
+  }
+
+  const drePeriodo = useMemo(() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + dreMesOffset);
+    return { y: d.getFullYear(), m: d.getMonth() + 1 };
+  }, [dreMesOffset]);
+
+  const dreLinhas = useMemo((): DreLinha[] => {
+    if (!fluxo) return [];
+
+    const { y, m } = drePeriodo;
+    const mm = String(m).padStart(2, "0");
+
+    let lancamentosPeriodo: Lancamento[];
+    if (dreTab === "mes") {
+      lancamentosPeriodo = fluxo.lancamentos.filter((l) => l.data.startsWith(`${y}-${mm}`));
+    } else {
+      lancamentosPeriodo = fluxo.lancamentos.filter((l) => l.data.startsWith(`${y}-`));
+    }
+
+    // Agrupa por categoria e separa entradas (+) e saídas (-)
+    const catEntradas: Record<string, number> = {};
+    const catSaidas: Record<string, number> = {};
+    for (const l of lancamentosPeriodo) {
+      const cat = l.categoria || "OUTROS";
+      if (l.valor > 0) {
+        catEntradas[cat] = (catEntradas[cat] || 0) + l.valor;
+      } else {
+        catSaidas[cat] = (catSaidas[cat] || 0) + Math.abs(l.valor);
+      }
+    }
+
+    const receitaBruta = catEntradas["RECEITA OPERACIONAL BRUTA"] || 0;
+    const deducoes = catSaidas["DEDUÇÕES DA RECEITA (IMPOSTOS)"] || 0;
+    const receitaLiquida = receitaBruta - deducoes;
+
+    const custosDiretos = catSaidas["CUSTOS DIRETOS DOS SERVIÇOS"] || 0;
+    const lucroBruto = receitaLiquida - custosDiretos;
+
+    const despAdm = catSaidas["DESPESAS ADM E GERAIS"] || 0;
+    const despPessoal = catSaidas["DESPESAS COM PESSOAL OPERACIONAL"] || 0;
+    const despProlabore = catSaidas["DESPESAS COM PESSOAL — PROLABORE"] || 0;
+    const despComerciais = catSaidas["DESPESAS COMERCIAIS"] || 0;
+    const despBrindes = catSaidas["BRINDES"] || 0;
+    const totalDespesas = despAdm + despPessoal + despProlabore + despComerciais + despBrindes;
+
+    // Resultado financeiro: entradas financeiras - saídas financeiras
+    const recFinanceira = catEntradas["RESULTADO FINANCEIRO"] || 0;
+    const despFinanceira = catSaidas["RESULTADO FINANCEIRO"] || 0;
+
+    // Empréstimos
+    const empThiemyEnt = catEntradas["EMPRÉSTIMO THIEMY"] || 0;
+    const empThiemySai = catSaidas["EMPRÉSTIMO THIEMY"] || 0;
+    const empFernandoEnt = catEntradas["EMPRÉSTIMO FERNANDO"] || 0;
+    const empFernandoSai = catSaidas["EMPRÉSTIMO FERNANDO"] || 0;
+    const devThiemy = catSaidas["DEVOLUÇÃO THIEMY"] || 0;
+    const devFernando = catSaidas["DEVOLUÇÃO FERNANDO"] || 0;
+
+    // Outras entradas (não categorizadas acima)
+    const outrasEntradas = Object.entries(catEntradas)
+      .filter(([cat]) => !["RECEITA OPERACIONAL BRUTA", "RESULTADO FINANCEIRO", "EMPRÉSTIMO THIEMY", "EMPRÉSTIMO FERNANDO", "DISTRIBUIÇÃO DE LUCROS"].includes(cat))
+      .reduce((s, [, v]) => s + v, 0);
+    // Outras saídas (não categorizadas acima)
+    const outrasSaidas = Object.entries(catSaidas)
+      .filter(([cat]) => !["DEDUÇÕES DA RECEITA (IMPOSTOS)", "CUSTOS DIRETOS DOS SERVIÇOS", "DESPESAS ADM E GERAIS", "DESPESAS COM PESSOAL OPERACIONAL", "DESPESAS COM PESSOAL — PROLABORE", "DESPESAS COMERCIAIS", "BRINDES", "RESULTADO FINANCEIRO", "EMPRÉSTIMO THIEMY", "EMPRÉSTIMO FERNANDO", "DEVOLUÇÃO THIEMY", "DEVOLUÇÃO FERNANDO", "ESTORNO", "DISTRIBUIÇÃO DE LUCROS"].includes(cat))
+      .reduce((s, [, v]) => s + v, 0);
+
+    const resultadoOperacional = lucroBruto - totalDespesas;
+    const resultadoFinanceiro = recFinanceira - despFinanceira;
+    const resultadoAntesExtra = resultadoOperacional + resultadoFinanceiro;
+    const resultadoExtra = (empThiemyEnt + empFernandoEnt) - (empThiemySai + empFernandoSai + devThiemy + devFernando);
+    const resultadoLiquido = resultadoAntesExtra + resultadoExtra;
+
+    const linhas: DreLinha[] = [];
+
+    linhas.push({ label: "RECEITA OPERACIONAL BRUTA", valor: receitaBruta, isSubtotal: false, indentLevel: 0 });
+    linhas.push({ label: "(-) DEDUÇÕES DA RECEITA (IMPOSTOS)", valor: deducoes, isSubtotal: false, indentLevel: 0, isNegativo: true });
+    linhas.push({ label: "= RECEITA OPERACIONAL LÍQUIDA", valor: receitaLiquida, isSubtotal: true, indentLevel: 0 });
+    linhas.push({ label: "", valor: 0, isSubtotal: false, indentLevel: 0 });
+
+    linhas.push({ label: "(-) CUSTOS DIRETOS DOS SERVIÇOS", valor: custosDiretos, isSubtotal: false, indentLevel: 0, isNegativo: true });
+    linhas.push({ label: "= LUCRO BRUTO", valor: lucroBruto, isSubtotal: true, indentLevel: 0 });
+    linhas.push({ label: "", valor: 0, isSubtotal: false, indentLevel: 0 });
+
+    linhas.push({ label: "DESPESAS OPERACIONAIS", valor: 0, isSubtotal: false, indentLevel: 0 });
+
+    const despItems: { label: string; val: number }[] = [
+      { label: "Administrativas e Gerais", val: despAdm },
+      { label: "Pessoal Operacional", val: despPessoal },
+      { label: "Pró-Labore", val: despProlabore },
+      { label: "Comerciais", val: despComerciais },
+    ];
+    if (despBrindes > 0) despItems.push({ label: "Brindes", val: despBrindes });
+    for (const item of despItems) {
+      if (item.val > 0) linhas.push({ label: `  • ${item.label}`, valor: item.val, isSubtotal: false, indentLevel: 1, isNegativo: true });
+    }
+    linhas.push({ label: "  (-) Total Despesas Operacionais", valor: totalDespesas, isSubtotal: true, indentLevel: 1, isNegativo: true });
+    linhas.push({ label: "", valor: 0, isSubtotal: false, indentLevel: 0 });
+
+    linhas.push({ label: "= RESULTADO OPERACIONAL", valor: resultadoOperacional, isSubtotal: true, indentLevel: 0 });
+    linhas.push({ label: "", valor: 0, isSubtotal: false, indentLevel: 0 });
+
+    linhas.push({ label: "RESULTADO FINANCEIRO", valor: resultadoFinanceiro, isSubtotal: false, indentLevel: 0 });
+    if (recFinanceira > 0) linhas.push({ label: `  • Receitas Financeiras`, valor: recFinanceira, isSubtotal: false, indentLevel: 1 });
+    if (despFinanceira > 0) linhas.push({ label: `  • Despesas Financeiras`, valor: despFinanceira, isSubtotal: false, indentLevel: 1, isNegativo: true });
+    if (outrasEntradas > 0 || outrasSaidas > 0) {
+      linhas.push({ label: "OUTRAS RECEITAS/DESPESAS", valor: outrasEntradas - outrasSaidas, isSubtotal: false, indentLevel: 0 });
+    }
+    linhas.push({ label: "", valor: 0, isSubtotal: false, indentLevel: 0 });
+
+    linhas.push({ label: "EMPRÉSTIMOS / DEVOLUÇÕES", valor: resultadoExtra, isSubtotal: false, indentLevel: 0 });
+    if (empThiemySai + devThiemy > 0) linhas.push({ label: `  • Empréstimos/Devoluções Thiemy`, valor: empThiemySai + devThiemy, isSubtotal: false, indentLevel: 1, isNegativo: true });
+    if (empFernandoSai + devFernando > 0) linhas.push({ label: `  • Empréstimos/Devoluções Fernando`, valor: empFernandoSai + devFernando, isSubtotal: false, indentLevel: 1, isNegativo: true });
+    if (empThiemyEnt > 0) linhas.push({ label: `  • Aportes Thiemy`, valor: empThiemyEnt, isSubtotal: false, indentLevel: 1 });
+    if (empFernandoEnt > 0) linhas.push({ label: `  • Aportes Fernando`, valor: empFernandoEnt, isSubtotal: false, indentLevel: 1 });
+    linhas.push({ label: "", valor: 0, isSubtotal: false, indentLevel: 0 });
+
+    linhas.push({ label: "= RESULTADO LÍQUIDO DO PERÍODO", valor: resultadoLiquido, isSubtotal: true, indentLevel: 0 });
+
+    return linhas;
+  }, [fluxo, drePeriodo, dreTab]);
 
   // ─── Fluxo detail: grouped by month ─────────────────────────────────────────
 
@@ -937,6 +1071,116 @@ export default function PainelDeControlePage() {
             </div>
           )}
 
+        </div>
+
+        {/* ══ DRE — DEMONSTRAÇÃO DO RESULTADO ═════════════════════════════════ */}
+        <div className="mt-8 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900">DRE — Demonstração do Resultado</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Receitas, custos, despesas e resultado líquido do período</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+                {(["mes", "ano"] as const).map((tab) => (
+                  <button key={tab} onClick={() => setDreTab(tab)}
+                    className={`px-3 py-1.5 font-medium transition ${dreTab === tab ? "bg-[#fb4d06] text-white" : "text-gray-600 hover:bg-gray-50"}`}>
+                    {tab === "mes" ? "Mês" : "Ano"}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setDreMesOffset((p) => p - 1)} className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition text-sm">‹</button>
+              <span className="text-sm font-semibold text-gray-800 min-w-[100px] text-center">
+                {dreTab === "mes"
+                  ? new Date(drePeriodo.y, drePeriodo.m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
+                  : String(drePeriodo.y)}
+              </span>
+              <button onClick={() => setDreMesOffset((p) => p + 1)} className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition text-sm">›</button>
+              <button onClick={() => {
+                if (!fluxo) return;
+                const { y, m } = drePeriodo;
+                const periodo = dreTab === "mes"
+                  ? new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
+                  : String(y);
+                let txt = `╔══════════════════════════════════════════════════════╗\n`;
+                txt += `║  DRE — DEMONSTRAÇÃO DO RESULTADO                   ║\n`;
+                txt += `║  ${periodo.padEnd(45)}║\n`;
+                txt += `╚══════════════════════════════════════════════════════╝\n\n`;
+                for (const linha of dreLinhas) {
+                  if (!linha.label) { txt += `\n`; continue; }
+                  const prefix = linha.indentLevel > 0 ? "  " : "";
+                  const valStr = linha.isNegativo
+                    ? `(R$ ${linha.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })})`
+                    : `R$ ${linha.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+                  txt += `${prefix}${linha.label.padEnd(45)}${linha.isSubtotal ? "=" : " "} ${valStr}\n`;
+                }
+                txt += `\n════════════════════════════════════════════════════════\n`;
+                txt += `Gerado em ${new Date().toLocaleString("pt-BR")}\n`;
+                const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `DRE_${dreTab}_${drePeriodo.y}${dreTab === "mes" ? `_${String(drePeriodo.m).padStart(2, "0")}` : ""}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }} className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Baixar Relatório
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase">DESCRIÇÃO</th>
+                  <th className="text-right px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase w-40">VALOR (R$)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dreLinhas.map((linha, idx) => {
+                  if (!linha.label) return <tr key={idx} className="h-2" />;
+                  const valExibido = linha.isNegativo ? -linha.valor : linha.valor;
+                  const corValor = linha.isSubtotal
+                    ? (valExibido >= 0 ? "text-gray-900" : "text-red-600")
+                    : linha.indentLevel === 1
+                      ? (linha.isNegativo ? "text-red-500" : "text-green-600")
+                      : (linha.isNegativo ? "text-red-500" : "text-green-600");
+                  const bgCls = linha.isSubtotal ? "bg-gray-50" : "";
+                  const fontWeight = linha.isSubtotal ? "font-bold" : "font-medium";
+                  return (
+                    <tr key={idx} className={`border-b border-gray-50 ${bgCls} hover:bg-gray-50/60`}>
+                      <td className={`px-3 py-2 ${fontWeight} ${linha.isSubtotal ? "text-gray-800" : "text-gray-600"} ${linha.indentLevel > 0 ? "pl-7" : ""}`}>
+                        {linha.label}
+                      </td>
+                      <td className={`px-3 py-2 text-right ${fontWeight} ${corValor}`}>
+                        {linha.isSubtotal && linha.label.startsWith("=") ? " " : ""}
+                        {valExibido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+            <p className="text-[10px] text-gray-400">
+              * DRE calculada com base nos lançamentos do Fluxo de Caixa agrupados por categoria.
+            </p>
+            <div className={`text-sm font-bold ${(dreLinhas[dreLinhas.length - 1]?.valor ?? 0) >= 0 ? "text-green-700" : "text-red-600"}`}>
+              Resultado: {dreLinhas.length > 0 ? (dreLinhas[dreLinhas.length - 1]?.valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "-"}
+            </div>
+          </div>
         </div>
 
         {/* ══ TERMÔMETRO ══════════════════════════════════════════════════════ */}
