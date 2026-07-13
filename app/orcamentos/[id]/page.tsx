@@ -1372,17 +1372,31 @@ export default function VisualizarOrcamento() {
 
                   {/* Honorários e Impostos — ativação */}
                   <div className="mt-4 pt-4 border-t border-gray-100">
-                    <button
-                      type="button"
-                      onClick={() => atualizarCampo("mostrarHonorarios", !orcamento.mostrarHonorarios)}
-                      className={`text-sm font-semibold px-3 py-1.5 rounded-lg border transition ${
-                        orcamento.mostrarHonorarios
-                          ? "bg-gray-800 text-white border-gray-800"
-                          : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
-                      }`}
-                    >
-                      {orcamento.mostrarHonorarios ? "✓ " : ""}Exibir Honorários e Impostos na proposta
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => atualizarCampo("mostrarHonorarios", !orcamento.mostrarHonorarios)}
+                        className={`text-sm font-semibold px-3 py-1.5 rounded-lg border transition ${
+                          orcamento.mostrarHonorarios
+                            ? "bg-gray-800 text-white border-gray-800"
+                            : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+                        }`}
+                      >
+                        {orcamento.mostrarHonorarios ? "✓ " : ""}Exibir Honorários e Impostos na proposta
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => atualizarCampo("mostrarValorTotalItem", !orcamento.mostrarValorTotalItem)}
+                        className={`text-sm font-semibold px-3 py-1.5 rounded-lg border transition ${
+                          orcamento.mostrarValorTotalItem
+                            ? "bg-gray-800 text-white border-gray-800"
+                            : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+                        }`}
+                      >
+                        {orcamento.mostrarValorTotalItem ? "✓ " : ""}Exibir valor total por item na proposta
+                      </button>
+                    </div>
 
                     {orcamento.mostrarHonorarios && (
                       <div className="mt-3">

@@ -197,6 +197,7 @@ export interface Orcamento {
   manuseio?: boolean;
   custoManuseio?: number;
   mostrarHonorarios?: boolean;
+  mostrarValorTotalItem?: boolean;
   percHonorarios?: number;
   percImpostos?: number;
   percComissao?: number;

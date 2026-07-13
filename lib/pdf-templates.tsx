@@ -428,6 +428,7 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
     !orcamento.frete.startsWith("CUSTO ADICIONAL")
       ? orcamento.frete
       : null;
+  const mostrarTotalItem = orcamento.mostrarValorTotalItem !== false;
 
   // Colunas fixas
   const W = { img: 36, acab: 58, kit: 52, qtd: 30, und: 26, vun: 74, vtot: 82 };
@@ -527,7 +528,7 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
             <Text style={[v.th, { width: W.qtd, textAlign: "right" }]}>QTD</Text>
             <Text style={[v.th, { width: W.und, textAlign: "right" }]}>UN.</Text>
             <Text style={[v.th, { width: W.vun, textAlign: "right" }]}>R$ UNIT.</Text>
-            <Text style={[v.th, { width: W.vtot, textAlign: "right" }]}>R$ TOTAL</Text>
+            {mostrarTotalItem && <Text style={[v.th, { width: W.vtot, textAlign: "right" }]}>R$ TOTAL</Text>}
           </View>
 
           {orcamento.itens.map((item, idx) => {
@@ -551,9 +552,11 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
                 <Text style={[v.td, { width: W.qtd, textAlign: "right" }]}>{item.quantidade}</Text>
                 <Text style={[v.td, { width: W.und, textAlign: "right" }]}>UN</Text>
                 <Text style={[v.td, { width: W.vun, textAlign: "right" }]}>{fmt(item.valorUnitario)}</Text>
-                <Text style={[v.td, { width: W.vtot, fontFamily: "Helvetica-Bold", color: "#fb4d06", textAlign: "right" }]}>
-                  {fmt(item.total)}
-                </Text>
+                {mostrarTotalItem && (
+                  <Text style={[v.td, { width: W.vtot, fontFamily: "Helvetica-Bold", color: "#fb4d06", textAlign: "right" }]}>
+                    {fmt(item.total)}
+                  </Text>
+                )}
               </View>
             );
           })}
@@ -570,9 +573,11 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
               <Text style={[v.td, { width: W.qtd, textAlign: "right" }]}>1</Text>
               <Text style={[v.td, { width: W.und, textAlign: "right" }]}>—</Text>
               <Text style={[v.td, { width: W.vun, textAlign: "right" }]}>—</Text>
-              <Text style={[v.td, { width: W.vtot, fontFamily: "Helvetica-Bold", color: "#1e40af", textAlign: "right" }]}>
-                {valorFrete > 0 ? fmt(valorFrete) : freteVal}
-              </Text>
+              {mostrarTotalItem && (
+                <Text style={[v.td, { width: W.vtot, fontFamily: "Helvetica-Bold", color: "#1e40af", textAlign: "right" }]}>
+                  {valorFrete > 0 ? fmt(valorFrete) : freteVal}
+                </Text>
+              )}
             </View>
           )}
         </View>

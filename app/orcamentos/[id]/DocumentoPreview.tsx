@@ -76,6 +76,7 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
   const totalGeral = totalProdutos + totalServicos + valorFrete;
   const aprovado = orcamento.status === "Aprovado";
   const tiposNota = (orcamento.tiposNota || []).join(" + ") || "—";
+  const mostrarTotalItem = orcamento.mostrarValorTotalItem !== false;
 
   const titulo = [
     orcamento.cliente?.toUpperCase(),
@@ -263,7 +264,7 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
               <span className="font-bold text-gray-100 text-right" style={{ width: COL_W.qtd }}>QTD</span>
               <span className="font-bold text-gray-100 text-right" style={{ width: COL_W.und }}>UN.</span>
               <span className="font-bold text-gray-100 text-right" style={{ width: COL_W.vun }}>R$ UNIT.</span>
-              <span className="font-bold text-gray-100 text-right" style={{ width: COL_W.vtot }}>R$ TOTAL</span>
+              {mostrarTotalItem && <span className="font-bold text-gray-100 text-right" style={{ width: COL_W.vtot }}>R$ TOTAL</span>}
             </div>
 
             {/* Linhas de itens */}
@@ -424,12 +425,14 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                   </div>
 
                   {/* Valor total */}
-                  <span
-                    className="font-bold text-right"
-                    style={{ width: COL_W.vtot, fontSize: 8, color: "#fb4d06" }}
-                  >
-                    {fmt(item.total)}
-                  </span>
+                  {mostrarTotalItem && (
+                    <span
+                      className="font-bold text-right"
+                      style={{ width: COL_W.vtot, fontSize: 8, color: "#fb4d06" }}
+                    >
+                      {fmt(item.total)}
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -444,9 +447,11 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                 <span className="text-gray-700 text-right" style={{ width: COL_W.qtd, fontSize: 8 }}>1</span>
                 <span className="text-gray-500 text-right" style={{ width: COL_W.und, fontSize: 8 }}>—</span>
                 <span className="text-gray-500 text-right" style={{ width: COL_W.vun, fontSize: 8 }}>—</span>
-                <span className="font-bold text-right" style={{ width: COL_W.vtot, fontSize: 8, color: "#1e40af" }}>
-                  {valorFrete > 0 ? fmt(valorFrete) : freteVal}
-                </span>
+                {mostrarTotalItem && (
+                  <span className="font-bold text-right" style={{ width: COL_W.vtot, fontSize: 8, color: "#1e40af" }}>
+                    {valorFrete > 0 ? fmt(valorFrete) : freteVal}
+                  </span>
+                )}
               </div>
             )}
           </div>
