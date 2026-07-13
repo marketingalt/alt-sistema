@@ -428,7 +428,7 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
     !orcamento.frete.startsWith("CUSTO ADICIONAL")
       ? orcamento.frete
       : null;
-  const mostrarTotalItem = orcamento.mostrarValorTotalItem !== false;
+  const mostrarTotalItem = orcamento.mostrarValorTotalItem === true;
 
   // Colunas fixas
   const W = { img: 36, acab: 58, kit: 52, qtd: 30, und: 26, vun: 74, vtot: 82 };
@@ -610,6 +610,7 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
         ) : null}
 
         {/* ── Total ── */}
+        {!mostrarTotalItem && (
         <View style={v.totalRow}>
           {(orcamento.manuseio && orcamento.custoManuseio) || valorFrete > 0 ? (
             <View style={v.totalMeta}>
@@ -625,9 +626,10 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
           <Text style={v.totalLabel}>TOTAL</Text>
           <Text style={v.totalValue}>{fmt(totalGeral)}</Text>
         </View>
+        )}
 
         {/* ── Honorários e Impostos ── */}
-        {orcamento.mostrarHonorarios && ((orcamento.percHonorarios ?? 0) > 0 || (orcamento.percImpostos ?? 0) > 0) ? (() => {
+        {!mostrarTotalItem && orcamento.mostrarHonorarios && ((orcamento.percHonorarios ?? 0) > 0 || (orcamento.percImpostos ?? 0) > 0) ? (() => {
           const hon = (orcamento.percHonorarios ?? 0) > 0;
           const imp = (orcamento.percImpostos ?? 0) > 0;
           const valHon = totalGeral * (orcamento.percHonorarios ?? 0) / 100;

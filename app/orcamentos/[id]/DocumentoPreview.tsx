@@ -76,7 +76,7 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
   const totalGeral = totalProdutos + totalServicos + valorFrete;
   const aprovado = orcamento.status === "Aprovado";
   const tiposNota = (orcamento.tiposNota || []).join(" + ") || "—";
-  const mostrarTotalItem = orcamento.mostrarValorTotalItem !== false;
+  const mostrarTotalItem = orcamento.mostrarValorTotalItem === true;
 
   const titulo = [
     orcamento.cliente?.toUpperCase(),
@@ -496,6 +496,7 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
           ) : null}
 
           {/* ═══ TOTAL ═══ */}
+          {!mostrarTotalItem && (
           <div className="px-4 mt-2.5 pt-2 border-t-2 border-[#fb4d06] flex justify-end items-center">
             {(orcamento.manuseio && orcamento.custoManuseio) || valorFrete > 0 ? (
               <div className="text-right mr-3.5 text-[7.5px] text-gray-400 space-y-0.5">
@@ -509,9 +510,10 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
             <span className="text-[11px] font-bold text-gray-700 mr-3.5">TOTAL</span>
             <span className="text-[18px] font-bold text-[#fb4d06]">{fmt(totalGeral)}</span>
           </div>
+          )}
 
           {/* ═══ HONORÁRIOS E IMPOSTOS ═══ */}
-          {orcamento.mostrarHonorarios && ((orcamento.percHonorarios ?? 0) > 0 || (orcamento.percImpostos ?? 0) > 0) ? (
+          {!mostrarTotalItem && orcamento.mostrarHonorarios && ((orcamento.percHonorarios ?? 0) > 0 || (orcamento.percImpostos ?? 0) > 0) ? (
             <div className="px-4 mt-2.5">
               <div className="border border-gray-200 rounded overflow-hidden">
                 <div className="bg-gray-50 px-2.5 py-1 border-b border-gray-200">

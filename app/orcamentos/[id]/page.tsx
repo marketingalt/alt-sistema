@@ -1342,6 +1342,7 @@ export default function VisualizarOrcamento() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
               <div className="flex items-start justify-between gap-6">
                 <div className="flex-1">
+                  {!orcamento.mostrarValorTotalItem && (
                   <div className="flex flex-col gap-2">
                     <div className="flex justify-between items-center text-sm text-gray-500">
                       <span>Total Produtos</span>
@@ -1369,6 +1370,7 @@ export default function VisualizarOrcamento() {
                       <p className="text-2xl font-bold text-[#fb4d06]">R$ {totalGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
                     </div>
                   </div>
+                  )}
 
                   {/* Honorários e Impostos — ativação */}
                   <div className="mt-4 pt-4 border-t border-gray-100">
