@@ -468,20 +468,20 @@ export default function VisualizarOrcamento() {
         {/* Cabeçalho com informações fixas */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Orçamento #{orcamento.numero}</h1>
-            <p className="text-gray-500 text-sm">{orcamento.cliente || "Sem cliente"} · {orcamento.dataOrcamento}</p>
+            <h1 className="text-3xl font-bold text-gray-800">Orçamento #{orcamento.numero}</h1>
+            <p className="text-gray-500 text-base">{orcamento.cliente || "Sem cliente"} · {orcamento.dataOrcamento}</p>
           </div>
           <div className="flex gap-2 items-center">
-            <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border ${STATUS_CONFIG[orcamento.status || "Em andamento"].bg} ${STATUS_CONFIG[orcamento.status || "Em andamento"].cor}`}>
+            <span className={`inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border ${STATUS_CONFIG[orcamento.status || "Em andamento"].bg} ${STATUS_CONFIG[orcamento.status || "Em andamento"].cor}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${STATUS_CONFIG[orcamento.status || "Em andamento"].dot}`} />
               {orcamento.status || "Em andamento"}
             </span>
-            <button onClick={() => gerarPdf("valores")} disabled={gerandoPdf} className="bg-gray-800 text-white text-xs font-semibold py-1.5 px-3 rounded-lg hover:bg-gray-700 transition disabled:opacity-50">
+            <button onClick={() => gerarPdf("valores")} disabled={gerandoPdf} className="bg-gray-800 text-white text-sm font-semibold py-1.5 px-3 rounded-lg hover:bg-gray-700 transition disabled:opacity-50">
               ⬇ Download PDF
             </button>
             <button
               onClick={deletar}
-              className="text-xs font-semibold py-1.5 px-3 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700 border border-red-200 hover:border-red-300 transition"
+              className="text-sm font-semibold py-1.5 px-3 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700 border border-red-200 hover:border-red-300 transition"
               title="Excluir orçamento"
             >
               <svg className="w-3.5 h-3.5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -541,7 +541,7 @@ export default function VisualizarOrcamento() {
         <div className="flex gap-1 mb-5 border-b border-gray-200">
           <button
             onClick={() => setModo("visualizacao")}
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-b-2 transition ${
+            className={`flex items-center gap-2 px-5 py-3 text-base font-medium border-b-2 transition ${
               modo === "visualizacao"
                 ? "border-[#fb4d06] text-[#fb4d06]"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -555,7 +555,7 @@ export default function VisualizarOrcamento() {
           </button>
           <button
             onClick={() => setModo("revisao")}
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-b-2 transition ${
+            className={`flex items-center gap-2 px-5 py-3 text-base font-medium border-b-2 transition ${
               modo === "revisao"
                 ? "border-[#fb4d06] text-[#fb4d06]"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -582,7 +582,7 @@ export default function VisualizarOrcamento() {
                   return (
                     <span
                       key={tagId}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-white shadow-sm"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium text-white shadow-sm"
                       style={{ backgroundColor: proj.cor, boxShadow: `0 0 8px ${proj.cor}55` }}
                     >
                       <span className="w-2 h-2 rounded-full bg-white/60" />
@@ -597,7 +597,7 @@ export default function VisualizarOrcamento() {
             {osVinculada && (
               <Link
                 href={`/ordens-servico/${osVinculada.id}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-gray-800 hover:bg-gray-700 transition mb-4"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold text-white bg-gray-800 hover:bg-gray-700 transition mb-4"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -637,7 +637,7 @@ export default function VisualizarOrcamento() {
               <div className="flex gap-2 flex-wrap items-center">
                 {/* Status dropdown */}
                 <div className="relative group">
-                  <button className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border ${STATUS_CONFIG[orcamento.status || "Em andamento"].bg} ${STATUS_CONFIG[orcamento.status || "Em andamento"].cor}`}>
+                  <button className={`inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border ${STATUS_CONFIG[orcamento.status || "Em andamento"].bg} ${STATUS_CONFIG[orcamento.status || "Em andamento"].cor}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${STATUS_CONFIG[orcamento.status || "Em andamento"].dot}`} />
                     {orcamento.status || "Em andamento"}
                     <svg className="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -648,7 +648,7 @@ export default function VisualizarOrcamento() {
                     {TODOS_STATUS.map((s) => (
                       <button key={s}
                         onClick={() => atualizarCampo("status", s)}
-                        className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 ${s === (orcamento.status || "Em andamento") ? "font-bold" : ""}`}>
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 ${s === (orcamento.status || "Em andamento") ? "font-bold" : ""}`}>
                         <span className={`w-2 h-2 rounded-full ${STATUS_CONFIG[s].dot}`} />
                         {s}
                       </button>
@@ -664,7 +664,7 @@ export default function VisualizarOrcamento() {
                 />
                 {salvo && <span className="text-green-600 text-sm font-medium">✓ Salvo</span>}
                 {draftSavedAt && !salvo && (
-                  <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                  <span className="text-sm text-green-600 font-medium flex items-center gap-1">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
@@ -709,7 +709,7 @@ export default function VisualizarOrcamento() {
             <div className="flex items-center gap-2 mb-6">
               <button
                 onClick={() => setMostrarModalVersao(true)}
-                className="text-xs font-semibold py-2 px-4 rounded-lg bg-white border border-gray-200 text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition flex items-center gap-1.5"
+                className="text-sm font-semibold py-2 px-4 rounded-lg bg-white border border-gray-200 text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition flex items-center gap-1.5"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -718,7 +718,7 @@ export default function VisualizarOrcamento() {
               </button>
               <button
                 onClick={() => setMostrarPainelVersoes(!mostrarPainelVersoes)}
-                className={`text-xs font-semibold py-2 px-4 rounded-lg border transition flex items-center gap-1.5 ${
+                className={`text-sm font-semibold py-2 px-4 rounded-lg border transition flex items-center gap-1.5 ${
                   mostrarPainelVersoes
                     ? "bg-gray-800 text-white border-gray-800"
                     : "bg-white text-gray-700 border-gray-200 hover:border-gray-400 hover:bg-gray-50"
@@ -729,7 +729,7 @@ export default function VisualizarOrcamento() {
                 </svg>
                 Versões
                 {versoes.length > 0 && (
-                  <span className="ml-0.5 text-[10px] bg-current rounded-full px-1.5 py-0.5"
+                  <span className="ml-0.5 text-sm bg-current rounded-full px-1.5 py-0.5"
                     style={{ color: mostrarPainelVersoes ? "#fff" : "#6b7280", background: mostrarPainelVersoes ? "#fff" : "#e5e7eb" }}>
                     {versoes.length}
                   </span>
@@ -741,7 +741,7 @@ export default function VisualizarOrcamento() {
             {mostrarPainelVersoes && (
               <div className="mb-6 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-100">
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Histórico de Versões</h3>
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Histórico de Versões</h3>
                 </div>
                 {carregandoVersoes ? (
                   <div className="px-4 py-6 text-center text-sm text-gray-400">Carregando...</div>
@@ -753,13 +753,13 @@ export default function VisualizarOrcamento() {
                       <div key={v.id} className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition">
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-gray-800 truncate">{v.nome}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">
+                          <p className="text-sm text-gray-400 mt-0.5">
                             {new Date(v.criadaEm).toLocaleString("pt-BR")}
                           </p>
                         </div>
                         <button
                           onClick={() => handleRestaurarVersao(v.id)}
-                          className="text-xs font-semibold py-1.5 px-3 rounded-lg text-blue-600 hover:bg-blue-50 border border-blue-200 hover:border-blue-300 transition shrink-0 ml-3"
+                          className="text-sm font-semibold py-1.5 px-3 rounded-lg text-blue-600 hover:bg-blue-50 border border-blue-200 hover:border-blue-300 transition shrink-0 ml-3"
                         >
                           Restaurar
                         </button>
@@ -772,13 +772,13 @@ export default function VisualizarOrcamento() {
 
             {/* Informações gerais */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Informações Gerais</h2>
+              <h2 className="text-base font-semibold text-gray-600 uppercase tracking-wide mb-4">Informações Gerais</h2>
 
               {/* Linha 1: Nº + Projeto + Cliente + Solicitante */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Nº Orçamento</label>
-                  <div className="border border-gray-100 bg-gray-50 rounded-lg px-3 py-2 text-sm font-bold text-[#fb4d06]">
+                  <label className="block text-sm font-medium text-gray-600 mb-1.5">Nº Orçamento</label>
+                  <div className="border border-gray-100 bg-gray-50 rounded-lg px-3 py-2.5 text-base font-bold text-[#fb4d06]">
                     {orcamento.numero}
                   </div>
                 </div>
@@ -789,7 +789,7 @@ export default function VisualizarOrcamento() {
 
               {/* Projetos (tags) */}
               <div className="mb-4">
-                <label className="block text-xs font-medium text-gray-500 mb-2">Projetos</label>
+                <label className="block text-sm font-medium text-gray-500 mb-2">Projetos</label>
                 <TagSelector
                   projetos={projetosPlanejamento}
                   selected={orcamento.tags || []}
@@ -812,7 +812,7 @@ export default function VisualizarOrcamento() {
                   autoFilled
                 />
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de nota</label>
+                  <label className="block text-sm font-medium text-gray-600 mb-1.5">Tipo de nota</label>
                   <div className="flex gap-2">
                     {(["DANFE", "NFSE"] as const).map((tipo) => {
                       const ativo = (orcamento.tiposNota || []).includes(tipo);
@@ -822,7 +822,7 @@ export default function VisualizarOrcamento() {
                             const atual = orcamento.tiposNota || [];
                             atualizarCampo("tiposNota" as keyof typeof orcamento, (ativo ? atual.filter((t) => t !== tipo) : [...atual, tipo]) as unknown as string);
                           }}
-                          className={`flex-1 py-2 rounded-lg text-xs font-bold border transition ${
+                          className={`flex-1 py-2 rounded-lg text-sm font-bold border transition ${
                             ativo ? "bg-gray-800 text-white border-gray-800" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
                           }`}>
                           {tipo}
@@ -852,16 +852,16 @@ export default function VisualizarOrcamento() {
               {/* Linha 4: Observações + Frete */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Observações</label>
+                  <label className="block text-sm font-medium text-gray-600 mb-1.5">Observações</label>
                   <input
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-red-600 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base text-red-600 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
                     value={orcamento.observacoes}
                     onChange={(e) => atualizarCampo("observacoes", e.target.value)}
                   />
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-medium text-gray-500">Frete</label>
+                    <label className="text-sm font-medium text-gray-500">Frete</label>
                     <button
                       type="button"
                       onClick={() => setModalFrete(true)}
@@ -876,13 +876,13 @@ export default function VisualizarOrcamento() {
                   <div className="flex gap-2">
                     <input
                       type="number" min={0} step="0.01"
-                      className="w-full sm:w-36 border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                      className="w-full sm:w-36 border border-gray-200 rounded-lg px-3 py-2.5 text-base font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
                       value={orcamento.freteValor && orcamento.freteValor > 0 ? orcamento.freteValor : ""}
                       onChange={(e) => atualizarCampo("freteValor", e.target.value ? parseFloat(e.target.value) : 0)}
                       placeholder="Valor (R$)"
                     />
                     <input
-                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2.5 text-base bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
                       value={orcamento.frete || ""}
                       onChange={(e) => atualizarCampo("frete", e.target.value)}
                       placeholder="Descrição (opcional)"
@@ -896,7 +896,7 @@ export default function VisualizarOrcamento() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-700">Manuseio específico</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Será tratado como serviço · NF-e de Serviço</p>
+                    <p className="text-sm text-gray-400 mt-0.5">Será tratado como serviço · NF-e de Serviço</p>
                   </div>
                   <button
                     type="button"
@@ -909,10 +909,10 @@ export default function VisualizarOrcamento() {
                 {orcamento.manuseio && (
                   <div className="mt-3 flex items-center gap-4">
                     <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Custo do manuseio (R$)</label>
+                      <label className="block text-sm font-medium text-gray-600 mb-1.5">Custo do manuseio (R$)</label>
                       <input
                         type="number" min={0} step="0.01"
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
                         value={orcamento.custoManuseio || ""}
                         onChange={(e) => atualizarCampo("custoManuseio", parseFloat(e.target.value) || 0)}
                         placeholder="0,00"
@@ -920,7 +920,7 @@ export default function VisualizarOrcamento() {
                     </div>
                     {!!orcamento.custoManuseio && (
                       <div className="text-right">
-                        <p className="text-xs text-gray-400">Valor do serviço</p>
+                        <p className="text-sm text-gray-400">Valor do serviço</p>
                         <p className="text-base font-bold text-gray-700">
                           R$ {(orcamento.custoManuseio).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </p>
@@ -935,12 +935,12 @@ export default function VisualizarOrcamento() {
             <div className="bg-[#fb4d06]/5 border border-[#fb4d06]/20 rounded-2xl p-5 mb-6">
               <div className="mb-4">
                 <h2 className="text-sm font-bold text-[#fb4d06] mb-0.5">Margens do Orçamento</h2>
-                <p className="text-xs text-[#fb4d06]/70">Definem o preço final de todos os itens. A margem de lucro pode ser reduzida individualmente por item.</p>
+                <p className="text-sm text-[#fb4d06]/70">Definem o preço final de todos os itens. A margem de lucro pode ser reduzida individualmente por item.</p>
               </div>
               <div className="flex flex-wrap gap-5 items-end">
                 {(["percHonorarios", "percImpostos", "percComissao"] as const).map((campo) => (
                   <div key={campo} className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-[#fb4d06]/70 whitespace-nowrap">
+                    <label className="text-sm font-medium text-[#fb4d06]/70 whitespace-nowrap">
                       {campo === "percHonorarios" ? "Honorários" : campo === "percImpostos" ? "Impostos" : "Comissão"}
                     </label>
                     <div className="relative">
@@ -949,25 +949,25 @@ export default function VisualizarOrcamento() {
                         value={orcamento[campo] ?? ""}
                         onChange={(e) => atualizarMargemExtra(campo, parseFloat(e.target.value) || 0)}
                         placeholder="0" />
-                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#fb4d06]/50 pointer-events-none">%</span>
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-sm text-[#fb4d06]/50 pointer-events-none">%</span>
                     </div>
                   </div>
                 ))}
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-[#fb4d06]/90 whitespace-nowrap">Margem de Lucro</label>
+                  <label className="text-sm font-bold text-[#fb4d06]/90 whitespace-nowrap">Margem de Lucro</label>
                   <div className="relative">
                     <input type="number" min={0} max={99}
                       className="w-full sm:w-24 border-2 border-[#fb4d06]/40 rounded-lg px-3 py-2 pr-7 text-sm text-[#fb4d06] font-bold bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/40 text-center"
                       value={orcamento.margemPadrao}
                       onChange={(e) => aplicarMargemPadraoATodos(Number(e.target.value))} />
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#fb4d06]/50 pointer-events-none">%</span>
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-sm text-[#fb4d06]/50 pointer-events-none">%</span>
                   </div>
                 </div>
               </div>
               {(() => {
                 const totalMargem = orcamento.margemPadrao + margemExtra;
                 return (
-                  <p className="mt-3 text-xs text-[#fb4d06]/60">
+                  <p className="mt-3 text-sm text-[#fb4d06]/60">
                     = <span className="font-semibold text-[#fb4d06]/80">{totalMargem.toFixed(1)}%</span> total
                     {totalMargem < 100 && <> · Markup equivalente: <span className="font-semibold">{(100 / (1 - totalMargem / 100) - 100).toFixed(1)}%</span></>}
                   </p>
@@ -981,7 +981,7 @@ export default function VisualizarOrcamento() {
                     onChange={(e) => setCienteAlteracao(e.target.checked)}
                     className="mt-0.5 w-4 h-4 accent-[#fb4d06] cursor-pointer shrink-0"
                   />
-                  <span className={`text-xs font-semibold ${cienteAlteracao ? "text-[#fb4d06]/70" : "text-amber-700"}`}>
+                  <span className={`text-sm font-semibold ${cienteAlteracao ? "text-[#fb4d06]/70" : "text-amber-700"}`}>
                     Estou ciente da alteração nas porcentagens.
                   </span>
                 </label>
@@ -990,7 +990,7 @@ export default function VisualizarOrcamento() {
 
             {/* Itens */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Itens do Orçamento</h2>
+              <h2 className="text-base font-semibold text-gray-600 uppercase tracking-wide mb-4">Itens do Orçamento</h2>
 
               <div className="flex flex-col gap-5">
                 {orcamento.itens.map((item, idx) => {
@@ -1002,12 +1002,12 @@ export default function VisualizarOrcamento() {
                     <div key={item.id} className="border border-gray-100 rounded-xl overflow-hidden">
                       <div className="bg-gray-50 px-3 sm:px-4 py-2 flex items-center justify-between border-b border-gray-100">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[#fb4d06] uppercase">Item {idx + 1}</span>
-                          <span className="text-[10px] font-semibold text-gray-400">·</span>
+                          <span className="text-sm font-bold text-[#fb4d06] uppercase">Item {idx + 1}</span>
+                          <span className="text-sm font-semibold text-gray-400">·</span>
                           <button
                             type="button"
                             onClick={() => atualizarItem(item.id, "categoria", item.categoria === "servico" ? "brindes" : "servico")}
-                            className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border transition ${
+                            className={`text-sm font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border transition ${
                               item.categoria === "servico"
                                 ? "bg-purple-100 text-purple-700 border-purple-200"
                                 : "bg-gray-100 text-gray-600 border-gray-200"
@@ -1017,7 +1017,7 @@ export default function VisualizarOrcamento() {
                           </button>
                         </div>
                         {orcamento.itens.length > 1 && (
-                          <button onClick={() => removerItem(item.id)} className="text-red-400 hover:text-red-600 text-xs">
+                          <button onClick={() => removerItem(item.id)} className="text-red-400 hover:text-red-600 text-sm">
                             Remover
                           </button>
                         )}
@@ -1033,55 +1033,55 @@ export default function VisualizarOrcamento() {
                               <CampoNumero label="Quantidade" value={item.quantidade} onChange={(v) => atualizarItem(item.id, "quantidade", v)} />
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
+                              <label className="block text-sm font-medium text-gray-600 mb-1.5">Descrição</label>
                               <textarea
-                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none min-h-[70px] focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base resize-none min-h-[70px] focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
                                 value={item.descricao}
                                 onChange={(e) => atualizarItem(item.id, "descricao", e.target.value)}
                               />
                             </div>
                             <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
-                              <p className="text-xs font-bold text-purple-600 uppercase tracking-wide mb-3">Valores do Serviço</p>
+                              <p className="text-sm font-bold text-purple-600 uppercase tracking-wide mb-3">Valores do Serviço</p>
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                                 <div>
-                                  <label className="block text-xs font-medium text-purple-600 mb-1">Custo Unitário (R$)</label>
+                                  <label className="block text-sm font-medium text-purple-600 mb-1.5">Custo Unitário (R$)</label>
                                   <input type="number" min={0} step="0.01"
-                                    className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm text-purple-700 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                                    className="w-full border border-purple-200 rounded-lg px-3 py-2.5 text-base text-purple-700 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
                                     value={item.custoUnitario || ""}
                                     onChange={(e) => atualizarItem(item.id, "custoUnitario", Number(e.target.value))}
                                     placeholder="0,00"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-medium text-purple-600 mb-1">Margem (%)</label>
+                                  <label className="block text-sm font-medium text-purple-600 mb-1.5">Margem (%)</label>
                                   <input type="number" min={0} max={99} step={0.5}
-                                    className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm text-purple-700 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                                    className="w-full border border-purple-200 rounded-lg px-3 py-2.5 text-base text-purple-700 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
                                     value={item.margem ?? orcamento.margemPadrao}
                                     onChange={(e) => atualizarItem(item.id, "margem", Number(e.target.value))}
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-medium text-purple-600 mb-1">Valor Unit. Sugerido (R$)</label>
+                                  <label className="block text-sm font-medium text-purple-600 mb-1.5">Valor Unit. Sugerido (R$)</label>
                                   <input type="number" min={0} step="0.01"
-                                    className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm text-purple-700 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                                    className="w-full border border-purple-200 rounded-lg px-3 py-2.5 text-base text-purple-700 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
                                     value={item.valorUnitario || ""}
                                     onChange={(e) => atualizarItem(item.id, "valorUnitario", Number(e.target.value))}
                                     placeholder="0,00"
                                   />
                                   {!item.valorAjustado && item.valorUnitario > 0 && (
-                                    <p className="text-[10px] text-purple-400 mt-0.5">Automático</p>
+                                    <p className="text-sm text-purple-400 mt-0.5">Automático</p>
                                   )}
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-medium text-purple-600 mb-1">Valor Total (R$)</label>
+                                  <label className="block text-sm font-medium text-purple-600 mb-1.5">Valor Total (R$)</label>
                                   <div className="text-lg font-bold text-purple-700 py-2">
                                     R$ {item.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-medium text-purple-600 mb-1">% Comissão</label>
+                                  <label className="block text-sm font-medium text-purple-600 mb-1.5">% Comissão</label>
                                   <input type="number" min={0} max={100} step="0.1"
-                                    className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm text-purple-700 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                                    className="w-full border border-purple-200 rounded-lg px-3 py-2.5 text-base text-purple-700 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
                                     value={item.percentualComissao ?? ""}
                                     onChange={(e) => atualizarItem(item.id, "percentualComissao", parseFloat(e.target.value) || 0)}
                                   />
@@ -1101,9 +1101,9 @@ export default function VisualizarOrcamento() {
                           <Campo label="NCM" value={item.ncm || ""} onChange={(v) => atualizarItem(item.id, "ncm", v)} />
                           <Campo label="Fornecedor" value={item.fornecedorNome || ""} onChange={(v) => atualizarItem(item.id, "fornecedorNome", v)} />
                           <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Acabamento</label>
+                            <label className="block text-sm font-medium text-gray-600 mb-1.5">Acabamento</label>
                             <select
-                              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
                               value={item.acabamento}
                               onChange={(e) => atualizarItem(item.id, "acabamento", e.target.value)}
                             >
@@ -1115,9 +1115,9 @@ export default function VisualizarOrcamento() {
                         </div>
 
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Descrição Técnica</label>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Descrição Técnica</label>
                           <textarea
-                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none min-h-[70px] focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base resize-none min-h-[70px] focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
                             value={item.descricao}
                             onChange={(e) => atualizarItem(item.id, "descricao", e.target.value)}
                           />
@@ -1125,26 +1125,26 @@ export default function VisualizarOrcamento() {
 
                         {/* Precificação */}
                         <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Precificação</p>
+                          <p className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Precificação</p>
                           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-3">
                             <div>
-                              <label className={`block text-xs font-medium mb-1 ${temSurchargeQtdMinima(item) ? "text-amber-600" : "text-gray-500"}`}>
+                              <label className={`block text-sm font-medium mb-1 ${temSurchargeQtdMinima(item) ? "text-amber-600" : "text-gray-500"}`}>
                                 Custo unit. fornecedor (R$)
                                 {temSurchargeQtdMinima(item) && <span className="ml-1 font-bold">+5%</span>}
                               </label>
                               <input
                                 type="number" min={0} step="0.01"
-                                className={`w-full border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 ${temSurchargeQtdMinima(item) ? "border-amber-300 text-amber-700 focus:ring-amber-300" : "border-gray-200 text-gray-700 focus:ring-[#fb4d06]/30"}`}
+                                className={`w-full border rounded-lg px-3 py-2.5 text-base bg-white focus:outline-none focus:ring-2 ${temSurchargeQtdMinima(item) ? "border-amber-300 text-amber-700 focus:ring-amber-300" : "border-gray-200 text-gray-700 focus:ring-[#fb4d06]/30"}`}
                                 value={item.custoUnitario || ""}
                                 onChange={(e) => atualizarItem(item.id, "custoUnitario", parseFloat(e.target.value) || 0)}
                                 placeholder="0,00"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-gray-500 mb-1">Qtd mínima fornecedor</label>
+                              <label className="block text-sm font-medium text-gray-600 mb-1.5">Qtd mínima fornecedor</label>
                               <input
                                 type="number" min={0} step="1"
-                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 text-gray-700"
+                                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 text-gray-700"
                                 value={item.quantidadeMinima || ""}
                                 onChange={(e) => atualizarItem(item.id, "quantidadeMinima", parseInt(e.target.value) || 0)}
                                 placeholder="Sem mínimo"
@@ -1152,7 +1152,7 @@ export default function VisualizarOrcamento() {
                             </div>
                             <div>
                               <div className="flex items-center justify-between mb-1">
-                                <label className="text-xs font-medium text-gray-500">Frete de produção total (R$)</label>
+                                <label className="text-sm font-medium text-gray-500">Frete de produção total (R$)</label>
                                 <button type="button" onClick={() => setModalFreteProducao(item.id)}
                                   className="flex items-center gap-1 text-[11px] font-semibold text-[#fb4d06] hover:underline">
                                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1162,33 +1162,33 @@ export default function VisualizarOrcamento() {
                                 </button>
                               </div>
                               <input type="number" min={0} step="0.01"
-                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
                                 value={item.freteProducao || ""}
                                 onChange={(e) => atualizarItem(item.id, "freteProducao", parseFloat(e.target.value) || 0)}
                                 placeholder="0,00" />
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-gray-500 mb-1">Custo de personalização total (R$)</label>
+                              <label className="block text-sm font-medium text-gray-600 mb-1.5">Custo de personalização total (R$)</label>
                               <input type="number" min={0} step="0.01"
-                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
+                                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
                                 value={item.custoPersonalizacao || ""}
                                 onChange={(e) => atualizarItem(item.id, "custoPersonalizacao", parseFloat(e.target.value) || 0)}
                                 placeholder="0,00" />
-                              <p className="text-[10px] text-gray-400 mt-0.5">Total ÷ quantidade</p>
+                              <p className="text-sm text-gray-400 mt-0.5">Total ÷ quantidade</p>
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-gray-500 mb-1">Margem de Lucro (%)</label>
+                              <label className="block text-sm font-medium text-gray-600 mb-1.5">Margem de Lucro (%)</label>
                               <input
                                 type="number" min={0} max={orcamento.margemPadrao}
-                                className="w-full border border-[#fb4d06]/20 rounded-lg px-3 py-2 text-sm text-[#fb4d06] font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/40"
+                                className="w-full border border-[#fb4d06]/20 rounded-lg px-3 py-2.5 text-base text-[#fb4d06] font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/40"
                                 value={item.margem || ""}
                                 onChange={(e) => atualizarItem(item.id, "margem", Math.min(Number(e.target.value), orcamento.margemPadrao))}
                               />
                               {item.margem < orcamento.margemPadrao && (
-                                <p className="text-[10px] text-amber-600 mt-0.5">↓ reduzida · padrão: {orcamento.margemPadrao}%</p>
+                                <p className="text-sm text-amber-600 mt-0.5">↓ reduzida · padrão: {orcamento.margemPadrao}%</p>
                               )}
                               {margemExtra > 0 && (
-                                <p className="text-[10px] text-[#fb4d06]/60 mt-0.5">
+                                <p className="text-sm text-[#fb4d06]/60 mt-0.5">
                                   Total: {((item.margem || 0) + margemExtra).toFixed(1)}%
                                   {(orcamento.percHonorarios || 0) > 0 && ` · Hon. ${orcamento.percHonorarios}%`}
                                   {(orcamento.percImpostos || 0) > 0 && ` · Imp. ${orcamento.percImpostos}%`}
@@ -1197,10 +1197,10 @@ export default function VisualizarOrcamento() {
                               )}
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-gray-500 mb-1">% Comissão</label>
+                              <label className="block text-sm font-medium text-gray-600 mb-1.5">% Comissão</label>
                               <input
                                 type="number" min={0} max={100} step="0.1"
-                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
                                 value={item.percentualComissao ?? ""}
                                 onChange={(e) => atualizarItem(item.id, "percentualComissao", parseFloat(e.target.value) || 0)}
                               />
@@ -1211,14 +1211,14 @@ export default function VisualizarOrcamento() {
                             <button
                               type="button"
                               onClick={() => atualizarItem(item.id, "custoEmbalagemIndividual", item.custoEmbalagemIndividual !== undefined ? undefined : 0)}
-                              className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition flex items-center gap-1 ${item.custoEmbalagemIndividual !== undefined ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-white border-gray-200 text-gray-500 hover:border-gray-400"}`}
+                              className={`text-sm font-semibold px-3 py-1.5 rounded-lg border transition flex items-center gap-1 ${item.custoEmbalagemIndividual !== undefined ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-white border-gray-200 text-gray-500 hover:border-gray-400"}`}
                             >
                               + Embalagem Individual
                             </button>
                             <button
                               type="button"
                               onClick={() => atualizarItem(item.id, "custoEmbalagemTransporte", item.custoEmbalagemTransporte !== undefined ? undefined : 0)}
-                              className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition flex items-center gap-1 ${item.custoEmbalagemTransporte !== undefined ? "bg-purple-50 border-purple-300 text-purple-700" : "bg-white border-gray-200 text-gray-500 hover:border-gray-400"}`}
+                              className={`text-sm font-semibold px-3 py-1.5 rounded-lg border transition flex items-center gap-1 ${item.custoEmbalagemTransporte !== undefined ? "bg-purple-50 border-purple-300 text-purple-700" : "bg-white border-gray-200 text-gray-500 hover:border-gray-400"}`}
                             >
                               + Embalagem Transporte
                             </button>
@@ -1227,31 +1227,31 @@ export default function VisualizarOrcamento() {
                             <div className="grid grid-cols-2 gap-3 mb-3">
                               {item.custoEmbalagemIndividual !== undefined && (
                                 <div>
-                                  <label className="block text-xs font-medium text-indigo-600 mb-1">Embalagem individual (R$ / item)</label>
+                                  <label className="block text-sm font-medium text-indigo-600 mb-1">Embalagem individual (R$ / item)</label>
                                   <input type="number" min={0} step="0.01"
-                                    className="w-full border border-indigo-200 rounded-lg px-3 py-2 text-sm text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                                    className="w-full border border-indigo-200 rounded-lg px-3 py-2.5 text-base text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
                                     value={item.custoEmbalagemIndividual || ""}
                                     onChange={(e) => atualizarItem(item.id, "custoEmbalagemIndividual", parseFloat(e.target.value) || 0)}
                                     placeholder="0,00" />
-                                  <p className="text-[10px] text-indigo-400 mt-0.5">Custo por unidade, não dividido</p>
+                                  <p className="text-sm text-indigo-400 mt-0.5">Custo por unidade, não dividido</p>
                                 </div>
                               )}
                               {item.custoEmbalagemTransporte !== undefined && (
                                 <div>
-                                  <label className="block text-xs font-medium text-purple-600 mb-1">Embalagem transporte total (R$)</label>
+                                  <label className="block text-sm font-medium text-purple-600 mb-1.5">Embalagem transporte total (R$)</label>
                                   <input type="number" min={0} step="0.01"
-                                    className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm text-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white"
+                                    className="w-full border border-purple-200 rounded-lg px-3 py-2.5 text-base text-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white"
                                     value={item.custoEmbalagemTransporte || ""}
                                     onChange={(e) => atualizarItem(item.id, "custoEmbalagemTransporte", parseFloat(e.target.value) || 0)}
                                     placeholder="0,00" />
-                                  <p className="text-[10px] text-purple-400 mt-0.5">Total dividido pela quantidade</p>
+                                  <p className="text-sm text-purple-400 mt-0.5">Total dividido pela quantidade</p>
                                 </div>
                               )}
                             </div>
                           )}
 
                           {temSurchargeQtdMinima(item) && (
-                            <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+                            <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                               </svg>
@@ -1261,23 +1261,23 @@ export default function VisualizarOrcamento() {
 
                           <div className="flex flex-wrap items-end gap-4 pt-3 border-t border-gray-200">
                             {custoTotal > 0 && (
-                              <div className="text-xs text-gray-500">
+                              <div className="text-sm text-gray-500">
                                 Custo total unit.: <span className="font-semibold text-gray-700">R$ {custoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                               </div>
                             )}
                             {valorSugerido > 0 && (
-                              <div className="text-xs text-gray-500">
+                              <div className="text-sm text-gray-500">
                                 Preço sugerido: <span className="font-semibold text-green-700">R$ {valorSugerido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                               </div>
                             )}
 
                             <div className="flex-1 min-w-0 w-full sm:min-w-[200px]">
                               <div className="flex items-center gap-2 mb-1">
-                                <label className="text-xs font-medium text-gray-600">Preço final ao cliente (R$)</label>
+                                <label className="text-sm font-medium text-gray-600">Preço final ao cliente (R$)</label>
                                 {item.valorAjustado && (
                                   <button
                                     onClick={() => resetarValorItem(item.id)}
-                                    className="text-xs text-blue-500 hover:text-blue-700 underline"
+                                    className="text-sm text-blue-500 hover:text-blue-700 underline"
                                   >
                                     Usar calculado
                                   </button>
@@ -1285,20 +1285,20 @@ export default function VisualizarOrcamento() {
                               </div>
                               <input
                                 type="number"
-                                className={`w-full border-2 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/40 ${item.valorAjustado ? "border-orange-300 text-orange-700" : "border-[#fb4d06]/30 text-[#fb4d06]"}`}
+                                className={`w-full border-2 rounded-lg px-3 py-2.5 text-base font-bold focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/40 ${item.valorAjustado ? "border-orange-300 text-orange-700" : "border-[#fb4d06]/30 text-[#fb4d06]"}`}
                                 value={item.valorUnitario || ""}
                                 onChange={(e) => atualizarItem(item.id, "valorUnitario", Number(e.target.value))}
                                 placeholder={valorSugerido > 0 ? valorSugerido.toFixed(2) : "0,00"}
                               />
                               {item.valorAjustado && item.valorUnitario > 0 && custoTotal > 0 && (
-                                <p className="text-xs mt-1 text-orange-600">
+                                <p className="text-sm mt-1 text-orange-600">
                                   Margem real: {margemReal.toFixed(1)}% {margemReal < item.margem ? "↓ abaixo do padrão" : "↑ acima"}
                                 </p>
                               )}
                             </div>
 
                             <div className="text-right">
-                              <p className="text-xs text-gray-400">Total do item</p>
+                              <p className="text-sm text-gray-400">Total do item</p>
                               <p className="text-lg font-bold text-[#fb4d06]">
                                 R$ {item.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                               </p>
@@ -1332,7 +1332,7 @@ export default function VisualizarOrcamento() {
                     </div>
                     {orcamento.manuseio && !!orcamento.custoManuseio && (
                       <div className="flex justify-between items-center text-sm text-gray-500">
-                        <span>Total Serviços <span className="text-xs text-purple-500">(Manuseio · NFSE)</span></span>
+                        <span>Total Serviços <span className="text-sm text-purple-500">(Manuseio · NFSE)</span></span>
                         <span className="font-semibold text-purple-700">R$ {totalServicos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                       </div>
                     )}
@@ -1358,7 +1358,7 @@ export default function VisualizarOrcamento() {
                     <button
                       type="button"
                       onClick={() => atualizarCampo("mostrarHonorarios", !orcamento.mostrarHonorarios)}
-                      className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${
+                      className={`text-sm font-semibold px-3 py-1.5 rounded-lg border transition ${
                         orcamento.mostrarHonorarios
                           ? "bg-gray-800 text-white border-gray-800"
                           : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
@@ -1371,9 +1371,9 @@ export default function VisualizarOrcamento() {
                       <div className="mt-3">
                         {((orcamento.percHonorarios ?? 0) > 0 || (orcamento.percImpostos ?? 0) > 0) ? (
                           <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 flex flex-col gap-1.5">
-                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Composição do Total Geral</p>
+                            <p className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Composição do Total Geral</p>
                             {(orcamento.percHonorarios ?? 0) > 0 && (
-                              <div className="flex items-center justify-between text-xs text-gray-600">
+                              <div className="flex items-center justify-between text-sm text-gray-600">
                                 <span>Honorários <span className="text-gray-400">({orcamento.percHonorarios}%)</span></span>
                                 <span className="font-semibold text-gray-800">
                                   R$ {(totalGeral * (orcamento.percHonorarios ?? 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
@@ -1381,7 +1381,7 @@ export default function VisualizarOrcamento() {
                               </div>
                             )}
                             {(orcamento.percImpostos ?? 0) > 0 && (
-                              <div className="flex items-center justify-between text-xs text-gray-600">
+                              <div className="flex items-center justify-between text-sm text-gray-600">
                                 <span>Impostos <span className="text-gray-400">({orcamento.percImpostos}%)</span></span>
                                 <span className="font-semibold text-gray-800">
                                   R$ {(totalGeral * (orcamento.percImpostos ?? 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
@@ -1390,7 +1390,7 @@ export default function VisualizarOrcamento() {
                             )}
                           </div>
                         ) : (
-                          <p className="mt-2 text-xs text-gray-400">Configure os percentuais no campo Honorários e Impostos acima.</p>
+                          <p className="mt-2 text-sm text-gray-400">Configure os percentuais no campo Honorários e Impostos acima.</p>
                         )}
                       </div>
                     )}
@@ -1437,14 +1437,14 @@ export default function VisualizarOrcamento() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => { setMostrarModalVersao(false); setNovaVersaoNome(""); }}>
           <div className="absolute inset-0 bg-black/30" />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-bold text-gray-800 mb-1">Salvar Versão</h3>
-            <p className="text-xs text-gray-500 mb-4">
+            <h3 className="text-base font-bold text-gray-800 mb-1">Salvar Versão</h3>
+            <p className="text-sm text-gray-500 mb-4">
               Cria um snapshot do estado atual do orçamento.
             </p>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Nome da versão</label>
+            <label className="block text-sm font-medium text-gray-600 mb-1.5">Nome da versão</label>
             <input
               type="text"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
               value={novaVersaoNome}
               onChange={(e) => setNovaVersaoNome(e.target.value)}
               placeholder={sugerirNomeVersao()}
@@ -1476,9 +1476,9 @@ export default function VisualizarOrcamento() {
 function Campo({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-gray-600 mb-1.5">{label}</label>
       <input
-        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
+        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -1489,10 +1489,10 @@ function Campo({ label, value, onChange }: { label: string; value: string; onCha
 function CampoNumero({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-gray-600 mb-1.5">{label}</label>
       <input
         type="number"
-        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
+        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
         value={value || ""}
         onChange={(e) => onChange(Number(e.target.value))}
       />
