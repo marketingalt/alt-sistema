@@ -464,7 +464,7 @@ export default function VisualizarOrcamento() {
 
   return (
     <WorkspaceLayout>
-      <main className="px-4 md:px-8 py-8 w-full max-w-full xl:max-w-6xl">
+      <main className="px-4 md:px-8 py-8 w-full max-w-full">
         {/* Cabeçalho com informações fixas */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
