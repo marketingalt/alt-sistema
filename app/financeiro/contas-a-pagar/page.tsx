@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Fragment } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import { downloadCSV } from "@/lib/export-csv";
 
@@ -33,6 +33,13 @@ interface Conta {
   };
   ordemServicoId?: string;
   createdAt: string;
+  isLote?: boolean;
+  loteItens?: {
+    tipo: "logistica" | "despesa";
+    reembolsoId: string;
+    descricao: string;
+    valor: number;
+  }[];
 }
 
 interface OrdemServicoItem {
@@ -190,6 +197,15 @@ export default function ContasAPagarPage() {
 
   // Painel de detalhe
   const [detalhe, setDetalhe] = useState<Conta | null>(null);
+  const [expandedLotes, setExpandedLotes] = useState<Set<string>>(new Set());
+  function toggleExpandLote(id: string) {
+    setExpandedLotes((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
   const [driveInput, setDriveInput] = useState("");
   const [salvandoLink, setSalvandoLink] = useState(false);
   const [dadosBancariosForm, setDadosBancariosForm] = useState({ nome: "", banco: "", chavePix: "", agencia: "", conta: "" });
@@ -754,28 +770,55 @@ export default function ContasAPagarPage() {
                   const cfg = STATUS_CONFIG[st];
                   const dias = diasParaVencer(c.dataVencimento);
                   return (
-                    <tr key={c.id} onClick={() => abrirDetalhe(c)} className={`border-b border-gray-50 group hover:bg-gray-50/50 cursor-pointer ${st === "vencido" ? "bg-red-50/30" : ""}`}>
+                    <Fragment key={c.id}>
+                      <tr onClick={c.isLote ? () => toggleExpandLote(c.id) : () => abrirDetalhe(c)} className={`border-b border-gray-50 group hover:bg-gray-50/50 cursor-pointer ${st === "vencido" ? "bg-red-50/30" : ""}`}>
                       <td className="px-4 py-3">
-                        <p className={`text-xs font-bold ${st === "vencido" ? "text-red-600" : "text-gray-700"}`}>
-                          {new Date(c.dataVencimento + "T12:00:00").toLocaleDateString("pt-BR")}
-                        </p>
-                        {st === "pendente" && dias <= 7 && dias >= 0 && (
-                          <p className="text-[10px] text-orange-500 font-semibold mt-0.5">
-                            {dias === 0 ? "Vence hoje!" : `${dias}d`}
-                          </p>
-                        )}
-                        {st === "vencido" && (
-                          <p className="text-[10px] text-red-500 font-semibold mt-0.5">{Math.abs(dias)}d atraso</p>
-                        )}
-                        {c.recorrente && (
-                          <span className="text-[9px] font-semibold text-indigo-500 bg-indigo-50 px-1 py-0.5 rounded mt-0.5 inline-block">
-                            ↻ {c.periodicidade}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {c.isLote && (
+                            <button onClick={(e) => { e.stopPropagation(); toggleExpandLote(c.id); }}
+                              className="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-[#fb4d06] hover:bg-orange-50 transition">
+                              <svg className={`w-3.5 h-3.5 transition-transform ${expandedLotes.has(c.id) ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          )}
+                          <div>
+                            <p className={`text-xs font-bold ${st === "vencido" ? "text-red-600" : "text-gray-700"}`}>
+                              {new Date(c.dataVencimento + "T12:00:00").toLocaleDateString("pt-BR")}
+                            </p>
+                            {st === "pendente" && dias <= 7 && dias >= 0 && (
+                              <p className="text-[10px] text-orange-500 font-semibold mt-0.5">
+                                {dias === 0 ? "Vence hoje!" : `${dias}d`}
+                              </p>
+                            )}
+                            {st === "vencido" && (
+                              <p className="text-[10px] text-red-500 font-semibold mt-0.5">{Math.abs(dias)}d atraso</p>
+                            )}
+                            {c.recorrente && (
+                              <span className="text-[9px] font-semibold text-indigo-500 bg-indigo-50 px-1 py-0.5 rounded mt-0.5 inline-block">
+                                ↻ {c.periodicidade}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-3 py-3">
-                        <p className="text-sm font-semibold text-gray-800">{c.fornecedor}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{c.descricao}</p>
+                        {c.isLote ? (
+                          <>
+                            <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                              <span className="text-base">📦</span>
+                              Lote de reembolsos
+                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {c.loteItens?.length || 0} itente{c.loteItens?.length !== 1 ? "ns" : "m"} · {new Date(c.dataVencimento + "T12:00:00").toLocaleDateString("pt-BR")}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm font-semibold text-gray-800">{c.fornecedor}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{c.descricao}</p>
+                          </>
+                        )}
                         {c.obs && <p className="text-[10px] text-gray-400 mt-0.5 italic">{c.obs}</p>}
                         {c.status === "pago" && c.dataPagamento && (
                           <p className="text-[10px] text-green-600 mt-0.5 font-medium">
@@ -866,6 +909,30 @@ export default function ContasAPagarPage() {
                         </div>
                       </td>
                     </tr>
+                    {c.isLote && expandedLotes.has(c.id) && (
+                      <tr className="bg-gray-50/50 border-b border-gray-100">
+                        <td colSpan={8} className="px-4 py-2">
+                          <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 px-4 py-2">
+                            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Descrição</div>
+                            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider text-right">Valor</div>
+                            {c.loteItens?.map((item, idx) => (
+                              <Fragment key={item.reembolsoId}>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                                    item.tipo === "logistica" ? "bg-blue-50 text-blue-600" : "bg-purple-50 text-purple-600"
+                                  }`}>
+                                    {item.tipo === "logistica" ? "LOGÍSTICA" : "DESPESA"}
+                                  </span>
+                                  <span className="text-gray-700">{item.descricao}</span>
+                                </div>
+                                <div className="text-sm font-semibold text-red-600 text-right">{fmt(item.valor)}</div>
+                              </Fragment>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>

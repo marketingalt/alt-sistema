@@ -6,36 +6,9 @@ import {
   vincularContaPagar,
   listarReembolsosPorLote,
   buscarReembolso,
+  criarOuAtualizarLoteContaPagar,
 } from "@/lib/reembolsos";
 import { readFile } from "@/lib/storage-file-adapter";
-import { dbGet, dbSet } from "@/lib/storage-adapter";
-
-// ── helpers para criar contas a pagar via storage adapter ──
-async function criarContaPagar(dados: {
-  dataVencimento: string;
-  fornecedor: string;
-  descricao: string;
-  valor: number;
-  modalidade: string;
-  banco: string;
-  area: string;
-  categoria: string;
-  dadosBancarios: Record<string, string>;
-  reembolsoId: string;
-  ordemServicoId?: string;
-}): Promise<string> {
-  const db = await dbGet<any>("contas-a-pagar", { contas: [] });
-  const id = `cp${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-  const nova = {
-    ...dados,
-    id,
-    status: "pendente",
-    createdAt: new Date().toISOString().split("T")[0],
-  };
-  db.contas.push(nova);
-  await dbSet("contas-a-pagar", db);
-  return id;
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -105,21 +78,21 @@ export async function POST(req: NextRequest) {
 
       const reembolsos = await criarLoteReembolsos(itensComOS, loteId);
 
-      // Criar contas a pagar automaticamente
+      // Criar contas a pagar em lote por dataVencimento
       const contasCriadas: { reembolsoId: string; contaPagarId: string }[] = [];
       for (const reb of reembolsos) {
-        const contaPagarId = await criarContaPagar({
-          dataVencimento: reb.dataVencimento || reb.dataFinal,
-          fornecedor: `Reembolso — ${reb.motorista}`,
-          descricao: `${reb.motivo ? reb.motivo + " — " : ""}${reb.origem} → ${reb.destino} (${reb.distanciaKm} km)`,
+        const dataVenc = reb.dataVencimento || reb.dataFinal;
+        const descricao = `${reb.motivo ? reb.motivo + " — " : ""}${reb.origem} → ${reb.destino} (${reb.distanciaKm} km)`;
+        const contaPagarId = await criarOuAtualizarLoteContaPagar({
+          dataVencimento: dataVenc,
+          tipo: "logistica",
+          reembolsoId: reb.id,
+          descricao,
           valor: reb.total,
           modalidade: "PIX",
           banco: reb.dadosBancarios.banco || "C6 BANK",
           area: "PROJETOS",
           categoria: "CUSTOS DIRETOS DOS SERVIÇOS",
-          dadosBancarios: reb.dadosBancarios,
-          reembolsoId: reb.id,
-          ordemServicoId: reb.ordemServicoId,
         });
         await vincularContaPagar(reb.id, contaPagarId);
         contasCriadas.push({ reembolsoId: reb.id, contaPagarId });

@@ -1,6 +1,7 @@
 import path from "path";
 import { dbGet, dbSet } from "./storage-adapter";
 import { uploadFile, deleteFile, readFile } from "./storage-file-adapter";
+import { atualizarReembolsoDespesa } from "./reembolsos-despesas";
 
 export interface Reembolso {
   id: string;
@@ -167,6 +168,107 @@ export async function vincularContaPagar(reembolsoId: string, contaPagarId: stri
   };
   await salvarBase(base);
   return base.reembolsos[idx];
+}
+
+// ── Lote no Contas a Pagar ──
+
+export interface LoteItem {
+  tipo: "logistica" | "despesa";
+  reembolsoId: string;
+  descricao: string;
+  valor: number;
+}
+
+/**
+ * Cria ou atualiza um lote no Contas a Pagar agrupado por dataVencimento.
+ * Se já existir uma conta com isLote:true e mesma dataVencimento,
+ * adiciona o item ao lote existente. Caso contrário, cria uma nova.
+ * Retorna o ID da conta (criada ou existente).
+ */
+export async function criarOuAtualizarLoteContaPagar(dados: {
+  dataVencimento: string;
+  tipo: "logistica" | "despesa";
+  reembolsoId: string;
+  descricao: string;
+  valor: number;
+  modalidade: string;
+  banco: string;
+  area: string;
+  categoria: string;
+}): Promise<string> {
+  const cp = await dbGet<any>("contas-a-pagar", { contas: [] });
+  const contas = cp.contas ?? [];
+
+  // Busca conta lote existente com mesma data de vencimento
+  const loteExistente = contas.find(
+    (c: any) => c.isLote === true && c.dataVencimento === dados.dataVencimento
+  );
+
+  if (loteExistente) {
+    // Adiciona item ao lote existente
+    const novoItem: LoteItem = {
+      tipo: dados.tipo,
+      reembolsoId: dados.reembolsoId,
+      descricao: dados.descricao,
+      valor: dados.valor,
+    };
+    loteExistente.loteItens.push(novoItem);
+    loteExistente.valor = (loteExistente.valor || 0) + dados.valor;
+    cp.contas = contas.map((c: any) => (c.id === loteExistente.id ? loteExistente : c));
+    await dbSet("contas-a-pagar", cp);
+    return loteExistente.id;
+  }
+
+  // Cria novo lote
+  const id = `cp${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const hoje = new Date().toISOString().split("T")[0];
+  const dataFormatada = new Date(dados.dataVencimento + "T12:00:00").toLocaleDateString("pt-BR");
+
+  const novoLote = {
+    id,
+    isLote: true,
+    loteItens: [{
+      tipo: dados.tipo,
+      reembolsoId: dados.reembolsoId,
+      descricao: dados.descricao,
+      valor: dados.valor,
+    }],
+    dataVencimento: dados.dataVencimento,
+    fornecedor: `Lote de reembolsos — ${dataFormatada}`,
+    valor: dados.valor,
+    modalidade: dados.modalidade,
+    banco: dados.banco,
+    area: dados.area,
+    categoria: dados.categoria,
+    dadosBancarios: {},
+    status: "pendente",
+    createdAt: hoje,
+  };
+
+  contas.push(novoLote);
+  cp.contas = contas;
+  await dbSet("contas-a-pagar", cp);
+  return id;
+}
+
+/**
+ * Marca todos os reembolsos de um lote como pagos.
+ * Usado quando uma conta lote é paga no Contas a Pagar.
+ */
+export async function marcarLoteComoPago(
+  loteItens: LoteItem[],
+  dataPagamento: string
+): Promise<void> {
+  for (const item of loteItens) {
+    if (item.tipo === "logistica") {
+      await marcarComoPago(item.reembolsoId, dataPagamento);
+    } else if (item.tipo === "despesa") {
+      await atualizarReembolsoDespesa(item.reembolsoId, {
+        status: "pago",
+        dataPagamento,
+      });
+    }
+  }
 }
 
 export async function atualizarReembolso(

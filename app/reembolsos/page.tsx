@@ -10,6 +10,7 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 interface ReembolsoDespesa {
   id: string;
   data: string;
+  dataVencimento: string;
   cliente: string;
   ordemServicoId?: string;
   ordemServicoNumero?: string;
@@ -20,6 +21,7 @@ interface ReembolsoDespesa {
   aprovadoPorNome: string;
   status: "pendente" | "pago";
   dataPagamento?: string;
+  contaPagarId?: string;
   createdAt: string;
   createdBy: string;
   createdByName: string;
@@ -69,6 +71,7 @@ export default function ReembolsosPage() {
   // ── Form state ──
   const [formData, setFormData] = useState({
     data: new Date().toISOString().split("T")[0],
+    dataVencimento: new Date().toISOString().split("T")[0],
     cliente: "",
     ordemServicoId: "",
     ordemServicoNumero: "",
@@ -84,6 +87,7 @@ export default function ReembolsosPage() {
   const [editando, setEditando] = useState<ReembolsoDespesa | null>(null);
   const [editForm, setEditForm] = useState({
     data: "",
+    dataVencimento: "",
     cliente: "",
     ordemServicoId: "",
     ordemServicoNumero: "",
@@ -163,6 +167,7 @@ export default function ReembolsosPage() {
         body: JSON.stringify({
           id: editando.id,
           data: editForm.data,
+          dataVencimento: editForm.dataVencimento,
           cliente: editForm.cliente,
           ordemServicoId: editForm.ordemServicoId || undefined,
           ordemServicoNumero: editForm.ordemServicoNumero || undefined,
@@ -220,6 +225,7 @@ export default function ReembolsosPage() {
   function resetForm() {
     setFormData({
       data: new Date().toISOString().split("T")[0],
+      dataVencimento: new Date().toISOString().split("T")[0],
       cliente: "",
       ordemServicoId: "",
       ordemServicoNumero: "",
@@ -235,6 +241,7 @@ export default function ReembolsosPage() {
     setEditando(reb);
     setEditForm({
       data: reb.data,
+      dataVencimento: reb.dataVencimento,
       cliente: reb.cliente,
       ordemServicoId: reb.ordemServicoId || "",
       ordemServicoNumero: reb.ordemServicoNumero || "",
@@ -453,6 +460,17 @@ export default function ReembolsosPage() {
                 />
               </div>
 
+              {/* Data de Vencimento */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Data de Vencimento</label>
+                <input
+                  type="date"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                  value={formData.dataVencimento}
+                  onChange={(e) => setFormData({ ...formData, dataVencimento: e.target.value })}
+                />
+              </div>
+
               {/* Cliente */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Cliente</label>
@@ -611,6 +629,17 @@ export default function ReembolsosPage() {
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
                   value={editForm.data}
                   onChange={(e) => setEditForm({ ...editForm, data: e.target.value })}
+                />
+              </div>
+
+              {/* Data de Vencimento */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Data de Vencimento</label>
+                <input
+                  type="date"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                  value={editForm.dataVencimento}
+                  onChange={(e) => setEditForm({ ...editForm, dataVencimento: e.target.value })}
                 />
               </div>
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { listarReembolsosDespesas, criarReembolsoDespesa, atualizarReembolsoDespesa, removerReembolsoDespesa } from "@/lib/reembolsos-despesas";
+import { criarOuAtualizarLoteContaPagar } from "@/lib/reembolsos";
 
 export const dynamic = "force-dynamic";
 
@@ -26,14 +27,15 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { data, cliente, ordemServicoId, ordemServicoNumero, descricao, valor, pagamento, aprovadoPor, aprovadoPorNome, createdByName } = body;
+    const { data, dataVencimento, cliente, ordemServicoId, ordemServicoNumero, descricao, valor, pagamento, aprovadoPor, aprovadoPorNome, createdByName } = body;
 
-    if (!data || !cliente || !descricao || !valor || !pagamento || !aprovadoPor) {
-      return NextResponse.json({ error: "Campos obrigatórios faltando: data, cliente, descricao, valor, pagamento, aprovadoPor" }, { status: 400 });
+    if (!data || !dataVencimento || !cliente || !descricao || !valor || !pagamento || !aprovadoPor) {
+      return NextResponse.json({ error: "Campos obrigatórios faltando: data, dataVencimento, cliente, descricao, valor, pagamento, aprovadoPor" }, { status: 400 });
     }
 
     const reembolso = await criarReembolsoDespesa({
       data,
+      dataVencimento,
       cliente,
       ordemServicoId,
       ordemServicoNumero,
@@ -46,7 +48,31 @@ export async function POST(req: NextRequest) {
       createdByName: createdByName || "",
     });
 
-    return NextResponse.json(reembolso, { status: 201 });
+    // Mapeia forma de pagamento para modalidade/banco do contas a pagar
+    const pagamentoMap: Record<string, { modalidade: string; banco: string }> = {
+      cartao_corporativo_c6: { modalidade: "PIX", banco: "C6 BANK" },
+      cartao_corporativo_nubank: { modalidade: "PIX", banco: "NUBANK" },
+      cartao_pessoal: { modalidade: "PIX", banco: "Outros" },
+    };
+    const { modalidade, banco } = pagamentoMap[pagamento] || { modalidade: "PIX", banco: "Outros" };
+
+    // Cria ou atualiza lote no Contas a Pagar
+    const contaPagarId = await criarOuAtualizarLoteContaPagar({
+      dataVencimento,
+      tipo: "despesa",
+      reembolsoId: reembolso.id,
+      descricao,
+      valor: Number(valor),
+      modalidade,
+      banco,
+      area: "PROJETOS",
+      categoria: "CUSTOS DIRETOS DOS SERVIÇOS",
+    });
+
+    // Vincula a conta a pagar ao reembolso
+    const atualizado = await atualizarReembolsoDespesa(reembolso.id, { contaPagarId });
+
+    return NextResponse.json(atualizado || reembolso, { status: 201 });
   } catch (err) {
     console.error("[REEMBOLSOS-DESPESAS POST]", err);
     return NextResponse.json({ error: "Erro ao criar reembolso" }, { status: 500 });

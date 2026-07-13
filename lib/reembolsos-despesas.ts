@@ -3,6 +3,7 @@ import { dbGet, dbSet } from "./storage-adapter";
 export interface ReembolsoDespesa {
   id: string;
   data: string;
+  dataVencimento: string;
   cliente: string;
   ordemServicoId?: string;
   ordemServicoNumero?: string;
@@ -13,6 +14,7 @@ export interface ReembolsoDespesa {
   aprovadoPorNome: string;
   status: "pendente" | "pago";
   dataPagamento?: string;
+  contaPagarId?: string;
   createdAt: string;
   createdBy: string;
   createdByName: string;

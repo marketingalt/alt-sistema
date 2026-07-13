@@ -61,12 +61,19 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     await salvarCP(dadosCP);
 
     // ── Se for reembolso, sincroniza status ──
-    if (conta.reembolsoId) {
+    if (conta.isLote && conta.loteItens) {
+      try {
+        const { marcarLoteComoPago } = await import("@/lib/reembolsos");
+        await marcarLoteComoPago(conta.loteItens, dataPagamento);
+      } catch {
+        // Silencioso
+      }
+    } else if (conta.reembolsoId) {
       try {
         const { marcarComoPago } = await import("@/lib/reembolsos");
         await marcarComoPago(conta.reembolsoId, dataPagamento);
       } catch {
-        // Silencioso — não trava o pagamento por causa do sync
+        // Silencioso
       }
     }
 
@@ -97,6 +104,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       c.id === id ? { ...c, ...body, status: "pago", fluxoCaixaId: novoLancamento.id } : c
     );
     await salvarCP(dadosCP);
+
+    // ── Sincroniza reembolsos do lote se aplicável ──
+    if (conta.isLote && conta.loteItens) {
+      try {
+        const { marcarLoteComoPago } = await import("@/lib/reembolsos");
+        await marcarLoteComoPago(conta.loteItens, dataPagamento);
+      } catch { /* silencioso */ }
+    } else if (conta.reembolsoId) {
+      try {
+        const { marcarComoPago } = await import("@/lib/reembolsos");
+        await marcarComoPago(conta.reembolsoId, dataPagamento);
+      } catch { /* silencioso */ }
+    }
+
     return NextResponse.json({ ok: true, fluxoCaixaId: novoLancamento.id });
   }
 
