@@ -326,16 +326,44 @@ export async function gerarOSdeOrcamento(orcamento: Orcamento): Promise<OrdemSer
   const existente = existentes.find((o) => o.orcamentoId === orcamento.id);
   if (existente) return existente;
 
-  const itensOS: ItemOS[] = orcamento.itens.map((item) => {
+  const itensOS: ItemOS[] = orcamento.itens.flatMap((item) => {
+    // Se o item tem variantes, cria uma entrada na OS para cada variação
+    if (item.variantes && item.variantes.length > 0) {
+      const qtdTotal = item.quantidade || 1;
+      return item.variantes.map((v) => {
+        const proporcao = v.quantidade > 0 ? v.quantidade / qtdTotal : 0;
+        const custoPorItem = v.custoUnitario
+          + (item.freteProducao * proporcao) / (v.quantidade || 1)
+          + (item.custoPersonalizacao * proporcao) / (v.quantidade || 1)
+          + ((item.custoEmbalagemTransporte || 0) * proporcao) / (v.quantidade || 1)
+          + (item.custoEmbalagemIndividual || 0);
+        return {
+          itemOrcamentoId: item.id,
+          kit: item.kit,
+          referencia: item.referencia,
+          item: item.item + (v.descricao ? ` — ${v.descricao}` : ""),
+          quantidade: v.quantidade,
+          fornecedorId: item.fornecedorId,
+          fornecedorNome: item.fornecedorNome,
+          custoUnitario: v.custoUnitario,
+          freteProducao: item.freteProducao * proporcao,
+          custoPersonalizacao: item.custoPersonalizacao * proporcao,
+          custoEmbalagemIndividual: item.custoEmbalagemIndividual,
+          custoEmbalagemTransporte: (item.custoEmbalagemTransporte || 0) * proporcao,
+          totalCusto: Math.round(custoPorItem * v.quantidade * 100) / 100,
+        };
+      });
+    }
+
     const rateioFrete = item.quantidade > 0 ? item.freteProducao / item.quantidade : 0;
     const rateioPersonalizacao = item.quantidade > 0 ? item.custoPersonalizacao / item.quantidade : 0;
     const rateioEmbalagemTransporte = item.quantidade > 0 ? (item.custoEmbalagemTransporte || 0) / item.quantidade : 0;
     const embalagemInd = item.custoEmbalagemIndividual || 0;
 
     const custoPorItem = item.custoUnitario + rateioFrete + rateioPersonalizacao + rateioEmbalagemTransporte + embalagemInd;
-    const totalCusto = custoPorItem * item.quantidade;
+    const totalCusto = Math.round(custoPorItem * item.quantidade * 100) / 100;
 
-    return {
+    return [{
       itemOrcamentoId: item.id,
       kit: item.kit,
       referencia: item.referencia,
@@ -349,7 +377,7 @@ export async function gerarOSdeOrcamento(orcamento: Orcamento): Promise<OrdemSer
       custoEmbalagemIndividual: item.custoEmbalagemIndividual,
       custoEmbalagemTransporte: item.custoEmbalagemTransporte,
       totalCusto,
-    };
+    }];
   });
 
   const agora = new Date().toISOString();

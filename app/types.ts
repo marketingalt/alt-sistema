@@ -22,6 +22,15 @@ export type TipoPersonalizacao =
   | "Gravação em relevo"
   | "Outro";
 
+export interface ItemVariante {
+  id: string;
+  descricao?: string;      // opcional — ex: "Azul 500un", "Branca 100un"
+  quantidade: number;
+  custoUnitario: number;
+  valorUnitario: number;
+  total: number;
+}
+
 export interface ItemOrcamento {
   id: string;
   kit: string;
@@ -49,6 +58,10 @@ export interface ItemOrcamento {
   valorUnitario: number;       // preço final ao cliente
   valorAjustado: boolean;      // true = usuário sobrescreveu o valor calculado
   total: number;
+  /** Variações de quantidade/custo do mesmo item.
+   *  Quando presente, quantidade / total do item são a soma das variantes,
+   *  e custoUnitario / valorUnitario são a média ponderada. */
+  variantes?: ItemVariante[];
 }
 
 export type StatusOrcamento =

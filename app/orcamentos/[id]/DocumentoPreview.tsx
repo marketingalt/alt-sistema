@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import type { Orcamento, ItemOrcamento } from "@/app/types";
 
 const ALT_EMPRESA = "ALT. MARKETING E PUBLICIDADE";
@@ -293,8 +293,8 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
             {orcamento.itens.map((item, idx) => {
               const hasImg = !!item.imagemReferencia;
               return (
+                <React.Fragment key={item.id}>
                 <div
-                  key={item.id}
                   className={`flex py-1 px-1.5 items-center border-b border-gray-100 text-[8px] ${idx % 2 !== 0 ? "bg-gray-50" : ""}`}
                   style={{ minHeight: 32 }}
                 >
@@ -456,6 +456,37 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                     </span>
                   )}
                 </div>
+
+                {/* ═══ Variantes (sub-rows) ═══ */}
+                {item.variantes && item.variantes.length > 0 && (
+                  item.variantes.map((v) => (
+                    <div key={v.id} className="flex py-0.5 px-1.5 items-center border-b border-dashed border-emerald-100 text-[7.5px] bg-emerald-50/30" style={{ minHeight: 22 }}>
+                      <div className="text-center" style={{ width: COL_W.img }}>
+                        <svg className="w-2.5 h-2.5 inline-block text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                      </div>
+                      <span className="flex-1 text-emerald-700">
+                        {v.descricao || item.item}
+                      </span>
+                      <span className="text-emerald-600 text-right" style={{ width: COL_W.acab, fontSize: 7.5 }}>—</span>
+                      <span className="text-emerald-600 text-right" style={{ width: COL_W.kit, fontSize: 7.5 }}>—</span>
+                      <span className="text-emerald-700 text-right font-medium" style={{ width: COL_W.qtd, fontSize: 7.5 }}>
+                        {v.quantidade}
+                      </span>
+                      <span className="text-emerald-600 text-right" style={{ width: COL_W.und, fontSize: 7.5 }}>UN</span>
+                      <span className="text-emerald-700 text-right" style={{ width: COL_W.vun, fontSize: 7.5 }}>
+                        R$ {v.valorUnitario.toFixed(2)}
+                      </span>
+                      {mostrarTotalItem && (
+                        <span className="text-emerald-700 font-medium text-right" style={{ width: COL_W.vtot, fontSize: 7.5 }}>
+                          {fmt(v.total)}
+                        </span>
+                      )}
+                    </div>
+                  ))
+                )}
+                </React.Fragment>
               );
             })}
 

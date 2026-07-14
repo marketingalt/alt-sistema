@@ -1,4 +1,4 @@
-import type { ItemOrcamento } from "@/app/types";
+import type { ItemOrcamento, ItemVariante } from "@/app/types";
 
 export function temSurchargeQtdMinima(item: ItemOrcamento): boolean {
   return !!(
@@ -35,7 +35,50 @@ export function calcularMargemReal(custo: number, precoFinal: number): number {
   return ((precoFinal - custo) / precoFinal) * 100;
 }
 
+/** Recalcula uma variante individual: total = quantidade * valorUnitario */
+function recalcularVariante(v: ItemVariante): ItemVariante {
+  return {
+    ...v,
+    total: Math.round(v.quantidade * v.valorUnitario * 100) / 100,
+  };
+}
+
+/** Soma as quantidades das variantes */
+function somarQuantidadeVariantes(variantes: ItemVariante[]): number {
+  return variantes.reduce((s, v) => s + (v.quantidade || 0), 0);
+}
+
+/** Soma os totais das variantes */
+function somarTotalVariantes(variantes: ItemVariante[]): number {
+  return Math.round(variantes.reduce((s, v) => s + (v.total || 0), 0) * 100) / 100;
+}
+
+/** Média ponderada do custo unitário entre as variantes */
+function mediaPonderadaCusto(variantes: ItemVariante[]): number {
+  const qtdTotal = somarQuantidadeVariantes(variantes);
+  if (qtdTotal === 0) return 0;
+  return Math.round(variantes.reduce((s, v) => s + (v.custoUnitario || 0) * (v.quantidade || 0), 0) / qtdTotal * 100) / 100;
+}
+
 export function recalcularItem(item: ItemOrcamento, margemExtra = 0): ItemOrcamento {
+  // Se tem variantes, recalcula cada uma e depois soma
+  if (item.variantes && item.variantes.length > 0) {
+    const variantes = item.variantes.map((v) => recalcularVariante(v));
+    const qtdTotal = somarQuantidadeVariantes(variantes);
+    const total = somarTotalVariantes(variantes);
+    const custoMedio = mediaPonderadaCusto(variantes);
+    const valorMedio = qtdTotal > 0 ? Math.round((total / qtdTotal) * 100) / 100 : 0;
+    return {
+      ...item,
+      variantes,
+      quantidade: qtdTotal,
+      custoUnitario: custoMedio,
+      valorUnitario: valorMedio,
+      total,
+    };
+  }
+
+  // Sem variantes — comportamento original
   const valorFinal = item.valorAjustado ? item.valorUnitario : calcularValorSugerido(item, margemExtra);
   return {
     ...item,
