@@ -522,7 +522,41 @@ export default function KanbanPage() {
               {projetoAtivo && (
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: projetoAtivo.cor }} />
               )}
-              <h1 className="text-xl font-bold text-gray-800">{projetoAtivo?.nome || "Carregando..."}</h1>
+              <EditableProjectName
+                projetoId={projetoAtivo?.id || ""}
+                nome={projetoAtivo?.nome || "Carregando..."}
+                onNomeAlterado={async (novoNome) => {
+                  // Atualiza localmente
+                  const res = await fetch("/api/planejamento", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: projetoAtivo!.id, projeto: { nome: novoNome } }),
+                  });
+                  if (res.ok) {
+                    setProjetos((prev) =>
+                      prev.map((p) =>
+                        p.id === projetoAtivo!.id ? { ...p, nome: novoNome, updatedAt: new Date().toISOString() } : p
+                      )
+                    );
+
+                    // Sincroniza nome do projeto com todos os orçamentos vinculados
+                    try {
+                      const resOrc = await fetch("/api/orcamentos");
+                      if (resOrc.ok) {
+                        const orcamentos: Orcamento[] = await resOrc.json();
+                        const vinculados = orcamentos.filter((o) => o.tags?.includes(projetoAtivo!.id));
+                        for (const o of vinculados) {
+                          await fetch(`/api/orcamentos/${o.id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ nomeProjeto: novoNome }),
+                          }).catch(() => {});
+                        }
+                      }
+                    } catch {}
+                  }
+                }}
+              />
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -876,6 +910,76 @@ function KanbanBoard({
 }
 
 // ═══════════════════════════════════════════════════════════
+// EDITABLE PROJECT NAME
+// ═══════════════════════════════════════════════════════════
+
+function EditableProjectName({
+  projetoId,
+  nome,
+  onNomeAlterado,
+}: {
+  projetoId: string;
+  nome: string;
+  onNomeAlterado: (nome: string) => Promise<void>;
+}) {
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState(nome);
+  const [salvando, setSalvando] = useState(false);
+
+  // Sync quando o nome externo muda (ex: troca de projeto)
+  useEffect(() => {
+    setValor(nome);
+  }, [nome, projetoId]);
+
+  async function salvar() {
+    const trimmed = valor.trim();
+    if (!trimmed || trimmed === nome) {
+      setValor(nome);
+      setEditando(false);
+      return;
+    }
+    setSalvando(true);
+    try {
+      await onNomeAlterado(trimmed);
+    } catch {}
+    setSalvando(false);
+    setEditando(false);
+  }
+
+  if (editando) {
+    return (
+      <input
+        type="text"
+        value={valor}
+        onChange={(e) => setValor(e.target.value)}
+        onBlur={salvar}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") salvar();
+          else if (e.key === "Escape") { setValor(nome); setEditando(false); }
+        }}
+        autoFocus
+        onFocus={(e) => e.target.select()}
+        disabled={salvando}
+        className="text-xl font-bold text-gray-800 bg-white border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 focus:border-[#fb4d06] w-64"
+      />
+    );
+  }
+
+  return (
+    <h1
+      className="text-xl font-bold text-gray-800 cursor-pointer hover:text-[#fb4d06] hover:bg-gray-100 rounded-lg px-2 py-1 -ml-2 transition flex items-center gap-2"
+      onClick={() => setEditando(true)}
+      title="Clique para editar o nome do projeto"
+    >
+      {nome}
+      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+      </svg>
+    </h1>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 // CARD (Cartão dnd-kit sortable)
 // ═══════════════════════════════════════════════════════════
 
@@ -944,6 +1048,18 @@ function CardTarefa({
               {etq.nome}
             </span>
           ))}
+        </div>
+      )}
+
+      {/* Nome do cliente */}
+      {tarefa.customFields?.clienteOrcamento && (
+        <div className="mb-1.5">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
+            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            {tarefa.customFields.clienteOrcamento}
+          </span>
         </div>
       )}
 
