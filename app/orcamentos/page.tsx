@@ -358,26 +358,7 @@ export default function ListaOrcamentos() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-800">{o.nomeProjeto || o.cliente || "—"}</div>
-                        <div className="text-xs text-gray-400">{o.cliente ? `Cliente: ${o.cliente}` : ""}{o.solicitante ? ` · ${o.solicitante}` : ""}</div>
-                        {/* Tags (projetos) */}
-                        {o.tags && o.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {o.tags.map((tagId) => {
-                              const proj = projetosPlanejamento[tagId];
-                              if (!proj) return null;
-                              return (
-                                <span
-                                  key={tagId}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-white leading-tight"
-                                  style={{ backgroundColor: proj.cor }}
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-white/60 shrink-0" />
-                                  {proj.nome}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        )}
+                        <div className="text-xs text-gray-400">{o.cliente}</div>
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{o.dataOrcamento}</td>
                       <td className="px-4 py-3 text-center">

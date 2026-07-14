@@ -197,7 +197,7 @@ export default function Dashboard() {
                         <span className="text-xs font-bold text-[#fb4d06] bg-[#fb4d06]/5 px-2 py-0.5 rounded-full whitespace-nowrap">
                           #{o.numero}
                         </span>
-                        <span className="text-sm font-medium text-gray-800">{o.cliente || "Sem cliente"}</span>
+                        <span className="text-sm font-medium text-gray-800">{o.nomeProjeto || o.cliente || "Sem projeto"}</span>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.cor}`}>
