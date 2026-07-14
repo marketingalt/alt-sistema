@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import ComboboxCliente from "@/app/components/ComboboxCliente";
 import { calcularCustoTotal } from "@/lib/calculos";
 import { downloadCSV } from "@/lib/export-csv";
 import type { Orcamento, ItemOrcamento, OrdemServico } from "@/app/types";
@@ -82,7 +83,7 @@ function statusReceber(row: RowUnificada): "pago" | "inadimplente" | "aReceber" 
 }
 
 // ── Inline editable cell ──────────────────────────────────────────────────────
-type CellMode = "text" | "number" | "date" | "select";
+type CellMode = "text" | "number" | "date" | "select" | "combobox";
 interface CellProps {
   value: string | number | boolean | undefined;
   mode?: CellMode;
@@ -131,6 +132,29 @@ function Cell({ value, mode = "text", options = [], placeholder = "—", classNa
       >
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
+    );
+  }
+
+  if (mode === "combobox") {
+    return (
+      <>
+        <input
+          ref={ref as React.RefObject<HTMLInputElement>}
+          type="text"
+          list={`cell-list-${draft.slice(0, 6)}`}
+          className="border border-[#fb4d06] rounded px-1 py-0.5 text-xs bg-white outline-none w-36"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") { setEditing(false); setDraft(String(value ?? "")); }
+          }}
+        />
+        <datalist id={`cell-list-${draft.slice(0, 6)}`}>
+          {options.map((o) => <option key={o} value={o} />)}
+        </datalist>
+      </>
     );
   }
 
@@ -335,11 +359,10 @@ function NovoLancamentoModal({ onClose, onSalvar, ordensServico = [] }: NovoLanc
         <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-600">Cliente *</label>
-              <input
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+              <ComboboxCliente
                 value={form.cliente || ""}
-                onChange={(e) => set("cliente", e.target.value)}
+                onChange={(v) => set("cliente", v)}
+                onSelect={(c) => set("cliente", c.nomeEmpresa || c.razaoSocial)}
                 required
               />
             </div>
@@ -673,11 +696,10 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-600">Cliente</label>
-              <input
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+              <ComboboxCliente
                 value={form.cliente || ""}
-                onChange={(e) => set("cliente", e.target.value)}
+                onChange={(v) => set("cliente", v)}
+                onSelect={(c) => set("cliente", c.nomeEmpresa || c.razaoSocial)}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -933,6 +955,7 @@ export default function ContasAReceberPage() {
   const [faturamentos, setFaturamentos] = useState<RegistroFaturamento[]>([]);
   const [ordensServico, setOrdensServico] = useState<OrdemServico[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [clientes, setClientes] = useState<{ nomeEmpresa?: string; razaoSocial?: string }[]>([]);
   const [modalAberto, setModalAberto] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [detalheAberto, setDetalheAberto] = useState<RowUnificada | null>(null);
@@ -943,18 +966,26 @@ export default function ContasAReceberPage() {
   const [busca, setBusca] = useState("");
   const [showUltimos, setShowUltimos] = useState(false);
 
+  const nomesClientes = useMemo(() =>
+    clientes.map((c) => c.nomeEmpresa || c.razaoSocial || "").filter(Boolean),
+    [clientes]
+  );
+
   async function carregar() {
-    const [resOrc, resFat, resOS] = await Promise.all([
+    const [resOrc, resFat, resOS, resClientes] = await Promise.all([
       fetch("/api/orcamentos"),
       fetch("/api/faturamentos"),
       fetch("/api/ordens-servico"),
+      fetch("/api/clientes"),
     ]);
     const dataOrc = await resOrc.json();
     const dataFat = await resFat.json();
     const dataOS = await resOS.json();
+    const dataClientes = await resClientes.json();
     setOrcamentos(dataOrc);
     setFaturamentos(dataFat.registros || []);
     setOrdensServico(Array.isArray(dataOS) ? dataOS : []);
+    setClientes(dataClientes || []);
     setCarregando(false);
   }
 
@@ -1410,7 +1441,7 @@ export default function ContasAReceberPage() {
                             </span>
                           )}
                           {row.tipo === "manual" ? (
-                            <Cell value={row.cliente} onSave={(v) => salvarCelula(row.rowId, "cliente", v)} />
+                            <Cell value={row.cliente} mode="combobox" options={nomesClientes} onSave={(v) => salvarCelula(row.rowId, "cliente", v)} />
                           ) : (
                             <span>{row.cliente}</span>
                           )}

@@ -8,9 +8,21 @@ interface Props {
   value: string;
   onSelect: (cliente: Cliente) => void;
   onChange: (valor: string) => void;
+  label?: string;
+  placeholder?: string;
+  required?: boolean;
+  className?: string;
 }
 
-export default function ComboboxCliente({ value, onSelect, onChange }: Props) {
+export default function ComboboxCliente({
+  value,
+  onSelect,
+  onChange,
+  label = "Cliente",
+  placeholder = "Buscar cliente cadastrado...",
+  required = false,
+  className = "",
+}: Props) {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState(value);
@@ -79,14 +91,17 @@ export default function ComboboxCliente({ value, onSelect, onChange }: Props) {
 
   return (
     <>
-      <div ref={containerRef} className="relative">
-        <label className="block text-xs font-medium text-gray-500 mb-1">Cliente</label>
+      <div ref={containerRef} className={`relative ${className}`}>
+        <label className="block text-xs font-medium text-gray-500 mb-1">
+          {label}
+          {required && <span className="text-red-400 ml-0.5">*</span>}
+        </label>
         <input
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
           value={busca}
           onChange={handleInput}
           onFocus={() => setAberto(true)}
-          placeholder="Buscar cliente cadastrado..."
+          placeholder={placeholder}
           autoComplete="off"
         />
 

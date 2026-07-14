@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import ComboboxCliente from "@/app/components/ComboboxCliente";
 
 // ── Tipos ──
 
@@ -73,6 +74,7 @@ export default function ReembolsosPage() {
     data: new Date().toISOString().split("T")[0],
     dataVencimento: new Date().toISOString().split("T")[0],
     cliente: "",
+    clienteId: "",
     ordemServicoId: "",
     ordemServicoNumero: "",
     descricao: "",
@@ -89,6 +91,7 @@ export default function ReembolsosPage() {
     data: "",
     dataVencimento: "",
     cliente: "",
+    clienteId: "",
     ordemServicoId: "",
     ordemServicoNumero: "",
     descricao: "",
@@ -227,6 +230,7 @@ export default function ReembolsosPage() {
       data: new Date().toISOString().split("T")[0],
       dataVencimento: new Date().toISOString().split("T")[0],
       cliente: "",
+      clienteId: "",
       ordemServicoId: "",
       ordemServicoNumero: "",
       descricao: "",
@@ -243,6 +247,7 @@ export default function ReembolsosPage() {
       data: reb.data,
       dataVencimento: reb.dataVencimento,
       cliente: reb.cliente,
+      clienteId: "",
       ordemServicoId: reb.ordemServicoId || "",
       ordemServicoNumero: reb.ordemServicoNumero || "",
       descricao: reb.descricao,
@@ -472,16 +477,12 @@ export default function ReembolsosPage() {
               </div>
 
               {/* Cliente */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Cliente</label>
-                <input
-                  type="text"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
-                  value={formData.cliente}
-                  onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
-                  placeholder="Nome do cliente"
-                />
-              </div>
+              <ComboboxCliente
+                value={formData.cliente}
+                onChange={(v) => setFormData({ ...formData, cliente: v })}
+                onSelect={(c) => setFormData({ ...formData, cliente: c.nomeEmpresa || c.razaoSocial, clienteId: c.id })}
+                required
+              />
 
               {/* OS */}
               <div className="relative">
@@ -644,15 +645,11 @@ export default function ReembolsosPage() {
               </div>
 
               {/* Cliente */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Cliente</label>
-                <input
-                  type="text"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
-                  value={editForm.cliente}
-                  onChange={(e) => setEditForm({ ...editForm, cliente: e.target.value })}
-                />
-              </div>
+              <ComboboxCliente
+                value={editForm.cliente}
+                onChange={(v) => setEditForm({ ...editForm, cliente: v })}
+                onSelect={(c) => setEditForm({ ...editForm, cliente: c.nomeEmpresa || c.razaoSocial, clienteId: c.id })}
+              />
 
               {/* OS */}
               <div className="relative">

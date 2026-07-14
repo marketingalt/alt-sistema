@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import ComboboxCliente from "@/app/components/ComboboxCliente";
 import type { Vendedor } from "@/app/api/financeiro/vendas-comissoes/vendedores/route";
 import type { Venda, ComissaoItem } from "@/app/api/financeiro/vendas-comissoes/vendas/route";
 import type { ComissaoNF } from "@/app/api/financeiro/vendas-comissoes/comissoes-nf/route";
@@ -298,10 +299,12 @@ function ModalTransacao({ vendedor, orcamentos, transacao, onClose, onSalvar }: 
               <label className="text-xs font-medium text-gray-600">Data *</label>
               <input type="date" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]" value={form.data} onChange={(e) => setForm((p) => ({ ...p, data: e.target.value }))} required />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-600">Cliente *</label>
-              <input className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]" value={form.cliente} onChange={(e) => setForm((p) => ({ ...p, cliente: e.target.value }))} required />
-            </div>
+            <ComboboxCliente
+              value={form.cliente}
+              onChange={(v) => setForm((p) => ({ ...p, cliente: v }))}
+              onSelect={(c) => setForm((p) => ({ ...p, cliente: c.nomeEmpresa || c.razaoSocial }))}
+              required
+            />
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-600">CNPJ/CPF</label>
               <input className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]" value={form.cnpj} onChange={(e) => setForm((p) => ({ ...p, cnpj: e.target.value }))} />

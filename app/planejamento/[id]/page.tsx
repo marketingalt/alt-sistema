@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import ComboboxCliente from "@/app/components/ComboboxCliente";
 import {
   DndContext,
   DragOverlay,
@@ -128,6 +129,7 @@ export default function KanbanPage() {
   const [modalNovaTarefa, setModalNovaTarefa] = useState<{ statusId: string } | null>(null);
   const [novoTitulo, setNovoTitulo] = useState("");
   const [novoCliente, setNovoCliente] = useState("");
+  const [novoClienteId, setNovoClienteId] = useState("");
   const [novaDescricao, setNovaDescricao] = useState("");
 
   // Timer ativo
@@ -210,6 +212,7 @@ export default function KanbanPage() {
     if (!projetoAtivo) return;
     setNovoTitulo("");
     setNovoCliente("");
+    setNovoClienteId("");
     setNovaDescricao("");
     setModalNovaTarefa({ statusId });
   }
@@ -629,13 +632,13 @@ export default function KanbanPage() {
                   autoFocus
                 />
 
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Cliente</label>
-                <input
-                  type="text"
+                <ComboboxCliente
                   value={novoCliente}
-                  onChange={(e) => setNovoCliente(e.target.value)}
+                  onChange={(v) => setNovoCliente(v)}
+                  onSelect={(c) => { setNovoCliente(c.nomeEmpresa || c.razaoSocial); setNovoClienteId(c.id); }}
+                  label="Cliente"
                   placeholder="Ex: Empresa ABC Ltda"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 focus:border-[#fb4d06] mb-4"
+                  className="mb-4"
                 />
 
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Descrição</label>

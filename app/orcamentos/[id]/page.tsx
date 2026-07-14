@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { Orcamento, ItemOrcamento, StatusOrcamento, Fornecedor, VersaoOrcamento } from "@/app/types";
 import { STATUS_CONFIG } from "@/app/types";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import ComboboxCliente from "@/app/components/ComboboxCliente";
 import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima } from "@/lib/calculos";
 import PedidoComprasAnexo from "@/app/components/PedidoComprasAnexo";
 import CampoData from "@/app/components/CampoData";
@@ -800,7 +801,7 @@ export default function VisualizarOrcamento() {
                   </div>
                 </div>
                 <Campo label="Nome do Projeto" value={orcamento.nomeProjeto || ""} onChange={(v) => atualizarCampo("nomeProjeto", v)} />
-                <Campo label="Cliente" value={orcamento.cliente} onChange={(v) => atualizarCampo("cliente", v)} />
+                <ComboboxCliente value={orcamento.cliente} onChange={(v) => atualizarCampo("cliente", v)} onSelect={(c) => { atualizarCampo("cliente", c.nomeEmpresa || c.razaoSocial); setOrcamento((prev) => prev ? { ...prev, clienteId: c.id } : prev); }} />
                 <Campo label="Solicitante" value={orcamento.solicitante} onChange={(v) => atualizarCampo("solicitante", v)} />
               </div>
 
