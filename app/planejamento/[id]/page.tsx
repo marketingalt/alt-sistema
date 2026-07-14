@@ -377,10 +377,12 @@ export default function KanbanPage() {
     await atualizarTarefa(tarefaId, { statusId: colunaDestinoId, ordem: tarefasNaColuna.length });
 
     // ═══════════════════════════════════════════════════════════
-    // Auto-criação de orçamento quando sai de BRIEFING
+    // Auto-criação de orçamento quando sai da primeira coluna
     // ═══════════════════════════════════════════════════════════
     const colunaOrigem = projetoAtivo.statuses.find((s) => s.id === tarefaAtual.statusId);
-    if (colunaOrigem?.nome === "BRIEFING" && !tarefaAtual.customFields?.orcamentoId) {
+    const primeiraColuna = projetoAtivo.statuses.sort((a, b) => a.ordem - b.ordem)[0];
+    const saiuDaPrimeiraColuna = primeiraColuna && colunaOrigem?.id === primeiraColuna.id;
+    if (saiuDaPrimeiraColuna && !tarefaAtual.customFields?.orcamentoId) {
       await criarOrcamentoDaTarefa(tarefaAtual);
     }
   }
