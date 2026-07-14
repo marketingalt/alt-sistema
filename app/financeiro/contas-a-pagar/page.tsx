@@ -222,7 +222,9 @@ export default function ContasAPagarPage() {
   // Contas do mês selecionado
   const contasMes = useMemo(() => {
     return contas.filter((c) => {
-      const ref = c.dataPagamento || c.dataVencimento;
+      // Reembolsos (isLote) sempre usam dataVencimento como referência
+      // Demais contas usam dataVencimento também (dataPagamento é evento, não período)
+      const ref = c.dataVencimento;
       const d = new Date(ref + "T12:00:00");
       return d.getMonth() === mesSel && d.getFullYear() === anoSel;
     });
