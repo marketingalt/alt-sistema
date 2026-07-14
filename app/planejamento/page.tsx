@@ -108,6 +108,14 @@ export default function PlanejamentoDashboard() {
     return t.dataVencimento >= hojeStr && t.dataVencimento <= fimSemanaStr;
   }).length;
 
+  // Briefing na casa — tarefas na primeira coluna de cada projeto
+  const tarefasBriefing = tarefasPrincipais.filter((t) => {
+    const projeto = projetosNormalizados.find((p) => p.id === t.projectId);
+    if (!projeto) return false;
+    const primeiraColuna = projeto.statuses.sort((a, b) => a.ordem - b.ordem)[0];
+    return primeiraColuna && t.statusId === primeiraColuna.id;
+  }).length;
+
   // ── Novo Projeto ──
 
   async function handleCriarProjeto() {
@@ -154,7 +162,7 @@ export default function PlanejamentoDashboard() {
 
         {/* Cards resumo */}
         {!carregando && totalProjetos > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
               <p className="text-xs text-gray-400 mb-1">Projetos</p>
               <p className="text-2xl font-bold text-gray-800">{totalProjetos}</p>
@@ -162,6 +170,10 @@ export default function PlanejamentoDashboard() {
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
               <p className="text-xs text-gray-400 mb-1">Tarefas</p>
               <p className="text-2xl font-bold text-gray-800">{totalTarefas}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <p className="text-xs text-gray-400 mb-1">Briefing na casa</p>
+              <p className="text-2xl font-bold text-indigo-600">{tarefasBriefing}</p>
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
               <p className="text-xs text-gray-400 mb-1">Atrasadas</p>
