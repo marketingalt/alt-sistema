@@ -241,6 +241,7 @@ export default function ListaOrcamentos() {
     const projetosNomes = (o.tags || []).map((tagId) => projetosPlanejamento[tagId]?.nome || "").filter(Boolean);
     return (
       o.numero?.toLowerCase().includes(q) ||
+      o.nomeProjeto?.toLowerCase().includes(q) ||
       o.cliente?.toLowerCase().includes(q) ||
       o.solicitante?.toLowerCase().includes(q) ||
       projetosNomes.some((nome) => nome.toLowerCase().includes(q))
@@ -297,7 +298,7 @@ export default function ListaOrcamentos() {
             </svg>
             <input
               type="text"
-              placeholder="Buscar por número, cliente ou solicitante..."
+              placeholder="Buscar por número, projeto, cliente ou solicitante..."
               className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
@@ -334,7 +335,7 @@ export default function ListaOrcamentos() {
               <thead>
                 <tr className="bg-gray-800 text-white text-xs uppercase">
                   <th className="px-4 py-3 text-left">Nº</th>
-                  <th className="px-4 py-3 text-left">Cliente</th>
+                  <th className="px-4 py-3 text-left">Projeto</th>
                   <th className="px-4 py-3 text-left">Data</th>
                   <th className="px-4 py-3 text-center">Status</th>
                   <th className="px-4 py-3 text-center">PO</th>
@@ -356,8 +357,8 @@ export default function ListaOrcamentos() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="font-medium text-gray-800">{o.cliente || "—"}</div>
-                        {o.solicitante && <div className="text-xs text-gray-400">{o.solicitante}</div>}
+                        <div className="font-medium text-gray-800">{o.nomeProjeto || o.cliente || "—"}</div>
+                        <div className="text-xs text-gray-400">{o.cliente ? `Cliente: ${o.cliente}` : ""}{o.solicitante ? ` · ${o.solicitante}` : ""}</div>
                         {/* Tags (projetos) */}
                         {o.tags && o.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1.5">
