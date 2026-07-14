@@ -125,6 +125,14 @@ export default function KanbanPage() {
   const [mesCalendario, setMesCalendario] = useState(() => new Date().getMonth());
   const [anoCalendario, setAnoCalendario] = useState(() => new Date().getFullYear());
 
+  // Toast de feedback
+  const [toast, setToast] = useState<{ tipo: "sucesso" | "erro"; mensagem: string } | null>(null);
+
+  function mostrarToast(tipo: "sucesso" | "erro", mensagem: string) {
+    setToast({ tipo, mensagem });
+    setTimeout(() => setToast(null), 6000);
+  }
+
   // Modal de nova tarefa enriquecida
   const [modalNovaTarefa, setModalNovaTarefa] = useState<{ statusId: string } | null>(null);
   const [novoTitulo, setNovoTitulo] = useState("");
@@ -256,9 +264,19 @@ export default function KanbanPage() {
 
   async function criarOrcamentoDaTarefa(tarefa: Tarefa) {
     try {
-      const resNum = await fetch("/api/numero");
-      if (!resNum.ok) return;
-      const { numero } = await resNum.json();
+      let numero: string;
+      try {
+        const resNum = await fetch("/api/numero");
+        if (!resNum.ok) {
+          mostrarToast("erro", "Erro ao gerar número do orçamento");
+          return;
+        }
+        const data = await resNum.json();
+        numero = data.numero;
+      } catch {
+        mostrarToast("erro", "Erro de conexão ao gerar número do orçamento");
+        return;
+      }
 
       const cliente = (tarefa.customFields?.clienteOrcamento as string) || tarefa.titulo;
       const solicitante = user?.fullName || user?.emailAddresses?.[0]?.emailAddress || "Sistema";
@@ -270,7 +288,7 @@ export default function KanbanPage() {
         numero,
         cliente,
         solicitante,
-        nomeProjeto: tarefa.titulo,
+        nomeProjeto: projetoAtivo?.nome || tarefa.titulo,
         dataOrcamento: hoje,
         dataSolicitacao: hoje,
         prazoPagamento: "à combinar",
@@ -307,9 +325,14 @@ export default function KanbanPage() {
           customFields: { ...tarefa.customFields, orcamentoId: id },
         });
         setOrcamentoStatuses((prev) => ({ ...prev, [id]: "Em andamento" }));
+        mostrarToast("sucesso", `Orçamento #${numero} criado com sucesso!`);
+      } else {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        mostrarToast("erro", `Erro ao criar orçamento: ${err.error || res.status}`);
       }
     } catch (err) {
       console.error("Erro ao criar orçamento:", err);
+      mostrarToast("erro", "Erro inesperado ao criar orçamento");
     }
   }
 
@@ -724,8 +747,38 @@ export default function KanbanPage() {
           onNovaSubtarefa={handleNovaSubtarefa}
           onAlternarSubtarefa={handleAlternarSubtarefa}
         />
-      )}
-    </WorkspaceLayout>
+        )}
+
+        {/* Toast de feedback */}
+        {toast && (
+          <div
+            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-xl shadow-2xl text-sm font-semibold transition-all flex items-center gap-2 ${
+              toast.tipo === "sucesso"
+                ? "bg-emerald-600 text-white"
+                : "bg-red-600 text-white"
+            }`}
+          >
+            {toast.tipo === "sucesso" ? (
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+            {toast.mensagem}
+            <button
+              onClick={() => setToast(null)}
+              className="ml-2 opacity-80 hover:opacity-100"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+      </WorkspaceLayout>
     </BoardErrorBoundary>
   );
 }
