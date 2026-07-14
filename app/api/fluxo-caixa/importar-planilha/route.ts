@@ -37,7 +37,7 @@ function parseBrl(val: string): number {
   s = s.replace(",", ".");
   const num = parseFloat(s);
   if (isNaN(num)) return 0;
-  return negative ? -num : num;
+  return Math.round((negative ? -num : num) * 100) / 100;
 }
 
 /**

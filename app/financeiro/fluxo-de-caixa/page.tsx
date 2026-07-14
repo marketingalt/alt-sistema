@@ -68,6 +68,11 @@ function fmt(v: number | null | undefined): string {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+/** Arredonda para 2 casas decimais (centavos), evitando drift de ponto flutuante */
+function arredondar2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 function corCategoria(cat: string | null | undefined): string {
   if (!cat) return "text-gray-400";
   if (cat.includes("RECEITA") || cat.includes("EMPRÉSTIMO")) return "text-green-700";
@@ -258,12 +263,12 @@ export default function FluxoDeCaixaPage() {
     const limite = new Date(anoSel, mesSel, 1);
     const saldoInicialDt = new Date((dados.saldoInicialData || "") + "T12:00:00");
     const hasValidDate = !isNaN(saldoInicialDt.getTime());
-    let acc = typeof dados.saldoInicial === "number" ? dados.saldoInicial : 0;
+    let acc = typeof dados.saldoInicial === "number" ? arredondar2(dados.saldoInicial) : 0;
     for (const l of dados.lancamentos) {
       if (!l || typeof l.valor !== "number") continue;
       const d = new Date((l.data || "") + "T12:00:00");
       if (isNaN(d.getTime())) continue;
-      if (!hasValidDate || (d >= saldoInicialDt && d < limite)) acc += l.valor;
+      if (!hasValidDate || (d >= saldoInicialDt && d < limite)) acc = arredondar2(acc + l.valor);
     }
     return acc;
   }, [dados, mesSel, anoSel]);
@@ -300,13 +305,13 @@ export default function FluxoDeCaixaPage() {
   const kpis = useMemo(() => {
     const ehNaoOperacional = (l: Lancamento) => l.categoria === "ESTORNO" || l.modalidade === "TRANSFERENCIA";
     // Totais operacionais (excluindo estorno e transferência entre contas)
-    const entradasOp = lancamentosMes.filter((l) => l.valor > 0 && !ehNaoOperacional(l)).reduce((s, l) => s + l.valor, 0);
-    const saidasOp = lancamentosMes.filter((l) => l.valor < 0 && !ehNaoOperacional(l)).reduce((s, l) => s + l.valor, 0);
+    const entradasOp = arredondar2(lancamentosMes.filter((l) => l.valor > 0 && !ehNaoOperacional(l)).reduce((s, l) => s + l.valor, 0));
+    const saidasOp = arredondar2(lancamentosMes.filter((l) => l.valor < 0 && !ehNaoOperacional(l)).reduce((s, l) => s + l.valor, 0));
     // Totais gerais (incluindo tudo — usado para saldo real)
-    const entradasTotal = lancamentosMes.filter((l) => l.valor > 0).reduce((s, l) => s + l.valor, 0);
-    const saidasTotal = lancamentosMes.filter((l) => l.valor < 0).reduce((s, l) => s + l.valor, 0);
-    const resultadoOp = entradasOp + saidasOp;
-    const saldoFinal = saldoAnteMes + entradasTotal + saidasTotal;
+    const entradasTotal = arredondar2(lancamentosMes.filter((l) => l.valor > 0).reduce((s, l) => s + l.valor, 0));
+    const saidasTotal = arredondar2(lancamentosMes.filter((l) => l.valor < 0).reduce((s, l) => s + l.valor, 0));
+    const resultadoOp = arredondar2(entradasOp + saidasOp);
+    const saldoFinal = arredondar2(saldoAnteMes + entradasTotal + saidasTotal);
     return { entradas: entradasOp, saidas: saidasOp, resultado: resultadoOp, saldoFinal };
   }, [lancamentosMes, saldoAnteMes]);
 
@@ -317,16 +322,18 @@ export default function FluxoDeCaixaPage() {
     // Precisamos calcular o saldo com base nos lançamentos DO MÊS (todos, não filtrados) até cada linha
     const porData = [...lancamentosMes].sort((a, b) => a.data.localeCompare(b.data));
     const saldoMap = new Map<string, number>();
-    for (const l of porData) { acc += l.valor; saldoMap.set(l.id, acc); }
+    for (const l of porData) { acc = arredondar2(acc + l.valor); saldoMap.set(l.id, acc); }
     return lancamentosFiltrados.map((l) => ({ ...l, saldoCorrido: saldoMap.get(l.id) ?? null }));
   }, [lancamentosFiltrados, lancamentosMes, saldoAnteMes, ordemCampo]);
 
   // DRE Summary do mês
   const dre = useMemo(() => {
     return GRUPOS_DRE.map((g) => {
-      const total = lancamentosMes
-        .filter((l) => g.cats.includes(l.categoria))
-        .reduce((s, l) => s + l.valor, 0);
+      const total = arredondar2(
+        lancamentosMes
+          .filter((l) => g.cats.includes(l.categoria))
+          .reduce((s, l) => s + l.valor, 0)
+      );
       return { ...g, total };
     });
   }, [lancamentosMes]);
@@ -443,14 +450,26 @@ export default function FluxoDeCaixaPage() {
 
   function abrirEditar(l: Lancamento) {
     setEditando(l);
-    setForm({ data: l.data, modalidade: l.modalidade, banco: l.banco, valor: String(l.valor), area: l.area, categoria: l.categoria, obs: l.obs, ordemServicoId: l.ordemServicoId ?? "", contaPagarId: l.contaPagarId ?? "" });
+    setForm({ data: l.data, modalidade: l.modalidade, banco: l.banco, valor: arredondar2(l.valor).toFixed(2), area: l.area, categoria: l.categoria, obs: l.obs, ordemServicoId: l.ordemServicoId ?? "", contaPagarId: l.contaPagarId ?? "" });
     setModalAberto(true);
   }
 
   async function salvarLancamento() {
     if (!form.data || !form.valor || !form.obs.trim()) return;
     setSalvando(true);
-    const payload = { ...form, valor: parseFloat(form.valor.replace(",", ".")) };
+    // Parse de valor no formato brasileiro: "1.500,50" → 1500.50, "-1.500,50" → -1500.50
+    const valorStr = form.valor.trim();
+    const negativo = valorStr.startsWith("-");
+    let numerico = parseFloat(
+      valorStr
+        .replace(/^[-R$.\s]*/i, "")
+        .replace(/\./g, "")
+        .replace(",", ".")
+    );
+    if (isNaN(numerico)) numerico = 0;
+    if (negativo) numerico = -numerico;
+    numerico = arredondar2(numerico);
+    const payload = { ...form, valor: numerico };
     try {
       if (editando) {
         await fetch(`/api/fluxo-caixa/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });

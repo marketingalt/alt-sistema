@@ -66,7 +66,14 @@ export async function PUT(
   }
 
   dados.lancamentos = dados.lancamentos.map((l: any) =>
-    l.id === id ? { ...l, ...body, comprovanteUrl: body.comprovanteUrl === undefined ? l.comprovanteUrl : body.comprovanteUrl } : l
+    l.id === id
+      ? {
+          ...l,
+          ...body,
+          valor: body.valor !== undefined ? Math.round(Number(body.valor) * 100) / 100 : l.valor,
+          comprovanteUrl: body.comprovanteUrl === undefined ? l.comprovanteUrl : body.comprovanteUrl,
+        }
+      : l
   );
   const atualizado = dados.lancamentos.find((l: { id: string }) => l.id === id);
 

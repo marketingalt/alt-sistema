@@ -35,6 +35,7 @@ export async function POST(req: Request) {
   const dataAtual = new Date().toISOString().split("T")[0];
   const novo = {
     ...body,
+    valor: Math.round(Number(body.valor) * 100) / 100,
     id: `fc${Date.now()}`,
     createdAt: dataAtual,
   };
@@ -62,7 +63,7 @@ export async function PUT(req: Request) {
   const dados = await ler();
   const body = await req.json();
   if (body.saldoInicial !== undefined) {
-    dados.saldoInicial = body.saldoInicial;
+    dados.saldoInicial = Math.round(body.saldoInicial * 100) / 100;
     dados.saldoInicialData = body.saldoInicialData;
     await salvar(dados);
     return NextResponse.json({ ok: true });
