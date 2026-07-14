@@ -10,8 +10,9 @@ const TODOS_STATUS = Object.keys(STATUS_CONFIG) as StatusOrcamento[];
 
 function totalOrcamento(o: Orcamento) {
   const itens = o.itens.reduce((a, i) => a + (i.total || 0), 0);
-  const frete = (o.freteValor ?? 0) > 0 ? (o.freteValor ?? 0) : 0;
-  return itens + frete;
+  const servicos = o.manuseio && o.custoManuseio ? o.custoManuseio : 0;
+  const frete = o.freteValor ?? 0;
+  return itens + servicos + frete;
 }
 
 function custoTotalOrcamento(o: Orcamento) {

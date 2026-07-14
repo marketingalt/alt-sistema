@@ -8,7 +8,10 @@ import type { Orcamento, StatusOrcamento } from "./types";
 import { STATUS_CONFIG } from "./types";
 
 function totalOrcamento(o: Orcamento) {
-  return o.itens.reduce((a, i) => a + (i.total || 0), 0);
+  const produtos = o.itens.reduce((a, i) => a + (i.total || 0), 0);
+  const servicos = o.manuseio && o.custoManuseio ? o.custoManuseio : 0;
+  const frete = o.freteValor ?? 0;
+  return produtos + servicos + frete;
 }
 
 function fmt(v: number) {
