@@ -374,6 +374,74 @@ export async function gerarOSdeOrcamento(orcamento: Orcamento): Promise<OrdemSer
   };
 
   await salvarOrdemServico(nova);
+
+  // ── Criar contas a pagar por fornecedor ────────
+  try {
+    const fornecedores = await getFornecedores();
+    const contasDB = await dbGet<{ contas: any[] }>("contas-a-pagar", { contas: [] });
+
+    // Agrupa itens da OS por fornecedorId
+    const grupos = new Map<string, { nome: string; fornecedorId?: string; itens: ItemOS[]; totalCusto: number }>();
+    for (const item of itensOS) {
+      const key = item.fornecedorId || item.fornecedorNome || "sem_fornecedor";
+      if (!grupos.has(key)) {
+        grupos.set(key, { nome: item.fornecedorNome || "", fornecedorId: item.fornecedorId, itens: [], totalCusto: 0 });
+      }
+      const g = grupos.get(key)!;
+      g.itens.push(item);
+      g.totalCusto += item.totalCusto;
+    }
+
+    for (const [, grupo] of grupos) {
+      if (grupo.totalCusto <= 0 || grupo.fornecedorId === undefined) continue;
+
+      const fornecedor = fornecedores.find((f) => f.id === grupo.fornecedorId);
+      if (!fornecedor) continue;
+
+      // Calcula data de vencimento com base nas condicoesPagamento
+      const hoje = new Date();
+      let dias = 30; // padrão
+      if (fornecedor.condicoesPagamento) {
+        const nums = fornecedor.condicoesPagamento.match(/\d+/g);
+        if (nums && nums.length > 0) dias = parseInt(nums[0], 10);
+      }
+      const vencimento = new Date(hoje);
+      vencimento.setDate(vencimento.getDate() + dias);
+
+      // Resumo dos itens
+      const descricaoItens = grupo.itens.map((i) => `${i.item} (${i.quantidade}x)`).join(", ");
+      const descricao = `OS #${orcamento.numero} — ${grupo.nome}: ${descricaoItens}`;
+
+      const novaConta = {
+        id: `cpforn${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
+        dataVencimento: vencimento.toISOString().split("T")[0],
+        fornecedor: grupo.nome,
+        fornecedorId: grupo.fornecedorId,
+        descricao: descricao,
+        valor: Math.round(grupo.totalCusto * 100) / 100,
+        modalidade: "PIX",
+        banco: fornecedor.dadosBancarios || "",
+        area: "PROJETOS",
+        categoria: "CUSTOS DIRETOS DOS SERVIÇOS",
+        status: "pendente",
+        ordemServicoId: nova.id,
+        // Dados bancários do fornecedor em formato estruturado
+        dadosBancarios: fornecedor.dadosBancarios
+          ? { nome: fornecedor.nomeFantasia || fornecedor.razaoSocial, chavePix: fornecedor.dadosBancarios }
+          : undefined,
+        origem: "fornecedor-os",
+        createdAt: agora,
+      };
+
+      contasDB.contas.push(novaConta);
+    }
+
+    await dbSet("contas-a-pagar", contasDB);
+  } catch (err) {
+    // Falha ao criar contas a pagar não deve quebrar a geração da OS
+    console.error("Erro ao criar contas a pagar dos fornecedores:", err);
+  }
+
   return nova;
 }
 

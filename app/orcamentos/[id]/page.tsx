@@ -7,6 +7,7 @@ import type { Orcamento, ItemOrcamento, StatusOrcamento, Fornecedor, VersaoOrcam
 import { STATUS_CONFIG } from "@/app/types";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
+import ComboboxFornecedor from "@/app/components/ComboboxFornecedor";
 import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima } from "@/lib/calculos";
 import PedidoComprasAnexo from "@/app/components/PedidoComprasAnexo";
 import CampoData from "@/app/components/CampoData";
@@ -1117,7 +1118,7 @@ export default function VisualizarOrcamento() {
                           <Campo label="Cor" value={item.cor || ""} onChange={(v) => atualizarItem(item.id, "cor", v)} />
                           <Campo label="Referência / SKU" value={item.referencia} onChange={(v) => atualizarItem(item.id, "referencia", v)} />
                           <Campo label="NCM" value={item.ncm || ""} onChange={(v) => atualizarItem(item.id, "ncm", v)} />
-                          <Campo label="Fornecedor" value={item.fornecedorNome || ""} onChange={(v) => atualizarItem(item.id, "fornecedorNome", v)} />
+                          <ComboboxFornecedor value={item.fornecedorNome || ""} onChange={(v) => atualizarItem(item.id, "fornecedorNome", v)} onSelect={(f) => { atualizarItem(item.id, "fornecedorId", f.id); atualizarItem(item.id, "fornecedorNome", f.nomeFantasia || f.razaoSocial); }} />
                           <div>
                             <label className="block text-sm font-medium text-gray-600 mb-1.5">Acabamento</label>
                             <select

@@ -11,6 +11,7 @@ import type {
   Tarefa,
   Cliente,
   DocumentoFornecedor,
+  Fornecedor,
 } from "@/app/types";
 import type { SystemSettings } from "@/lib/admin";
 import StatusRoadmap from "./components/StatusRoadmap";
@@ -280,6 +281,10 @@ export default function DetalheOSPage() {
   const [documentosOrcamento, setDocumentosOrcamento] = useState<DocumentoFornecedor[]>([]);
   const [carregandoDocs, setCarregandoDocs] = useState(false);
 
+  // Fornecedores para exibir info de pagamento
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+  const [fornecedorInfo, setFornecedorInfo] = useState<{ fornecedorNome: string; condicoesPagamento: string; dadosBancarios: string } | null>(null);
+
   // Referência para o id do orçamento (usado no polling e no modal)
   const orcamentoIdRef = useRef<string>("");
 
@@ -361,6 +366,12 @@ export default function DetalheOSPage() {
           }
         } catch {}
       }
+
+      // Fornecedores (para exibir info de pagamento)
+      try {
+        const resForn = await fetch("/api/fornecedores");
+        if (resForn.ok) setFornecedores(await resForn.json());
+      } catch {}
 
       // Subtarefas
       try {
@@ -590,7 +601,29 @@ export default function DetalheOSPage() {
                     <td className="px-4 py-3 text-gray-500 font-mono text-xs">{item.referencia}</td>
                     <td className="px-4 py-3 font-medium text-gray-800">{item.item}</td>
                     <td className="px-4 py-3 text-right text-gray-700">{item.quantidade}</td>
-                    <td className="px-4 py-3 text-gray-700">{item.fornecedorNome || "—"}</td>
+                    <td className="px-4 py-3 text-gray-700">
+                        <div className="flex items-center gap-1.5">
+                          <span>{item.fornecedorNome || "—"}</span>
+                          {item.fornecedorId && fornecedores.find((f) => f.id === item.fornecedorId) && (
+                            <button
+                              onClick={() => {
+                                const f = fornecedores.find((x) => x.id === item.fornecedorId);
+                                if (f) setFornecedorInfo({
+                                  fornecedorNome: f.nomeFantasia || f.razaoSocial,
+                                  condicoesPagamento: f.condicoesPagamento || "Não informado",
+                                  dadosBancarios: f.dadosBancarios || "Não informado",
+                                });
+                              }}
+                              className="text-gray-400 hover:text-[#fb4d06] transition shrink-0"
+                              title="Ver condições de pagamento"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     <td className="px-4 py-3 text-right text-gray-700">{formatarMoeda(item.custoUnitario)}</td>
                     <td className="px-4 py-3 text-right text-gray-700">{formatarMoeda(item.freteProducao)}</td>
                     <td className="px-4 py-3 text-right text-gray-700">{formatarMoeda(item.custoPersonalizacao)}</td>
@@ -819,6 +852,33 @@ export default function DetalheOSPage() {
           )}
         </div>
       </main>
+
+      {/* ── MODAL INFO FORNECEDOR ──────────────── */}
+      {fornecedorInfo && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" onClick={() => setFornecedorInfo(null)}>
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm border border-gray-100 p-6" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setFornecedorInfo(null)} className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <h3 className="text-base font-bold text-gray-800 mb-4">{fornecedorInfo.fornecedorNome}</h3>
+
+            <div className="space-y-3">
+              <div>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Condições de Pagamento</p>
+                <p className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2">{fornecedorInfo.condicoesPagamento}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Dados Bancários</p>
+                <p className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2 whitespace-pre-wrap">{fornecedorInfo.dadosBancarios}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── MODAL DE DOCUMENTOS ───────────────────── */}
       {modalModulo && (

@@ -32,6 +32,7 @@ interface Conta {
     conta?: string;
   };
   ordemServicoId?: string;
+  origem?: string;
   createdAt: string;
   isLote?: boolean;
   loteItens?: {
@@ -737,7 +738,14 @@ export default function ContasAPagarPage() {
                       }`}>
                         {(() => { const [a,m,d] = c.dataVencimento.split("-"); return `${d}/${m}`; })()}
                       </span>
-                      <span className="text-gray-600 font-medium truncate max-w-[200px]">{c.fornecedor}</span>
+                      <span className="text-gray-600 font-medium truncate max-w-[160px]">
+                            {c.fornecedor}
+                            {c.origem === "fornecedor-os" && (
+                              <span className="ml-1 text-[9px] font-bold px-1 py-0.5 rounded bg-blue-100 text-blue-700 align-middle">
+                                OS
+                              </span>
+                            )}
+                          </span>
                       <span className="text-gray-400 truncate max-w-[180px]">{c.descricao}</span>
                     </div>
                     <span className="font-medium whitespace-nowrap text-red-500">R$ {c.valor.toFixed(2)}</span>
@@ -815,7 +823,14 @@ export default function ContasAPagarPage() {
                           </>
                         ) : (
                           <>
-                            <p className="text-sm font-semibold text-gray-800">{c.fornecedor}</p>
+                            <p className="text-sm font-semibold text-gray-800">
+                                {c.fornecedor}
+                                {c.origem === "fornecedor-os" && (
+                                  <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 align-middle">
+                                    Fornecedor
+                                  </span>
+                                )}
+                              </p>
                             <p className="text-xs text-gray-500 mt-0.5">{c.descricao}</p>
                           </>
                         )}
@@ -1314,7 +1329,14 @@ export default function ContasAPagarPage() {
                       <span className="text-[10px] font-semibold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded">↻ {detalhe.periodicidade}</span>
                     )}
                   </div>
-                  <h2 className="text-base font-bold text-gray-900 truncate">{detalhe.fornecedor}</h2>
+                  <h2 className="text-base font-bold text-gray-900 truncate">
+                            {detalhe.fornecedor}
+                            {detalhe.origem === "fornecedor-os" && (
+                              <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 align-middle">
+                                Fornecedor
+                              </span>
+                            )}
+                          </h2>
                   <p className="text-sm text-gray-500 mt-0.5">{detalhe.descricao}</p>
                 </div>
                 <button onClick={() => setDetalhe(null)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 shrink-0 mt-0.5">
