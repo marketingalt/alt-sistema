@@ -8,6 +8,14 @@ const nextConfig: NextConfig = {
       { hostname: "cdn.xbzbrindes.com.br" },
     ],
   },
+  serverExternalPackages: [
+    "@react-pdf/renderer",
+    "@react-pdf/font",
+    "@react-pdf/layout",
+    "@react-pdf/pdfkit",
+    "@react-pdf/render",
+    "@react-pdf/primitives",
+  ],
 };
 
 export default nextConfig;
