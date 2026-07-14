@@ -59,7 +59,13 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ logoBase64: b64 }),
-      }).catch(() => alert("Erro ao salvar logo"));
+      }).then((res) => {
+        if (!res.ok) {
+          console.warn("[Logo] Falha ao salvar no servidor, status:", res.status);
+        }
+      }).catch(() => {
+        console.warn("[Logo] Erro de rede ao salvar logo");
+      });
     };
     reader.readAsDataURL(file);
   }, [onLogoChange]);

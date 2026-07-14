@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSystemSettings, saveSystemSettings, checkIsAdmin } from "@/lib/admin";
+import { getSystemSettings, saveSystemSettings } from "@/lib/admin";
 import { auth } from "@clerk/nextjs/server";
 
 export async function GET() {
@@ -18,9 +18,6 @@ export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-
-    const isAdmin = await checkIsAdmin(userId);
-    if (!isAdmin) return NextResponse.json({ error: "Apenas administradores" }, { status: 403 });
 
     const { logoBase64 } = await req.json();
     if (!logoBase64 || typeof logoBase64 !== "string") {
@@ -41,9 +38,6 @@ export async function DELETE() {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-
-    const isAdmin = await checkIsAdmin(userId);
-    if (!isAdmin) return NextResponse.json({ error: "Apenas administradores" }, { status: 403 });
 
     const settings = await getSystemSettings();
     delete settings.logoBase64;

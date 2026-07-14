@@ -972,21 +972,26 @@ export default function ContasAReceberPage() {
   );
 
   async function carregar() {
-    const [resOrc, resFat, resOS, resClientes] = await Promise.all([
-      fetch("/api/orcamentos"),
-      fetch("/api/faturamentos"),
-      fetch("/api/ordens-servico"),
-      fetch("/api/clientes"),
-    ]);
-    const dataOrc = await resOrc.json();
-    const dataFat = await resFat.json();
-    const dataOS = await resOS.json();
-    const dataClientes = await resClientes.json();
-    setOrcamentos(dataOrc);
-    setFaturamentos(dataFat.registros || []);
-    setOrdensServico(Array.isArray(dataOS) ? dataOS : []);
-    setClientes(dataClientes || []);
-    setCarregando(false);
+    try {
+      const [resOrc, resFat, resOS, resClientes] = await Promise.all([
+        fetch("/api/orcamentos"),
+        fetch("/api/faturamentos"),
+        fetch("/api/ordens-servico"),
+        fetch("/api/clientes"),
+      ]);
+      const dataOrc = await resOrc.json();
+      const dataFat = await resFat.json();
+      const dataOS = await resOS.json();
+      const dataClientes = await resClientes.json();
+      setOrcamentos(Array.isArray(dataOrc) ? dataOrc : []);
+      setFaturamentos(dataFat?.registros || []);
+      setOrdensServico(Array.isArray(dataOS) ? dataOS : []);
+      setClientes(dataClientes || []);
+    } catch (err) {
+      console.error("[ContasAReceber] Erro ao carregar dados:", err);
+    } finally {
+      setCarregando(false);
+    }
   }
 
   useEffect(() => { carregar(); }, []);
