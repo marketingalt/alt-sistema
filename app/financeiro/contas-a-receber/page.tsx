@@ -1012,7 +1012,26 @@ export default function ContasAReceberPage() {
     );
 
     const orcRows: RowUnificada[] = orcFiltrados.map((orc) => {
-      const fat = faturamentos.find((f) => f.orcamentoId === orc.id) ?? { statusNota: "Pendente" as const, pago: false };
+      const diasPrazo = extrairDiasPrazo(orc.prazoPagamento);
+      const fat = faturamentos.find((f) => f.orcamentoId === orc.id) ?? {
+        statusNota: "Pendente" as const,
+        pago: false,
+        cliente: orc.cliente,
+        job: orc.nomeProjeto || orc.numero,
+        responsavel: orc.responsavel || orc.userName,
+        dataEmissao: orc.dataOrcamento,
+        percentualImposto: orc.percImpostos,
+        percentualComissao: orc.percComissao,
+        diasPagamento: diasPrazo,
+        imposto: orc.percImpostos ? valorAprovadoOrcamento(orc) * (orc.percImpostos / 100) : 0,
+        comissao: orc.percComissao ? valorAprovadoOrcamento(orc) * (orc.percComissao / 100) : 0,
+        custo: calcCustosOrcamento(orc),
+        vencimento: diasPrazo && orc.dataOrcamento ? (() => {
+          const base = new Date(orc.dataOrcamento + "T12:00:00");
+          base.setDate(base.getDate() + diasPrazo);
+          return base.toISOString().split("T")[0];
+        })() : undefined,
+      };
       return {
         rowId: `orc-${orc.id}`,
         tipo: "orcamento",
