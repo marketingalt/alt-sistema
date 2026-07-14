@@ -24,6 +24,8 @@ export default function Dashboard() {
   const { user } = useUser();
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [briefingCount, setBriefingCount] = useState(0);
+  const [carregandoBriefing, setCarregandoBriefing] = useState(true);
 
   const nome = user?.firstName || user?.fullName || "";
 
@@ -34,6 +36,28 @@ export default function Dashboard() {
         setOrcamentos(data.map((o: Orcamento) => ({ ...o, status: o.status || "Em andamento" })));
         setCarregando(false);
       });
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/planejamento")
+      .then((r) => r.json())
+      .then((data) => {
+        const projetos: any[] = (data.projetos || []).map((p: any) => ({
+          ...p,
+          statuses: p.statuses || [],
+        }));
+        const tarefas: any[] = data.tarefas || [];
+        const principais = tarefas.filter((t: any) => !t.parentTaskId);
+        const count = principais.filter((t: any) => {
+          const projeto = projetos.find((p: any) => p.id === t.projectId);
+          if (!projeto) return false;
+          const primeiraColuna = [...projeto.statuses].sort((a: any, b: any) => a.ordem - b.ordem)[0];
+          return primeiraColuna && t.statusId === primeiraColuna.id;
+        }).length;
+        setBriefingCount(count);
+      })
+      .catch(() => {})
+      .finally(() => setCarregandoBriefing(false));
   }, []);
 
   const totalReceita = orcamentos.reduce((a, o) => a + totalOrcamento(o), 0);
@@ -64,19 +88,25 @@ export default function Dashboard() {
         </div>
 
         {/* Cards de resumo */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
+          <Link href="/orcamentos" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-[#fb4d06]/20 transition">
             <p className="text-xs text-gray-400 mb-1">Total de orçamentos</p>
             <p className="text-3xl font-bold text-gray-800">{orcamentos.length}</p>
-          </div>
+          </Link>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <p className="text-xs text-gray-400 mb-1">Valor total</p>
             <p className="text-xl font-bold text-[#fb4d06]">{fmt(totalReceita)}</p>
           </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <Link href="/orcamentos?status=Aprovado" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-green-200 transition">
             <p className="text-xs text-gray-400 mb-1">Aprovados</p>
             <p className="text-3xl font-bold text-green-600">{aprovados.length}</p>
-          </div>
+          </Link>
+          <Link href="/planejamento" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-indigo-200 transition">
+            <p className="text-xs text-gray-400 mb-1">Briefing na casa</p>
+            <p className="text-3xl font-bold text-indigo-600">
+              {carregandoBriefing ? "..." : briefingCount}
+            </p>
+          </Link>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <p className="text-xs text-gray-400 mb-1">Valor aprovado</p>
             <p className="text-xl font-bold text-green-600">{fmt(totalAprovado)}</p>
