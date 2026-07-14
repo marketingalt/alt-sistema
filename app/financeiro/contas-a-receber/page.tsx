@@ -231,6 +231,7 @@ function CellVencimento({ value, dataEmissao, onSave }: CellVencimentoProps) {
   function calcDataPorDias(): string {
     if (!dias || !dataEmissao) return "";
     const base = new Date(dataEmissao + "T12:00:00");
+    if (isNaN(base.getTime())) return "";
     base.setDate(base.getDate() + parseInt(dias, 10));
     return base.toISOString().split("T")[0];
   }
@@ -559,8 +560,10 @@ function NovoLancamentoModal({ onClose, onSalvar, ordensServico = [] }: NovoLanc
                   set("dataEmissao", e.target.value);
                   if (form.diasPagamento && e.target.value) {
                     const base = new Date(e.target.value + "T12:00:00");
-                    base.setDate(base.getDate() + form.diasPagamento);
-                    set("vencimento", base.toISOString().split("T")[0]);
+                    if (!isNaN(base.getTime())) {
+                      base.setDate(base.getDate() + form.diasPagamento);
+                      set("vencimento", base.toISOString().split("T")[0]);
+                    }
                   }
                 }}
               />
@@ -578,8 +581,10 @@ function NovoLancamentoModal({ onClose, onSalvar, ordensServico = [] }: NovoLanc
                   set("diasPagamento", dias);
                   if (dias > 0 && form.dataEmissao) {
                     const base = new Date(form.dataEmissao + "T12:00:00");
-                    base.setDate(base.getDate() + dias);
-                    set("vencimento", base.toISOString().split("T")[0]);
+                    if (!isNaN(base.getTime())) {
+                      base.setDate(base.getDate() + dias);
+                      set("vencimento", base.toISOString().split("T")[0]);
+                    }
                   }
                 }}
               />
@@ -664,6 +669,7 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
     vencimento: row.fat.vencimento ?? (diasInicial && row.fat.dataEmissao
       ? (() => {
           const base = new Date(row.fat.dataEmissao + "T12:00:00");
+          if (isNaN(base.getTime())) return undefined;
           base.setDate(base.getDate() + diasInicial);
           return base.toISOString().split("T")[0];
         })()
@@ -880,8 +886,10 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
                   set("dataEmissao", e.target.value);
                   if (form.diasPagamento && e.target.value) {
                     const base = new Date(e.target.value + "T12:00:00");
-                    base.setDate(base.getDate() + form.diasPagamento);
-                    set("vencimento", base.toISOString().split("T")[0]);
+                    if (!isNaN(base.getTime())) {
+                      base.setDate(base.getDate() + form.diasPagamento);
+                      set("vencimento", base.toISOString().split("T")[0]);
+                    }
                   }
                 }}
               />
@@ -899,8 +907,10 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
                   set("diasPagamento", dias);
                   if (dias > 0 && form.dataEmissao) {
                     const base = new Date(form.dataEmissao + "T12:00:00");
-                    base.setDate(base.getDate() + dias);
-                    set("vencimento", base.toISOString().split("T")[0]);
+                    if (!isNaN(base.getTime())) {
+                      base.setDate(base.getDate() + dias);
+                      set("vencimento", base.toISOString().split("T")[0]);
+                    }
                   }
                 }}
               />
@@ -1062,6 +1072,7 @@ function ContasAReceberPage() {
         custo: calcCustosOrcamento(orc),
         vencimento: diasPrazo && orc.dataOrcamento ? (() => {
           const base = new Date(orc.dataOrcamento + "T12:00:00");
+          if (isNaN(base.getTime())) return undefined;
           base.setDate(base.getDate() + diasPrazo);
           return base.toISOString().split("T")[0];
         })() : undefined,
