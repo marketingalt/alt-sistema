@@ -1,11 +1,40 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { Component, useEffect, useState, useMemo, useRef } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
 import { calcularCustoTotal } from "@/lib/calculos";
 import { downloadCSV } from "@/lib/export-csv";
 import type { Orcamento, ItemOrcamento, OrdemServico } from "@/app/types";
+
+// ── Error boundary para capturar erro real ──────────────────────────────────────
+class PageErrorBoundary extends Component<{ children: React.ReactNode }, { error: Error | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error("[PageErrorBoundary]", error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 32, fontFamily: "sans-serif" }}>
+          <h2 style={{ color: "#e00", marginBottom: 12 }}>Erro ao carregar página</h2>
+          <pre style={{ background: "#f5f5f5", padding: 16, borderRadius: 8, overflow: "auto", fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+            {this.state.error.message}
+            {"\n\n"}
+            {this.state.error.stack}
+          </pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface RegistroFaturamento {
   id?: string;
@@ -950,7 +979,7 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-export default function ContasAReceberPage() {
+function ContasAReceberPage() {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [faturamentos, setFaturamentos] = useState<RegistroFaturamento[]>([]);
   const [ordensServico, setOrdensServico] = useState<OrdemServico[]>([]);
@@ -1657,5 +1686,13 @@ export default function ContasAReceberPage() {
         />
       )}
     </WorkspaceLayout>
+  );
+}
+
+export default function PageWrapper() {
+  return (
+    <PageErrorBoundary>
+      <ContasAReceberPage />
+    </PageErrorBoundary>
   );
 }
