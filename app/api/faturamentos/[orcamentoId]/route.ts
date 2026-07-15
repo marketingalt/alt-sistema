@@ -67,6 +67,7 @@ export async function PUT(
           obs: `${registro.cliente || ""}${registro.job ? " — " + registro.job : ""}`,
           createdAt: body.dataPagamento || updatedAt,
           ordemServicoId: registro.ordemServicoId || "",
+          cliente: registro.cliente || "",
         };
         dadosFC.lancamentos.push(novoLancamento);
         await salvarFC(dadosFC);

@@ -48,6 +48,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       obs: `${conta.fornecedor}${conta.descricao ? " — " + conta.descricao : ""}`,
       createdAt: dataPagamento,
       ordemServicoId: conta.ordemServicoId || "",
+      cliente: conta.cliente || "",
     };
     dadosFC.lancamentos.push(novoLancamento);
     await salvarFC(dadosFC);
@@ -96,6 +97,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       obs: `${body.fornecedor || conta.fornecedor}${body.descricao || conta.descricao ? " — " + (body.descricao || conta.descricao) : ""}`,
       createdAt: dataPagamento,
       ordemServicoId: body.ordemServicoId || conta.ordemServicoId || "",
+      cliente: body.cliente || conta.cliente || "",
     };
     dadosFC.lancamentos.push(novoLancamento);
     await salvarFC(dadosFC);

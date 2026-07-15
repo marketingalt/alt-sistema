@@ -14,6 +14,7 @@ interface Lancamento {
   area: string;
   categoria: string;
   obs: string;
+  cliente?: string;
   createdAt: string;
 }
 
@@ -198,7 +199,7 @@ export default function VisaoGeralFinanceiro() {
         // Agrupa receitas por cliente dentro do mês
         const clientes = new Map<string, number>();
         for (const r of grupos.get(chave)!) {
-          const nome = extrairCliente(r.obs);
+          const nome = r.cliente || extrairCliente(r.obs);
           clientes.set(nome, (clientes.get(nome) || 0) + r.valor);
         }
 

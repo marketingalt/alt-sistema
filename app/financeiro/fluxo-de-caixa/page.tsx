@@ -16,6 +16,7 @@ interface Lancamento {
   ordemServicoId?: string;
   contaPagarId?: string;
   comprovanteUrl?: string;
+  cliente?: string;
   createdAt: string;
 }
 
