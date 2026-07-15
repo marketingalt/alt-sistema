@@ -24,6 +24,18 @@ interface DadosCaixa {
   lancamentos: Lancamento[];
 }
 
+interface FaturamentoEntry {
+  id?: string;
+  orcamentoId?: string;
+  tipo?: "manual" | "orcamento";
+  cliente?: string;
+  valorAprovadoManual?: number;
+  vencimento?: string;
+  pago?: boolean;
+  dataPagamento?: string;
+  job?: string;
+}
+
 interface ClienteFat {
   nome: string;
   valor: number;
@@ -143,19 +155,23 @@ export default function VisaoGeralFinanceiro() {
   const chartRef = useRef<Chart | null>(null);
 
   const [dados, setDados] = useState<DadosCaixa | null>(null);
+  const [faturamentos, setFaturamentos] = useState<FaturamentoEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Busca dados do fluxo de caixa
+  // Busca dados do fluxo de caixa + contas a receber
   useEffect(() => {
     setLoading(true);
-    fetch("/api/fluxo-caixa")
-      .then((r) => r.json())
-      .then((data: DadosCaixa) => {
-        setDados(data);
+    Promise.all([
+      fetch("/api/fluxo-caixa").then((r) => r.json()),
+      fetch("/api/faturamentos").then((r) => r.json()),
+    ])
+      .then(([fc, fat]: [DadosCaixa, { registros: FaturamentoEntry[] }]) => {
+        setDados(fc);
+        setFaturamentos(fat.registros || []);
         setLoading(false);
       })
       .catch((err) => {
-        console.error("Erro ao buscar fluxo de caixa:", err);
+        console.error("Erro ao buscar dados:", err);
         setLoading(false);
       });
   }, []);
@@ -164,15 +180,35 @@ export default function VisaoGeralFinanceiro() {
   const meses = useMemo<MesFat[]>(() => {
     if (!dados) return [];
 
-    // Filtra apenas receitas operacionais
+    // ── 1. Receitas confirmadas do Fluxo de Caixa ──
     const receitas = dados.lancamentos.filter(
       (l) => l.categoria === "RECEITA OPERACIONAL BRUTA" && l.valor > 0
     );
 
+    // ── 2. Contas a Receber não pagas (evita duplicidade com FC) ──
+    const pendentes = faturamentos
+      .filter((f) => !f.pago && (f.cliente || f.valorAprovadoManual))
+      .map((f) => ({
+        id: f.id || "",
+        data: f.vencimento || f.dataPagamento || "",
+        modalidade: "",
+        banco: "",
+        valor: Math.abs(f.valorAprovadoManual || 0),
+        area: "PROJETOS",
+        categoria: "RECEITA OPERACIONAL BRUTA",
+        obs: `${f.cliente || ""}${f.job ? " — " + f.job : ""}`,
+        cliente: f.cliente || "",
+        createdAt: "",
+      } as Lancamento));
+
+    // ── 3. Unifica ──
+    const todas = [...receitas, ...pendentes];
+
     // Agrupa por mês
     const grupos = new Map<string, Lancamento[]>();
-    for (const r of receitas) {
-      const chave = r.data.substring(0, 7); // YYYY-MM
+    for (const r of todas) {
+      const chave = r.data ? r.data.substring(0, 7) : ""; // YYYY-MM
+      if (!chave) continue;
       if (!grupos.has(chave)) grupos.set(chave, []);
       grupos.get(chave)!.push(r);
     }
@@ -238,7 +274,7 @@ export default function VisaoGeralFinanceiro() {
     }
 
     return resultado;
-  }, [dados]);
+  }, [dados, faturamentos]);
 
   // Renderiza/atualiza o gráfico quando os meses mudam
   useEffect(() => {
@@ -315,7 +351,7 @@ export default function VisaoGeralFinanceiro() {
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
               <div className="w-10 h-10 border-4 border-[#fb4d06] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-gray-500">Carregando dados do Fluxo de Caixa...</p>
+              <p className="text-gray-500">Carregando dados...</p>
             </div>
           </div>
         </main>
@@ -333,7 +369,7 @@ export default function VisaoGeralFinanceiro() {
               Painel de Volatilidade de Receita
             </h1>
             <p className="text-gray-500 mt-1 text-sm">
-              Análise da dependência de clientes e flutuação financeira — dados alimentados pelo Fluxo de Caixa
+              Análise da dependência de clientes e flutuação financeira — dados do Fluxo de Caixa e Contas a Receber
             </p>
           </div>
           <button
@@ -360,7 +396,7 @@ export default function VisaoGeralFinanceiro() {
           </p>
           {meses.length === 0 ? (
             <div className="flex items-center justify-center h-72 text-gray-400">
-              Nenhum dado de receita encontrado no Fluxo de Caixa.
+              Nenhum dado de receita encontrado no Fluxo de Caixa ou Contas a Receber.
             </div>
           ) : (
             <div className="relative h-72 w-full">
@@ -412,10 +448,10 @@ export default function VisaoGeralFinanceiro() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
             <p className="text-gray-400 text-lg">
               Nenhum lançamento de{" "}
-              <span className="font-semibold text-gray-600">Receita Operacional Bruta</span> encontrado.
+              <span className="font-semibold text-gray-600">Receita Operacional Bruta</span> ou <span className="font-semibold text-gray-600">Contas a Receber</span> encontrado.
             </p>
             <p className="text-gray-400 text-sm mt-2">
-              Cadastre receitas no <span className="font-medium">Fluxo de Caixa</span> para começar a visualizar o painel.
+              Cadastre receitas no <span className="font-medium">Fluxo de Caixa</span> ou <span className="font-medium">Contas a Receber</span> para começar a visualizar o painel.
             </p>
           </div>
         )}
