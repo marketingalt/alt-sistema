@@ -160,7 +160,32 @@ export async function salvarOrcamento(orcamento: Orcamento): Promise<Orcamento> 
 
 export async function deletarOrcamento(id: string): Promise<void> {
   const lista = await getOrcamentos();
+  const orcamento = lista.find((o) => o.id === id);
+
+  // Remove o orçamento
   await dbSet("orcamentos", lista.filter((o) => o.id !== id));
+
+  // Marca tarefas vinculadas no Planejamento como "Orçamento excluído"
+  if (orcamento?.id) {
+    try {
+      const tarefas = await dbGet<Tarefa[]>("planejamento-tarefas", []);
+      let modificou = false;
+      for (const tarefa of tarefas) {
+        if (tarefa.customFields?.orcamentoId === orcamento.id) {
+          tarefa.titulo = `[EXCLUÍDO] ${tarefa.titulo}`;
+          tarefa.etiquetas.push({ nome: "Orçamento excluído", cor: "#ef4444" });
+          tarefa.customFields = { ...tarefa.customFields, orcamentoExcluido: true };
+          tarefa.updatedAt = new Date().toISOString();
+          modificou = true;
+        }
+      }
+      if (modificou) {
+        await dbSet("planejamento-tarefas", tarefas);
+      }
+    } catch (e) {
+      console.error("Erro ao marcar tarefas como excluídas:", e);
+    }
+  }
 }
 
 // ── Versões de Orçamento ────────────────────────

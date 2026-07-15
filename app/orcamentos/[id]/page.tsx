@@ -97,6 +97,7 @@ export default function VisualizarOrcamento() {
   const [modalFrete, setModalFrete] = useState(false);
   const [modalFreteProducao, setModalFreteProducao] = useState<string | null>(null);
   const [enderecoFornecedorModal, setEnderecoFornecedorModal] = useState("");
+  const [duplicando, setDuplicando] = useState(false);
   const restoredRef = useRef(false);
   const [rascunhoRestaurado, setRascunhoRestaurado] = useState(false);
   const [projetosPlanejamento, setProjetosPlanejamento] = useState<{ id: string; nome: string; cor: string }[]>([]);
@@ -530,6 +531,52 @@ export default function VisualizarOrcamento() {
     }
   }
 
+  async function duplicar() {
+    if (!orcamento) return;
+    setDuplicando(true);
+    try {
+      // Gera novo ID
+      const novoId = Math.random().toString(36).substring(2, 10);
+
+      // Busca novo número sequencial
+      const resNum = await fetch("/api/numero");
+      if (!resNum.ok) throw new Error("Erro ao gerar número");
+      const { numero } = await resNum.json();
+
+      // Monta cópia profunda
+      const copia: Orcamento = {
+        ...orcamento,
+        id: novoId,
+        numero,
+        status: "Em andamento",
+        createdAt: new Date().toISOString().split("T")[0],
+        versoes: [],
+        userId: undefined,
+        userEmail: undefined,
+        userName: undefined,
+      };
+
+      // Salva via POST (dispara sincronizarTarefasOrcamento automaticamente)
+      const res = await fetch("/api/orcamentos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(copia),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Erro ao duplicar" }));
+        alert(err.error);
+        return;
+      }
+
+      const salvo = await res.json();
+      router.push(`/orcamentos/${salvo.id}`);
+    } catch {
+      alert("Erro ao duplicar orçamento. Tente novamente.");
+    } finally {
+      setDuplicando(false);
+    }
+  }
+
   // ── Variáveis derivadas ──
   if (!orcamento) return (
     <div className="min-h-screen flex items-center justify-center text-gray-400">Carregando...</div>
@@ -562,6 +609,17 @@ export default function VisualizarOrcamento() {
             </span>
             <button onClick={() => gerarPdf("valores")} disabled={gerandoPdf} className="bg-gray-800 text-white text-sm font-semibold py-1.5 px-3 rounded-lg hover:bg-gray-700 transition disabled:opacity-50">
               ⬇ Download PDF
+            </button>
+            <button
+              onClick={duplicar}
+              disabled={duplicando}
+              className="flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-sm font-semibold border border-gray-200 text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+              title="Duplicar orçamento"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              {duplicando ? "Duplicando..." : "Duplicar"}
             </button>
             <button
               onClick={deletar}
@@ -784,6 +842,17 @@ export default function VisualizarOrcamento() {
                   className="bg-[#fb4d06] text-white text-sm font-semibold py-2 px-4 rounded-xl hover:opacity-90 transition disabled:opacity-50"
                 >
                   {gerandoPdf ? "Gerando..." : "PDF Valores"}
+                </button>
+                <button
+                  onClick={duplicar}
+                  disabled={duplicando}
+                  className="flex items-center gap-1.5 border border-gray-200 text-gray-700 text-sm font-semibold py-2 px-4 rounded-xl hover:bg-gray-50 transition disabled:opacity-50"
+                  title="Duplicar orçamento"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  {duplicando ? "Duplicando..." : "Duplicar"}
                 </button>
                 <button onClick={deletar} className="text-sm text-red-400 hover:text-red-600 px-2 py-2">
                   Excluir
