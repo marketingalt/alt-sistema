@@ -183,6 +183,7 @@ export default function ContasAPagarPage() {
 
   const [boletoUploading, setBoletoUploading] = useState(false);
   const [boletoUrl, setBoletoUrl] = useState("");
+  const [editandoLoteItens, setEditandoLoteItens] = useState<{ tipo: "logistica" | "despesa"; reembolsoId: string; descricao: string; valor: number }[]>([]);
 
   // Modal pagar
   const [modalPagar, setModalPagar] = useState<Conta | null>(null);
@@ -388,6 +389,7 @@ export default function ContasAPagarPage() {
       dataPagamento: c.dataPagamento ?? "",
     });
     setBoletoUrl(c.boletoUrl ?? "");
+    setEditandoLoteItens(c.isLote ? (c.loteItens || []).map((item) => ({ ...item })) : []);
     setModalForm(true);
   }
 
@@ -403,7 +405,17 @@ export default function ContasAPagarPage() {
   async function salvarConta() {
     if (!form.dataVencimento || !form.descricao.trim()) return;
     setSalvando(true);
-    const payload = { ...form, valor: parseFloat(String(form.valor).replace(",", ".")) || 0, boletoUrl: boletoUrl || undefined };
+    const valorLote = editando?.isLote
+      ? editandoLoteItens.reduce((s, i) => s + (i.valor || 0), 0)
+      : 0;
+    const payload: any = {
+      ...form,
+      valor: valorLote || parseFloat(String(form.valor).replace(",", ".")) || 0,
+      boletoUrl: boletoUrl || undefined,
+    };
+    if (editando?.isLote) {
+      payload.loteItens = editandoLoteItens;
+    }
     try {
       if (editando) {
         const res = await fetch(`/api/contas-a-pagar/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -1088,26 +1100,78 @@ export default function ContasAPagarPage() {
                   </p>
                 )}
               </div>
+
+              {/* ── Lote de reembolsos: editar itens individuais ── */}
+              {editando?.isLote && (
+                <div className="bg-orange-50 rounded-xl p-4 border border-orange-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-bold text-orange-700 uppercase tracking-wide">Itens do Lote</p>
+                    <span className="text-xs font-semibold text-orange-700">
+                      Total: {(editandoLoteItens || []).reduce((s, i) => s + (i.valor || 0), 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {(editandoLoteItens || []).map((item, idx) => (
+                      <div key={item.reembolsoId} className="flex items-center gap-2 bg-white rounded-lg p-2 border border-orange-100">
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                          item.tipo === "logistica" ? "bg-blue-50 text-blue-600" : "bg-purple-50 text-purple-600"
+                        }`}>
+                          {item.tipo === "logistica" ? "LOG" : "DESP"}
+                        </span>
+                        <input
+                          value={item.descricao}
+                          onChange={(e) => {
+                            const novos = [...editandoLoteItens];
+                            novos[idx] = { ...novos[idx], descricao: e.target.value };
+                            setEditandoLoteItens(novos);
+                          }}
+                          placeholder="Descrição do item"
+                          className="flex-1 min-w-0 border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                        />
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={item.valor}
+                          onChange={(e) => {
+                            const novos = [...editandoLoteItens];
+                            novos[idx] = { ...novos[idx], valor: parseFloat(e.target.value) || 0 };
+                            setEditandoLoteItens(novos);
+                          }}
+                          className="w-28 border border-gray-200 rounded px-2 py-1.5 text-xs text-right font-semibold focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-orange-500 mt-2">Altere a descrição e o valor de cada item. O total será recalculado automaticamente.</p>
+                </div>
+              )}
+
+              {/* Descrição — oculta quando lote (itens são editados acima) */}
+              {!editando?.isLote && (
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Descrição <span className="text-red-400">*</span></label>
                 <input value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
                   placeholder="Ex: Salário mensal, Aluguel mai/26..."
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
               </div>
+              )}
 
-              {/* Data + Valor */}
+              {/* Data + Valor (Valor oculto quando lote) */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Data de Vencimento <span className="text-red-400">*</span></label>
                   <input type="date" value={form.dataVencimento} onChange={(e) => setForm((f) => ({ ...f, dataVencimento: e.target.value }))}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
                 </div>
+                {!editando?.isLote && (
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
                   <input type="text" placeholder="0,00 (deixe 0 se indefinido)"
                     value={form.valor} onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
                 </div>
+                )}
               </div>
 
               {/* Modalidade + Banco */}

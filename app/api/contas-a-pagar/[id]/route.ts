@@ -163,6 +163,33 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     c.id === id ? { ...c, ...body, fluxoComprovanteUrl: body.fluxoComprovanteUrl === undefined ? c.fluxoComprovanteUrl : body.fluxoComprovanteUrl } : c
   );
   await salvarCP(dadosCP);
+
+  // ── Se for lote de reembolsos, propaga alterações para a origem ──
+  if (conta.isLote && body.loteItens && Array.isArray(body.loteItens)) {
+    try {
+      const { atualizarReembolso } = await import("@/lib/reembolsos");
+      const { atualizarReembolsoDespesa } = await import("@/lib/reembolsos-despesas");
+
+      for (const item of body.loteItens) {
+        if (item.tipo === "logistica" && item.reembolsoId) {
+          await atualizarReembolso(item.reembolsoId, {
+            observacao: item.descricao,
+            total: Number(item.valor) || 0,
+            dataVencimento: body.dataVencimento || conta.dataVencimento,
+          });
+        } else if (item.tipo === "despesa" && item.reembolsoId) {
+          await atualizarReembolsoDespesa(item.reembolsoId, {
+            descricao: item.descricao,
+            valor: Number(item.valor) || 0,
+            dataVencimento: body.dataVencimento || conta.dataVencimento,
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao propagar lote para reembolsos:", e);
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }
 
