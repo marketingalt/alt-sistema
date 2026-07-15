@@ -383,7 +383,7 @@ export default function FluxoDeCaixaPage() {
       const [a, m, dia] = d.split("-");
       return `${dia}/${m}/${a}`;
     };
-    const headers = ["Data", "Modalidade", "Banco", "Área", "Categoria", "OS", "Conta", "Observação", "Valor", "Saldo Corrido"];
+    const headers = ["Data", "Modalidade", "Banco", "Área", "Categoria", "OS", "Conta", "Cliente", "Observação", "Valor", "Saldo Corrido"];
     const rows = comSaldo.map((l) => {
       const os = l.ordemServicoId && osPorId[l.ordemServicoId]
         ? `#${osPorId[l.ordemServicoId].numero}`
@@ -399,6 +399,7 @@ export default function FluxoDeCaixaPage() {
         l.categoria,
         os,
         contaNome,
+        l.cliente || "",
         l.obs,
         String(l.valor),
         l.saldoCorrido !== null ? String(l.saldoCorrido) : "",
@@ -815,6 +816,7 @@ export default function FluxoDeCaixaPage() {
                       </th>
                       <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">OS</th>
                       <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Conta</th>
+                      <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">Cliente</th>
                       <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Observação</th>
                       <th onClick={() => toggleOrdem("valor")} className="text-right px-3 py-2.5 text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-700 select-none whitespace-nowrap">
                         Valor {ordemCampo === "valor" ? (ordemDir === "asc" ? "↑" : "↓") : ""}
@@ -825,7 +827,7 @@ export default function FluxoDeCaixaPage() {
                   </thead>
                   <tbody>
                     {comSaldo.length === 0 && (
-                      <tr><td colSpan={10} className="text-center py-12 text-gray-400 text-sm">Nenhum lançamento encontrado para este período.</td></tr>
+                      <tr><td colSpan={11} className="text-center py-12 text-gray-400 text-sm">Nenhum lançamento encontrado para este período.</td></tr>
                     )}
                     {comSaldo.map((l) => (
                       <tr key={l.id} className="border-b border-gray-50 hover:bg-gray-50/50 group">
@@ -866,6 +868,13 @@ export default function FluxoDeCaixaPage() {
                             </span>
                           ) : (
                             <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-gray-600 whitespace-nowrap max-w-[100px]">
+                          {l.cliente ? (
+                            <span className="font-medium text-gray-700 truncate block" title={l.cliente}>{l.cliente}</span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
                           )}
                         </td>
                         <td className="px-3 py-2.5 text-xs text-gray-600 max-w-xs">
