@@ -779,7 +779,6 @@ export default function ContasAPagarPage() {
                 <tr className="border-b border-gray-100 bg-gray-50/50">
                   <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">Vencimento</th>
                   <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Fornecedor / Descrição</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">Cliente</th>
                   <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Categoria</th>
                   <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">OS</th>
                   <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">Banco</th>
@@ -790,7 +789,7 @@ export default function ContasAPagarPage() {
               </thead>
               <tbody>
                 {contasFiltradas.length === 0 && (
-                  <tr><td colSpan={9} className="text-center py-12 text-gray-400 text-sm">Nenhuma conta encontrada para este período.</td></tr>
+                  <tr><td colSpan={8} className="text-center py-12 text-gray-400 text-sm">Nenhuma conta encontrada para este período.</td></tr>
                 )}
                 {contasFiltradas.map((c) => {
                   const st = statusEfetivo(c);
@@ -858,13 +857,6 @@ export default function ContasAPagarPage() {
                           <p className="text-[10px] text-green-600 mt-0.5 font-medium">
                             ✓ Pago em {new Date(c.dataPagamento + "T12:00:00").toLocaleDateString("pt-BR")}
                           </p>
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        {c.cliente ? (
-                          <span className="text-xs font-medium text-gray-700 truncate block max-w-[100px] whitespace-nowrap" title={c.cliente}>{c.cliente}</span>
-                        ) : (
-                          <span className="text-xs text-gray-400">—</span>
                         )}
                       </td>
                       <td className="px-3 py-3">
@@ -952,7 +944,7 @@ export default function ContasAPagarPage() {
                     </tr>
                     {c.isLote && expandedLotes.has(c.id) && (
                       <tr className="bg-gray-50/50 border-b border-gray-100">
-                        <td colSpan={9} className="px-4 py-2">
+                        <td colSpan={8} className="px-4 py-2">
                           <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 px-4 py-2">
                             <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Descrição</div>
                             <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider text-right">Valor</div>
@@ -980,7 +972,7 @@ export default function ContasAPagarPage() {
               {contasFiltradas.length > 0 && (
                 <tfoot>
                   <tr className="border-t-2 border-gray-200 bg-gray-50">
-                    <td colSpan={6} className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total do período</td>
+                    <td colSpan={5} className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total do período</td>
                     <td className="px-3 py-2.5 text-right font-bold text-sm text-red-600">
                       {fmt(contasFiltradas.filter((c) => c.status !== "cancelado").reduce((s, c) => s + c.valor, 0))}
                     </td>
