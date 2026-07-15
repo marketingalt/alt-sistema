@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import { Orcamento } from "@/app/types";
 
@@ -502,6 +502,17 @@ export default function PainelDeControlePage() {
     isNegativo?: boolean; // true = esse item subtrai (valor exibido como negativo mesmo sendo positivo)
   }
 
+  interface DreAnualRow {
+    label: string;
+    isSubtotal: boolean;
+    indentLevel: number;
+    isNegativo?: boolean;
+    valores: number[]; // 12 months
+    total: number;
+  }
+
+  const MES_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
   const drePeriodo = useMemo(() => {
     const d = new Date();
     d.setDate(1);
@@ -509,20 +520,10 @@ export default function PainelDeControlePage() {
     return { y: d.getFullYear(), m: d.getMonth() + 1 };
   }, [dreMesOffset]);
 
-  const dreLinhas = useMemo((): DreLinha[] => {
-    if (!fluxo) return [];
+  // Extrai a computação das linhas DRE para reuso (prefix = "2025-01" p/ mês, "2025-" p/ ano)
+  function buildDreFromPrefix(fluxo: FluxoCaixa, prefix: string): DreLinha[] {
+    const lancamentosPeriodo = fluxo.lancamentos.filter((l) => l.data.startsWith(prefix));
 
-    const { y, m } = drePeriodo;
-    const mm = String(m).padStart(2, "0");
-
-    let lancamentosPeriodo: Lancamento[];
-    if (dreTab === "mes") {
-      lancamentosPeriodo = fluxo.lancamentos.filter((l) => l.data.startsWith(`${y}-${mm}`));
-    } else {
-      lancamentosPeriodo = fluxo.lancamentos.filter((l) => l.data.startsWith(`${y}-`));
-    }
-
-    // Agrupa por categoria e separa entradas (+) e saídas (-)
     const catEntradas: Record<string, number> = {};
     const catSaidas: Record<string, number> = {};
     for (const l of lancamentosPeriodo) {
@@ -548,11 +549,9 @@ export default function PainelDeControlePage() {
     const despBrindes = catSaidas["BRINDES"] || 0;
     const totalDespesas = despAdm + despPessoal + despProlabore + despComerciais + despBrindes;
 
-    // Resultado financeiro: entradas financeiras - saídas financeiras
     const recFinanceira = catEntradas["RESULTADO FINANCEIRO"] || 0;
     const despFinanceira = catSaidas["RESULTADO FINANCEIRO"] || 0;
 
-    // Empréstimos
     const empThiemyEnt = catEntradas["EMPRÉSTIMO THIEMY"] || 0;
     const empThiemySai = catSaidas["EMPRÉSTIMO THIEMY"] || 0;
     const empFernandoEnt = catEntradas["EMPRÉSTIMO FERNANDO"] || 0;
@@ -560,11 +559,9 @@ export default function PainelDeControlePage() {
     const devThiemy = catSaidas["DEVOLUÇÃO THIEMY"] || 0;
     const devFernando = catSaidas["DEVOLUÇÃO FERNANDO"] || 0;
 
-    // Outras entradas (não categorizadas acima)
     const outrasEntradas = Object.entries(catEntradas)
       .filter(([cat]) => !["RECEITA OPERACIONAL BRUTA", "RESULTADO FINANCEIRO", "EMPRÉSTIMO THIEMY", "EMPRÉSTIMO FERNANDO", "DISTRIBUIÇÃO DE LUCROS"].includes(cat))
       .reduce((s, [, v]) => s + v, 0);
-    // Outras saídas (não categorizadas acima)
     const outrasSaidas = Object.entries(catSaidas)
       .filter(([cat]) => !["DEDUÇÕES DA RECEITA (IMPOSTOS)", "CUSTOS DIRETOS DOS SERVIÇOS", "DESPESAS ADM E GERAIS", "DESPESAS COM PESSOAL OPERACIONAL", "DESPESAS COM PESSOAL — PROLABORE", "DESPESAS COMERCIAIS", "BRINDES", "RESULTADO FINANCEIRO", "EMPRÉSTIMO THIEMY", "EMPRÉSTIMO FERNANDO", "DEVOLUÇÃO THIEMY", "DEVOLUÇÃO FERNANDO", "ESTORNO", "DISTRIBUIÇÃO DE LUCROS"].includes(cat))
       .reduce((s, [, v]) => s + v, 0);
@@ -622,6 +619,67 @@ export default function PainelDeControlePage() {
     linhas.push({ label: "= RESULTADO LÍQUIDO DO PERÍODO", valor: resultadoLiquido, isSubtotal: true, indentLevel: 0 });
 
     return linhas;
+  }
+
+  const dreLinhas = useMemo((): DreLinha[] => {
+    if (!fluxo) return [];
+    const { y, m } = drePeriodo;
+    const mm = String(m).padStart(2, "0");
+    const prefix = dreTab === "mes" ? `${y}-${mm}` : `${y}-`;
+    return buildDreFromPrefix(fluxo, prefix);
+  }, [fluxo, drePeriodo, dreTab]);
+
+  // DRE anual mês a mês — apenas quando dreTab === "ano"
+  const dreAnualRows = useMemo((): DreAnualRow[] => {
+    if (!fluxo || dreTab !== "ano") return [];
+    const year = drePeriodo.y;
+
+    // Computa DRE para cada mês
+    const mesesDre = Array.from({ length: 12 }, (_, i) => {
+      const m = i + 1;
+      const mm = String(m).padStart(2, "0");
+      return buildDreFromPrefix(fluxo, `${year}-${mm}`);
+    });
+
+    // Constrói lista mestra de labels na ordem de aparecimento
+    const labelSet = new Set<string>();
+    for (const mes of mesesDre) {
+      for (const linha of mes) {
+        if (!labelSet.has(linha.label)) {
+          labelSet.add(linha.label);
+        }
+      }
+    }
+    // Preserva ordem de aparecimento percorrendo todos meses
+    const ordem: string[] = [];
+    const seen = new Set<string>();
+    for (const mes of mesesDre) {
+      for (const linha of mes) {
+        if (!seen.has(linha.label)) {
+          seen.add(linha.label);
+          ordem.push(linha.label);
+        }
+      }
+    }
+
+    return ordem.map((label) => {
+      // Pega template do primeiro mês que tem essa label
+      let template: DreLinha | undefined;
+      for (const mes of mesesDre) {
+        const match = mes.find((l) => l.label === label);
+        if (match) { template = match; break; }
+      }
+      if (!template) return null;
+
+      const valores = mesesDre.map((mes) => {
+        const match = mes.find((l) => l.label === label);
+        if (!match) return 0;
+        return match.isNegativo ? -match.valor : match.valor;
+      });
+      const total = valores.reduce((a, b) => a + b, 0);
+
+      return { label, isSubtotal: template.isSubtotal, indentLevel: template.indentLevel, isNegativo: template.isNegativo, valores, total };
+    }).filter(Boolean) as DreAnualRow[];
   }, [fluxo, drePeriodo, dreTab]);
 
   // ─── Fluxo detail: grouped by month ─────────────────────────────────────────
@@ -645,6 +703,120 @@ export default function PainelDeControlePage() {
   }, [fluxo]);
 
   const loading = !fluxo;
+
+  // ─── Export DRE: PDF ────────────────────────────────────────────────────────
+  const exportarDRE_PDF = useCallback(() => {
+    const { y, m } = drePeriodo;
+    const periodoLabel = dreTab === "mes"
+      ? new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
+      : String(y);
+
+    const linhaRow = (item: DreLinha) => {
+      if (!item.label) return `<tr style="height:8px"><td colspan="2"></td></tr>`;
+      const val = item.isNegativo ? -item.valor : item.valor;
+      const prefix = item.indentLevel > 0 ? "&nbsp;&nbsp;" : "";
+      const subClass = item.isSubtotal ? ' style="font-weight:700;background:#f9fafb;"' : "";
+      const valClass = val >= 0 ? "color:#059669" : "color:#dc2626";
+      return `<tr${subClass}><td style="padding:4px 12px;font-size:12px;${item.isSubtotal ? "font-weight:700" : ""}">${prefix}${item.label}</td><td style="padding:4px 12px;text-align:right;font-size:12px;${valClass}">${val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td></tr>`;
+    };
+
+    let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>DRE - ${periodoLabel}</title>
+<style>
+  body { font-family: 'Courier New', monospace; padding: 40px; color: #333; }
+  h1 { font-size: 18px; margin-bottom: 4px; }
+  .sub { font-size: 12px; color: #666; margin-bottom: 20px; }
+  table { width: 100%; border-collapse: collapse; }
+  td { border-bottom: 1px solid #eee; }
+  .footer { margin-top: 20px; font-size: 10px; color: #999; }
+</style></head><body>
+<h1>DRE — Demonstração do Resultado</h1>
+<p class="sub">${periodoLabel} | Gerado em ${new Date().toLocaleString("pt-BR")}</p>
+<table>`;
+    html += dreLinhas.map(linhaRow).join("\n");
+    html += `</table><p class="footer">* DRE calculada com base nos lançamentos do Fluxo de Caixa agrupados por categoria.</p></body></html>`;
+
+    const win = window.open("", "_blank");
+    if (!win) { alert("Permita pop-ups para baixar o PDF."); return; }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 500);
+  }, [dreLinhas, drePeriodo, dreTab]);
+
+  // ─── Export DRE: Planilha CSV ───────────────────────────────────────────────
+  const exportarDRE_CSV = useCallback(() => {
+    const { y, m } = drePeriodo;
+    const periodoLabel = dreTab === "mes"
+      ? new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
+      : String(y);
+
+    const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
+
+    let csv = "﻿"; // BOM for Excel
+    csv += `DRE - Demonstração do Resultado\n`;
+    csv += `Período,${esc(periodoLabel)}\n`;
+    csv += `Gerado em,${esc(new Date().toLocaleString("pt-BR"))}\n`;
+    csv += `\n`;
+    csv += `Descrição,Valor (R$)\n`;
+
+    for (const linha of dreLinhas) {
+      if (!linha.label) { csv += "\n"; continue; }
+      const val = linha.isNegativo ? -linha.valor : linha.valor;
+      const prefixo = linha.indentLevel > 0 ? "  " : "";
+      csv += `${esc(prefixo + linha.label)},${val.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}\n`;
+    }
+
+    csv += `\n* DRE calculada com base nos lançamentos do Fluxo de Caixa agrupados por categoria.\n`;
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `DRE_${dreTab}_${drePeriodo.y}${dreTab === "mes" ? `_${String(drePeriodo.m).padStart(2, "0")}` : ""}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [dreLinhas, drePeriodo, dreTab]);
+
+  // ─── Export DRE Anual: Planilha CSV ──────────────────────────────────────────
+  const exportarDREAnual_CSV = useCallback(() => {
+    const year = drePeriodo.y;
+    const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
+
+    let csv = "﻿";
+    csv += `DRE - Demonstração do Resultado - ${year}\n`;
+    csv += `Gerado em,${esc(new Date().toLocaleString("pt-BR"))}\n\n`;
+
+    // Header: labels dos meses
+    csv += `Descrição,${MES_LABELS.map((l) => esc(l)).join(",")},Total\n`;
+
+    for (const row of dreAnualRows) {
+      if (!row.label) { csv += "\n"; continue; }
+      const prefixo = row.indentLevel > 0 ? "  " : "";
+      const valores = row.valores.map((v) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 }));
+      csv += `${esc(prefixo + row.label)},${valores.join(",")},${row.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}\n`;
+    }
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `DRE_Anual_${year}_detalhado.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [dreAnualRows, drePeriodo]);
+
+  // ─── Estado do menu de export ────────────────────────────────────────────────
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) setExportMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [exportMenuOpen]);
 
   // ─── JSX ─────────────────────────────────────────────────────────────────────
 
@@ -1103,83 +1275,132 @@ export default function PainelDeControlePage() {
                   : String(drePeriodo.y)}
               </span>
               <button onClick={() => setDreMesOffset((p) => p + 1)} className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition text-sm">›</button>
-              <button onClick={() => {
-                if (!fluxo) return;
-                const { y, m } = drePeriodo;
-                const periodo = dreTab === "mes"
-                  ? new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
-                  : String(y);
-                let txt = `╔══════════════════════════════════════════════════════╗\n`;
-                txt += `║  DRE — DEMONSTRAÇÃO DO RESULTADO                   ║\n`;
-                txt += `║  ${periodo.padEnd(45)}║\n`;
-                txt += `╚══════════════════════════════════════════════════════╝\n\n`;
-                for (const linha of dreLinhas) {
-                  if (!linha.label) { txt += `\n`; continue; }
-                  const prefix = linha.indentLevel > 0 ? "  " : "";
-                  const valStr = linha.isNegativo
-                    ? `(R$ ${linha.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })})`
-                    : `R$ ${linha.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-                  txt += `${prefix}${linha.label.padEnd(45)}${linha.isSubtotal ? "=" : " "} ${valStr}\n`;
-                }
-                txt += `\n════════════════════════════════════════════════════════\n`;
-                txt += `Gerado em ${new Date().toLocaleString("pt-BR")}\n`;
-                const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `DRE_${dreTab}_${drePeriodo.y}${dreTab === "mes" ? `_${String(drePeriodo.m).padStart(2, "0")}` : ""}.txt`;
-                a.click();
-                URL.revokeObjectURL(url);
-              }} className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 flex items-center gap-1">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Baixar Relatório
-              </button>
+              {/* Dropdown de exportação */}
+              <div className="relative" ref={exportMenuRef as React.RefObject<HTMLDivElement | null>}>
+                <button
+                  onClick={() => setExportMenuOpen((v) => !v)}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Baixar
+                </button>
+                {exportMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px] z-30">
+                    <button onClick={() => { setExportMenuOpen(false); exportarDRE_PDF(); }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      Baixar PDF
+                    </button>
+                    <button onClick={() => { setExportMenuOpen(false); if (dreTab === "ano") exportarDREAnual_CSV(); else exportarDRE_CSV(); }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Baixar Planilha (CSV)
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase">DESCRIÇÃO</th>
-                  <th className="text-right px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase w-40">VALOR (R$)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dreLinhas.map((linha, idx) => {
-                  if (!linha.label) return <tr key={idx} className="h-2" />;
-                  const valExibido = linha.isNegativo ? -linha.valor : linha.valor;
-                  const corValor = linha.isSubtotal
-                    ? (valExibido >= 0 ? "text-gray-900" : "text-red-600")
-                    : linha.indentLevel === 1
-                      ? (linha.isNegativo ? "text-red-500" : "text-green-600")
-                      : (linha.isNegativo ? "text-red-500" : "text-green-600");
-                  const bgCls = linha.isSubtotal ? "bg-gray-50" : "";
-                  const fontWeight = linha.isSubtotal ? "font-bold" : "font-medium";
-                  return (
-                    <tr key={idx} className={`border-b border-gray-50 ${bgCls} hover:bg-gray-50/60`}>
-                      <td className={`px-3 py-2 ${fontWeight} ${linha.isSubtotal ? "text-gray-800" : "text-gray-600"} ${linha.indentLevel > 0 ? "pl-7" : ""}`}>
-                        {linha.label}
-                      </td>
-                      <td className={`px-3 py-2 text-right ${fontWeight} ${corValor}`}>
-                        {linha.isSubtotal && linha.label.startsWith("=") ? " " : ""}
-                        {valExibido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {dreTab === "mes" ? (
+              /* ── Visão mensal ── */
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase">DESCRIÇÃO</th>
+                    <th className="text-right px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase w-40">VALOR (R$)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dreLinhas.map((linha, idx) => {
+                    if (!linha.label) return <tr key={idx} className="h-2" />;
+                    const valExibido = linha.isNegativo ? -linha.valor : linha.valor;
+                    const corValor = linha.isSubtotal
+                      ? (valExibido >= 0 ? "text-gray-900" : "text-red-600")
+                      : linha.indentLevel === 1
+                        ? (linha.isNegativo ? "text-red-500" : "text-green-600")
+                        : (linha.isNegativo ? "text-red-500" : "text-green-600");
+                    const bgCls = linha.isSubtotal ? "bg-gray-50" : "";
+                    const fontWeight = linha.isSubtotal ? "font-bold" : "font-medium";
+                    return (
+                      <tr key={idx} className={`border-b border-gray-50 ${bgCls} hover:bg-gray-50/60`}>
+                        <td className={`px-3 py-2 ${fontWeight} ${linha.isSubtotal ? "text-gray-800" : "text-gray-600"} ${linha.indentLevel > 0 ? "pl-7" : ""}`}>
+                          {linha.label}
+                        </td>
+                        <td className={`px-3 py-2 text-right ${fontWeight} ${corValor}`}>
+                          {linha.isSubtotal && linha.label.startsWith("=") ? " " : ""}
+                          {valExibido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              /* ── Visão anual: mês a mês ── */
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left px-2 py-2 text-[10px] font-semibold text-gray-400 uppercase whitespace-nowrap sticky left-0 bg-white z-10">DESCRIÇÃO</th>
+                    {MES_LABELS.map((ml) => (
+                      <th key={ml} className="text-right px-1.5 py-2 text-[10px] font-semibold text-gray-400 uppercase whitespace-nowrap min-w-[70px]">{ml}</th>
+                    ))}
+                    <th className="text-right px-2 py-2 text-[10px] font-semibold text-gray-700 uppercase whitespace-nowrap min-w-[80px] bg-gray-50/50">TOTAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dreAnualRows.map((row, idx) => {
+                    if (!row.label) return <tr key={idx} className="h-2" />;
+                    const bgCls = row.isSubtotal ? "bg-gray-50" : "";
+                    const fontWeight = row.isSubtotal ? "font-bold" : "font-medium";
+                    return (
+                      <tr key={idx} className={`border-b border-gray-50 ${bgCls} hover:bg-gray-50/60`}>
+                        <td className={`px-2 py-1.5 ${fontWeight} ${row.isSubtotal ? "text-gray-800" : "text-gray-600"} ${row.indentLevel > 0 ? "pl-6" : ""} sticky left-0 bg-white z-10 ${bgCls ? "bg-gray-50" : "bg-white"}`}>
+                          {row.label}
+                        </td>
+                        {row.valores.map((v, mi) => {
+                          const exib = row.isNegativo ? -v : v;
+                          const cor = row.isSubtotal
+                            ? (exib >= 0 ? "text-gray-900" : "text-red-600")
+                            : row.indentLevel === 1
+                              ? (row.isNegativo ? "text-red-500" : "text-green-600")
+                              : (row.isNegativo ? "text-red-500" : "text-green-600");
+                          return (
+                            <td key={mi} className={`px-1.5 py-1.5 text-right ${fontWeight} ${cor} ${exib === 0 ? "text-gray-300" : ""}`}>
+                              {exib === 0 ? "-" : exib.toLocaleString("pt-BR", { currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            </td>
+                          );
+                        })}
+                        <td className={`px-2 py-1.5 text-right ${fontWeight} ${row.total >= 0 ? "text-gray-900" : "text-red-600"} bg-gray-50/50`}>
+                          {row.total.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0 })}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
           <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
             <p className="text-[10px] text-gray-400">
               * DRE calculada com base nos lançamentos do Fluxo de Caixa agrupados por categoria.
             </p>
-            <div className={`text-sm font-bold ${(dreLinhas[dreLinhas.length - 1]?.valor ?? 0) >= 0 ? "text-green-700" : "text-red-600"}`}>
-              Resultado: {dreLinhas.length > 0 ? (dreLinhas[dreLinhas.length - 1]?.valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "-"}
-            </div>
+            {(() => {
+              const resultadoFinal = dreTab === "mes"
+                ? (dreLinhas.length > 0 ? (dreLinhas[dreLinhas.length - 1]?.valor ?? 0) : 0)
+                : (dreAnualRows.length > 0 ? dreAnualRows[dreAnualRows.length - 1]?.total ?? 0 : 0);
+              return (
+                <div className={`text-sm font-bold ${resultadoFinal >= 0 ? "text-green-700" : "text-red-600"}`}>
+                  Resultado: {resultadoFinal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
