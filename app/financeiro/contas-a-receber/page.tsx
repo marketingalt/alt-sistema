@@ -1110,20 +1110,27 @@ function ContasAReceberPage() {
 
   // Filtra pelo mês selecionado
   const rowsMes = useMemo(() => {
-    return rows.filter((r) => {
+    const filtradas = rows.filter((r) => {
       const ref = r.fat.vencimento || r.fat.dataEmissao;
       if (!ref) return true; // mostra se não tem data de referência
       const d = new Date(ref + "T12:00:00");
       return d.getMonth() === mesSel && d.getFullYear() === anoSel;
     });
+    // Inclui orçamentos aprovados sem vencimento (prazoPagamento não preenchido)
+    // pra aparecerem em qualquer mês, com destaque visual na tabela
+    const semVencimento = rows.filter(
+      (r) => r.tipo === "orcamento" && !r.fat.vencimento && r.orcamento?.status === "Aprovado"
+    );
+    return [...filtradas, ...semVencimento.filter((r) => !filtradas.find((f) => f.rowId === r.rowId))];
   }, [rows, mesSel, anoSel]);
 
   const kpis = useMemo(() => {
+    // Orçamentos sem vencimento são incluídos no total mas não entram em inadimplente
     const totalAprovado = rowsMes.reduce((s, r) => s + r.valorAprovado, 0);
     const totalCustos = rowsMes.reduce((s, r) => s + (r.fat.imposto ?? 0) + (r.fat.comissao ?? 0) + (r.fat.custo ?? r.fat.custosReais ?? r.custosCalculados), 0);
     const aReceber = rowsMes.filter((r) => !r.fat.pago).reduce((s, r) => s + r.valorAprovado, 0);
     const recebido = rowsMes.filter((r) => r.fat.pago).reduce((s, r) => s + r.valorAprovado, 0);
-    const inadimplente = rowsMes.filter((r) => statusReceber(r) === "inadimplente").reduce((s, r) => s + r.valorAprovado, 0);
+    const inadimplente = rowsMes.filter((r) => r.fat.vencimento && statusReceber(r) === "inadimplente").reduce((s, r) => s + r.valorAprovado, 0);
     const rentabilidade = totalAprovado > 0 ? ((totalAprovado - totalCustos) / totalAprovado) * 100 : 0;
     return { totalAprovado, totalCustos, aReceber, recebido, rentabilidade, inadimplente };
   }, [rowsMes]);
@@ -1520,9 +1527,14 @@ function ContasAReceberPage() {
                   const rent = row.valorAprovado > 0 ? ((row.valorAprovado - despesasTotais) / row.valorAprovado) * 100 : 0;
 
                   return (
-                    <tr key={row.rowId} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => setDetalheAberto(row)}>
+                    <tr key={row.rowId} className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer ${!row.fat.vencimento && row.tipo === "orcamento" && row.orcamento?.status === "Aprovado" ? "bg-amber-50/40" : ""}`} onClick={() => setDetalheAberto(row)}>
                       <td className="px-4 py-3 font-medium text-gray-800 whitespace-nowrap">
                         <div className="flex items-center gap-2">
+                          {!row.fat.vencimento && row.tipo === "orcamento" && row.orcamento?.status === "Aprovado" && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold border border-amber-200">
+                              sem prazo
+                            </span>
+                          )}
                           {row.tipo === "manual" && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#fb4d06]/10 text-[#fb4d06] font-semibold border border-[#fb4d06]/20">
                               manual
@@ -1672,11 +1684,17 @@ function ContasAReceberPage() {
                         />
                       </td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                        <CellVencimento
-                          value={row.fat.vencimento}
-                          dataEmissao={row.fat.dataEmissao}
-                          onSave={(v) => salvarCelula(row.rowId, "vencimento", v)}
-                        />
+                        {!row.fat.vencimento && row.tipo === "orcamento" && row.orcamento?.status === "Aprovado" ? (
+                          <span className="text-amber-600 text-xs font-medium flex items-center gap-1">
+                            <span>⚠</span> Sem prazo
+                          </span>
+                        ) : (
+                          <CellVencimento
+                            value={row.fat.vencimento}
+                            dataEmissao={row.fat.dataEmissao}
+                            onSave={(v) => salvarCelula(row.rowId, "vencimento", v)}
+                          />
+                        )}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <button
