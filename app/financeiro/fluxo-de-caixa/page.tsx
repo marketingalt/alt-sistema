@@ -220,7 +220,7 @@ export default function FluxoDeCaixaPage() {
   const [form, setForm] = useState({
     data: "", modalidade: "PIX", banco: "C6 BANK", valor: "",
     area: "PROJETOS", categoria: "RECEITA OPERACIONAL BRUTA", obs: "",
-    ordemServicoId: "", contaPagarId: "",
+    ordemServicoId: "", contaPagarId: "", cliente: "",
   });
   const [salvando, setSalvando] = useState(false);
 
@@ -446,13 +446,13 @@ export default function FluxoDeCaixaPage() {
 
   function abrirNovo() {
     setEditando(null);
-    setForm({ data: new Date().toISOString().split("T")[0], modalidade: "PIX", banco: "C6 BANK", valor: "", area: "PROJETOS", categoria: "RECEITA OPERACIONAL BRUTA", obs: "", ordemServicoId: "", contaPagarId: "" });
+    setForm({ data: new Date().toISOString().split("T")[0], modalidade: "PIX", banco: "C6 BANK", valor: "", area: "PROJETOS", categoria: "RECEITA OPERACIONAL BRUTA", obs: "", ordemServicoId: "", contaPagarId: "", cliente: "" });
     setModalAberto(true);
   }
 
   function abrirEditar(l: Lancamento) {
     setEditando(l);
-    setForm({ data: l.data, modalidade: l.modalidade, banco: l.banco, valor: arredondar2(l.valor).toFixed(2), area: l.area, categoria: l.categoria, obs: l.obs, ordemServicoId: l.ordemServicoId ?? "", contaPagarId: l.contaPagarId ?? "" });
+    setForm({ data: l.data, modalidade: l.modalidade, banco: l.banco, valor: arredondar2(l.valor).toFixed(2), area: l.area, categoria: l.categoria, obs: l.obs, ordemServicoId: l.ordemServicoId ?? "", contaPagarId: l.contaPagarId ?? "", cliente: l.cliente ?? "" });
     setModalAberto(true);
   }
 
@@ -1042,6 +1042,11 @@ export default function FluxoDeCaixaPage() {
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Observação / Descrição</label>
                 <input type="text" placeholder="Ex: Fornecedor XYZ — Projeto Aramis" value={form.obs} onChange={(e) => setForm((f) => ({ ...f, obs: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Cliente</label>
+                <input type="text" placeholder="Nome do cliente" value={form.cliente} onChange={(e) => setForm((f) => ({ ...f, cliente: e.target.value }))}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
               </div>
               <div>
