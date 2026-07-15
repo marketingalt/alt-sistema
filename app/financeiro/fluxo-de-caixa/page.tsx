@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import { downloadCSV } from "@/lib/export-csv";
+import ComboboxCliente from "@/app/components/ComboboxCliente";
 
 interface Lancamento {
   id: string;
@@ -1045,9 +1046,13 @@ export default function FluxoDeCaixaPage() {
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Cliente</label>
-                <input type="text" placeholder="Nome do cliente" value={form.cliente} onChange={(e) => setForm((f) => ({ ...f, cliente: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                <ComboboxCliente
+                  value={form.cliente}
+                  onChange={(v) => setForm((f) => ({ ...f, cliente: v }))}
+                  onSelect={(c) => setForm((f) => ({ ...f, cliente: c.nomeEmpresa || c.razaoSocial }))}
+                  label="Cliente"
+                  placeholder="Buscar cliente cadastrado..."
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Ordem de Serviço</label>
