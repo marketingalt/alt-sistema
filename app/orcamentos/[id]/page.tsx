@@ -791,7 +791,13 @@ export default function VisualizarOrcamento() {
                   <div className="absolute z-20 top-full mt-1 right-0 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[140px] sm:min-w-[160px] hidden group-focus-within:block group-hover:block">
                     {TODOS_STATUS.map((s) => (
                       <button key={s}
-                        onClick={() => atualizarCampo("status", s)}
+                        onClick={() => {
+                          if (s === "Aprovado" && !orcamento.prazoPagamento) {
+                            const ok = window.confirm("Prazo de Pagamento não preenchido. O orçamento aprovado ainda não aparecerá no Contas a Receber até que o prazo seja definido. Deseja continuar?");
+                            if (!ok) return;
+                          }
+                          atualizarCampo("status", s);
+                        }}
                         className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 ${s === (orcamento.status || "Em andamento") ? "font-bold" : ""}`}>
                         <span className={`w-2 h-2 rounded-full ${STATUS_CONFIG[s].dot}`} />
                         {s}
@@ -990,10 +996,15 @@ export default function VisualizarOrcamento() {
 
               {/* Linha 3: Prazos */}
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <CampoPrazoPagamento
-                  value={orcamento.prazoPagamento}
-                  onChange={(v) => atualizarCampo("prazoPagamento", v)}
-                />
+                <div>
+                  <CampoPrazoPagamento
+                    value={orcamento.prazoPagamento}
+                    onChange={(v) => atualizarCampo("prazoPagamento", v)}
+                  />
+                  {!orcamento.prazoPagamento && (
+                    <p className="text-xs text-amber-600 mt-1">Sem prazo de pagamento → não gera vencimento no Contas a Receber</p>
+                  )}
+                </div>
                 <CampoPrazoEntrega
                   value={orcamento.prazoEntrega}
                   onChange={(v) => atualizarCampo("prazoEntrega", v)}

@@ -1146,6 +1146,13 @@ function ContasAReceberPage() {
       .slice(0, 15);
   }, [faturamentos]);
 
+  // Orçamentos aprovados que não têm prazo de pagamento (não geram vencimento)
+  const orcamentosSemPrazo = useMemo(() => {
+    return orcamentos.filter(
+      (o) => (o.status === "Aprovado" || o.status === "Enviado") && !o.prazoPagamento
+    );
+  }, [orcamentos]);
+
   async function salvarCelula(rowId: string, field: keyof RegistroFaturamento, value: string) {
     const row = rows.find((r) => r.rowId === rowId);
     if (!row) return;
@@ -1398,6 +1405,28 @@ function ContasAReceberPage() {
             </div>
           ))}
         </div>
+
+        {orcamentosSemPrazo.length > 0 && (
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 text-sm">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-amber-700 font-semibold">⚠ {orcamentosSemPrazo.length} orçamento(s) aprovado(s) sem prazo de pagamento</span>
+                <span className="text-gray-500 text-xs">— defina o prazo no orçamento para gerar o vencimento</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {orcamentosSemPrazo.map((o) => (
+                  <a key={o.id}
+                    href={`/orcamentos/${o.id}`}
+                    target="_blank"
+                    className="text-xs bg-white border border-amber-200 rounded-lg px-2.5 py-1 hover:bg-amber-100 transition flex items-center gap-1">
+                    <span className="font-medium text-amber-800">#{o.numero}</span>
+                    {o.cliente && <span className="text-gray-500">— {o.cliente}</span>}
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Table */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
