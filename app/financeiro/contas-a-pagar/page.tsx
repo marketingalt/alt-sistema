@@ -32,6 +32,7 @@ interface Conta {
     conta?: string;
   };
   ordemServicoId?: string;
+  cliente?: string;
   origem?: string;
   createdAt: string;
   isLote?: boolean;
@@ -120,6 +121,7 @@ const FORM_VAZIO = {
   categoria: "DESPESAS ADM E GERAIS", obs: "",
   recorrente: false, periodicidade: "mensal",
   ordemServicoId: "",
+  cliente: "",
   status: "pendente",
   dataPagamento: "",
 };
@@ -385,6 +387,7 @@ export default function ContasAPagarPage() {
       categoria: c.categoria, obs: c.obs ?? "",
       recorrente: c.recorrente ?? false, periodicidade: c.periodicidade ?? "mensal",
       ordemServicoId: c.ordemServicoId ?? "",
+      cliente: c.cliente ?? "",
       status: c.status,
       dataPagamento: c.dataPagamento ?? "",
     });
@@ -403,7 +406,8 @@ export default function ContasAPagarPage() {
   }
 
   async function salvarConta() {
-    if (!form.dataVencimento || !form.descricao.trim()) return;
+    if (!form.dataVencimento) return;
+    if (!editando?.isLote && !form.descricao.trim()) return;
     setSalvando(true);
     const valorLote = editando?.isLote
       ? editandoLoteItens.reduce((s, i) => s + (i.valor || 0), 0)
@@ -1284,6 +1288,18 @@ export default function ContasAPagarPage() {
                   );
                 })()}
                 <p className="text-[10px] text-gray-400 mt-1">Anexe o boleto em PDF ou imagem para consulta futura.</p>
+              </div>
+
+              {/* Cliente */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Cliente</label>
+                <input
+                  value={form.cliente}
+                  onChange={(e) => setForm((f) => ({ ...f, cliente: e.target.value }))}
+                  placeholder="Nome do cliente responsável por esta conta"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">Identifica qual cliente gerou este custo (aparece no dashboard da visão geral).</p>
               </div>
 
               {/* Ordem de Serviço */}
