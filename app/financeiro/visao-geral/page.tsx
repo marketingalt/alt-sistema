@@ -158,6 +158,9 @@ export default function VisaoGeralFinanceiro() {
   const [faturamentos, setFaturamentos] = useState<FaturamentoEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [anoSelecionado, setAnoSelecionado] = useState<string>("");
+  const [mesSelecionado, setMesSelecionado] = useState<string>("Todos");
+
   // Busca dados do fluxo de caixa + contas a receber
   useEffect(() => {
     setLoading(true);
@@ -215,78 +218,84 @@ export default function VisaoGeralFinanceiro() {
 
     const resultado: MesFat[] = [];
 
-    // Determina range de meses: do primeiro ao último mês com dados
+    // Só processa meses que realmente têm dados
     const chaves = [...grupos.keys()].sort();
-    if (chaves.length === 0) return [];
+    for (const chave of chaves) {
+      const [anoStr, mesStr] = chave.split("-");
+      const ano = Number(anoStr);
+      const mes = Number(mesStr);
+      const chaveId = `${String(ano).slice(-2)}-${mesStr}`;
 
-    const primeiro = chaves[0];
-    const ultimo = chaves[chaves.length - 1];
-    const [anoIni, mesIni] = primeiro.split("-").map(Number);
-    const [anoFim, mesFim] = ultimo.split("-").map(Number);
-
-    // Itera mês a mês do primeiro ao último
-    let ano = anoIni;
-    let mes = mesIni;
-    while (ano < anoFim || (ano === anoFim && mes <= mesFim)) {
-      const chave = `${ano}-${String(mes).padStart(2, "0")}`;
-      const chaveId = `${String(ano).slice(-2)}-${String(mes).padStart(2, "0")}`;
-
-      if (grupos.has(chave)) {
-        // Agrupa receitas por cliente dentro do mês
-        const clientes = new Map<string, number>();
-        for (const r of grupos.get(chave)!) {
-          const nome = r.cliente || extrairCliente(r.obs);
-          clientes.set(nome, (clientes.get(nome) || 0) + r.valor);
-        }
-
-        const total = [...clientes.values()].reduce((s, v) => s + v, 0);
-
-        resultado.push({
-          id: chaveId,
-          mes: MESES[mes - 1],
-          ano: String(ano),
-          total: Math.round(total),
-          clientes: [...clientes.entries()]
-            .map(([nome, valor]) => ({
-              nome,
-              valor: Math.round(valor),
-              corClass: corPorNome(nome),
-            }))
-            .sort((a, b) => b.valor - a.valor),
-        });
-      } else {
-        // Mês sem receita
-        resultado.push({
-          id: chaveId,
-          mes: MESES[mes - 1],
-          ano: String(ano),
-          total: 0,
-          clientes: [],
-        });
+      // Agrupa receitas por cliente dentro do mês
+      const clientes = new Map<string, number>();
+      for (const r of grupos.get(chave)!) {
+        const nome = r.cliente || extrairCliente(r.obs);
+        clientes.set(nome, (clientes.get(nome) || 0) + r.valor);
       }
 
-      // Avança para o próximo mês
-      mes++;
-      if (mes > 12) {
-        mes = 1;
-        ano++;
-      }
+      const total = [...clientes.values()].reduce((s, v) => s + v, 0);
+
+      resultado.push({
+        id: chaveId,
+        mes: MESES[mes - 1],
+        ano: String(ano),
+        total: Math.round(total),
+        clientes: [...clientes.entries()]
+          .map(([nome, valor]) => ({
+            nome,
+            valor: Math.round(valor),
+            corClass: corPorNome(nome),
+          }))
+          .sort((a, b) => b.valor - a.valor),
+      });
     }
 
     return resultado;
   }, [dados, faturamentos]);
 
-  // Renderiza/atualiza o gráfico quando os meses mudam
+  // Anos disponíveis (dos que têm dados)
+  const anosDisponiveis = useMemo(() => {
+    const anos = new Set<string>();
+    for (const m of meses) anos.add(m.ano);
+    return [...anos].sort((a, b) => Number(b) - Number(a)); // mais recente primeiro
+  }, [meses]);
+
+  // Meses disponíveis no ano selecionado
+  const mesesDisponiveisNoAno = useMemo(() => {
+    if (!anoSelecionado) return [];
+    return meses.filter((m) => m.ano === anoSelecionado).map((m) => m.mes);
+  }, [meses, anoSelecionado]);
+
+  // Define ano inicial quando os dados carregam
   useEffect(() => {
-    if (!canvasRef.current || meses.length === 0) return;
+    if (!anoSelecionado && anosDisponiveis.length > 0) {
+      setAnoSelecionado(anosDisponiveis[0]);
+    }
+  }, [anosDisponiveis, anoSelecionado]);
+
+  // Dados filtrados por ano e (opcionalmente) mês
+  const mesesFiltrados = useMemo(() => {
+    let filtrado = meses;
+    if (anoSelecionado) {
+      filtrado = filtrado.filter((m) => m.ano === anoSelecionado);
+    }
+    if (mesSelecionado !== "Todos") {
+      filtrado = filtrado.filter((m) => m.mes === mesSelecionado);
+    }
+    return filtrado;
+  }, [meses, anoSelecionado, mesSelecionado]);
+
+  // Renderiza/atualiza o gráfico quando os meses filtrados mudam
+  useEffect(() => {
+    if (!canvasRef.current || mesesFiltrados.length === 0) return;
 
     if (chartRef.current) chartRef.current.destroy();
 
     const ctx = canvasRef.current.getContext("2d");
     if (!ctx) return;
 
-    const labels = meses.map((m) => `${m.mes.substring(0, 3)}/${m.ano.substring(2)}`);
-    const totals = meses.map((m) => m.total);
+    const labels = mesesFiltrados.map((m) => `${m.mes.substring(0, 3)}/${m.ano.substring(2)}`);
+    const totals = mesesFiltrados.map((m) => m.total);
 
     chartRef.current = new Chart(ctx, {
       type: "line",
@@ -341,7 +350,7 @@ export default function VisaoGeralFinanceiro() {
     return () => {
       if (chartRef.current) chartRef.current.destroy();
     };
-  }, [meses]);
+  }, [mesesFiltrados]);
 
   // ── Loading ──
   if (loading) {
@@ -388,13 +397,44 @@ export default function VisaoGeralFinanceiro() {
           </button>
         </div>
 
+        {/* ── Filtros ── */}
+        {anosDisponiveis.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Ano</label>
+              <select
+                value={anoSelecionado}
+                onChange={(e) => { setAnoSelecionado(e.target.value); setMesSelecionado("Todos"); }}
+                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+              >
+                {anosDisponiveis.map((a) => (
+                  <option key={a}>{a}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Mês</label>
+              <select
+                value={mesSelecionado}
+                onChange={(e) => setMesSelecionado(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+              >
+                <option>Todos</option>
+                {mesesDisponiveisNoAno.map((m) => (
+                  <option key={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
         {/* ── Gráfico Principal ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-1">A Montanha-Russa Financeira</h2>
           <p className="text-sm text-gray-400 mb-6">
             Disparidade entre os meses de pico e os vales de faturamento.
           </p>
-          {meses.length === 0 ? (
+          {mesesFiltrados.length === 0 ? (
             <div className="flex items-center justify-center h-72 text-gray-400">
               Nenhum dado de receita encontrado no Fluxo de Caixa ou Contas a Receber.
             </div>
@@ -406,14 +446,14 @@ export default function VisaoGeralFinanceiro() {
         </div>
 
         {/* ── KPI Cards Resumo ── */}
-        {meses.length > 0 && (
+        {mesesFiltrados.length > 0 && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {(() => {
-              const mesesComReceita = meses.filter((d) => d.total > 0);
-              const totalGeral = meses.reduce((s, d) => s + d.total, 0);
+              const mesesComReceita = mesesFiltrados.filter((d) => d.total > 0);
+              const totalGeral = mesesFiltrados.reduce((s, d) => s + d.total, 0);
               const media = mesesComReceita.length > 0 ? totalGeral / mesesComReceita.length : 0;
-              const maximo = Math.max(...meses.map((d) => d.total));
-              const mesesZerados = meses.filter((d) => d.total === 0).length;
+              const maximo = Math.max(...mesesFiltrados.map((d) => d.total));
+              const mesesZerados = mesesFiltrados.filter((d) => d.total === 0).length;
               return (
                 <>
                   <KpiCard label="Receita Total (período)" value={fmt(totalGeral)} cor="text-gray-900" />
@@ -431,20 +471,20 @@ export default function VisaoGeralFinanceiro() {
         )}
 
         {/* ── Cartões Mensais ── */}
-        {meses.length > 0 && (
+        {mesesFiltrados.length > 0 && (
           <div>
             <h2 className="text-lg font-semibold text-gray-900 mb-4 border-l-4 border-[#fb4d06] pl-3">
-              Composição Mensal: Quem pagou a conta?
+              Análise de Faturamento
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-              {meses.map((m) => (
+              {mesesFiltrados.map((m) => (
                 <MonthCard key={m.id} data={m} />
               ))}
             </div>
           </div>
         )}
 
-        {meses.length === 0 && !loading && (
+        {mesesFiltrados.length === 0 && !loading && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
             <p className="text-gray-400 text-lg">
               Nenhum lançamento de{" "}
