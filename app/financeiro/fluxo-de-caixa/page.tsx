@@ -453,31 +453,22 @@ export default function FluxoDeCaixaPage() {
 
   function abrirEditar(l: Lancamento) {
     setEditando(l);
-    setForm({ data: l.data, modalidade: l.modalidade, banco: l.banco, valor: arredondar2(l.valor).toFixed(2), area: l.area, categoria: l.categoria, obs: l.obs, ordemServicoId: l.ordemServicoId ?? "", contaPagarId: l.contaPagarId ?? "", cliente: l.cliente ?? "" });
+    setForm({ data: l.data, modalidade: l.modalidade, banco: l.banco, valor: arredondar2(l.valor).toFixed(2).replace(".", ","), area: l.area, categoria: l.categoria, obs: l.obs, ordemServicoId: l.ordemServicoId ?? "", contaPagarId: l.contaPagarId ?? "", cliente: l.cliente ?? "" });
     setModalAberto(true);
   }
 
   async function salvarLancamento() {
     if (!form.data || !form.valor || !form.obs.trim()) return;
     setSalvando(true);
-    // Parse de valor: aceita formato brasileiro ("1.500,50") e internacional ("1500.50")
+    // Parse de valor no formato brasileiro: "1.500,50" → 1500.50, "-1.500,50" → -1500.50
     const valorStr = form.valor.trim();
     const negativo = valorStr.startsWith("-");
-    let numerico: number;
-    if (valorStr.includes(",")) {
-      // Formato brasileiro: "1.500,50" → remove pontos (milhar), vírgula vira ponto
-      numerico = parseFloat(
-        valorStr
-          .replace(/^[-R$.\s]*/i, "")
-          .replace(/\./g, "")
-          .replace(",", ".")
-      );
-    } else {
-      // Formato internacional ou sem separador: "1500.50" ou "1500"
-      // Remove prefixo "R$", espaços, e faz parse direto
-      const limpo = valorStr.replace(/^[-R$\s]*/i, "").trim();
-      numerico = parseFloat(limpo);
-    }
+    let numerico = parseFloat(
+      valorStr
+        .replace(/^[-R$.\s]*/i, "")
+        .replace(/\./g, "")
+        .replace(",", ".")
+    );
     if (isNaN(numerico)) numerico = 0;
     if (negativo) numerico = -numerico;
     numerico = arredondar2(numerico);
