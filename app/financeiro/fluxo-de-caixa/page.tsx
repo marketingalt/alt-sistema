@@ -460,15 +460,24 @@ export default function FluxoDeCaixaPage() {
   async function salvarLancamento() {
     if (!form.data || !form.valor || !form.obs.trim()) return;
     setSalvando(true);
-    // Parse de valor no formato brasileiro: "1.500,50" → 1500.50, "-1.500,50" → -1500.50
+    // Parse de valor: aceita formato brasileiro ("1.500,50") e internacional ("1500.50")
     const valorStr = form.valor.trim();
     const negativo = valorStr.startsWith("-");
-    let numerico = parseFloat(
-      valorStr
-        .replace(/^[-R$.\s]*/i, "")
-        .replace(/\./g, "")
-        .replace(",", ".")
-    );
+    let numerico: number;
+    if (valorStr.includes(",")) {
+      // Formato brasileiro: "1.500,50" → remove pontos (milhar), vírgula vira ponto
+      numerico = parseFloat(
+        valorStr
+          .replace(/^[-R$.\s]*/i, "")
+          .replace(/\./g, "")
+          .replace(",", ".")
+      );
+    } else {
+      // Formato internacional ou sem separador: "1500.50" ou "1500"
+      // Remove prefixo "R$", espaços, e faz parse direto
+      const limpo = valorStr.replace(/^[-R$\s]*/i, "").trim();
+      numerico = parseFloat(limpo);
+    }
     if (isNaN(numerico)) numerico = 0;
     if (negativo) numerico = -numerico;
     numerico = arredondar2(numerico);
