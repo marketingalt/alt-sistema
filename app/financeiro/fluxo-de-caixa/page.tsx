@@ -59,10 +59,29 @@ const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "O
 const COR_BANCO_PADRAO: Record<string, { cor: string; bg: string; abrev: string }> = {
   "C6 BANK": { cor: "text-yellow-700", bg: "bg-yellow-50", abrev: "C6" },
   "Banco Itaú": { cor: "text-blue-700", bg: "bg-blue-50", abrev: "Itaú" },
-  "NUBANK": { cor: "text-purple-700", bg: "bg-purple-50", abrev: "Nubank" },
+  "Nubank": { cor: "text-purple-700", bg: "bg-purple-50", abrev: "Nubank" },
 };
+
+/** Mapa de normalização: variações conhecidas → nome canônico */
+const NORMALIZAR_BANCO: Record<string, string> = {
+  "nubank": "Nubank",
+  "nu bank": "Nubank",
+  "nu": "Nubank",
+  "c6": "C6 BANK",
+  "c6 bank": "C6 BANK",
+  "itaú": "Banco Itaú",
+  "itau": "Banco Itaú",
+  "banco itau": "Banco Itaú",
+  "banco itaú": "Banco Itaú",
+};
+
+function normalizarBanco(nome: string): string {
+  const chave = nome.toLowerCase().trim();
+  return NORMALIZAR_BANCO[chave] || nome;
+}
 function corBanco(banco: string) {
-  return COR_BANCO_PADRAO[banco] || { cor: "text-gray-700", bg: "bg-gray-50", abrev: banco.substring(0, 6) };
+  const nome = normalizarBanco(banco);
+  return COR_BANCO_PADRAO[nome] || { cor: "text-gray-700", bg: "bg-gray-50", abrev: nome.substring(0, 6) };
 }
 
 function fmt(v: number | null | undefined): string {
@@ -225,6 +244,17 @@ export default function FluxoDeCaixaPage() {
   });
   const [salvando, setSalvando] = useState(false);
 
+  // Lista unificada de bancos: config + dados existentes (normalizados)
+  const todosBancosLista = useMemo(() => {
+    const set = new Set(bancos);
+    if (dados?.lancamentos) {
+      for (const l of dados.lancamentos) {
+        if (l?.banco) set.add(normalizarBanco(l.banco));
+      }
+    }
+    return [...set].sort();
+  }, [bancos, dados]);
+
   // Comprovante upload
   const [comprovanteUploading, setComprovanteUploading] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -279,7 +309,7 @@ export default function FluxoDeCaixaPage() {
   const lancamentosFiltrados = useMemo(() => {
     // Quando buscaGlobal está ativo, pesquisa em TODOS os lançamentos (ignora mês)
     let lista = buscaGlobal && busca.trim() ? (dados?.lancamentos ?? []) : lancamentosMes;
-    if (bancoFiltro !== "Todos") lista = lista.filter((l) => l.banco === bancoFiltro);
+    if (bancoFiltro !== "Todos") lista = lista.filter((l) => normalizarBanco(l.banco) === bancoFiltro);
     if (areaFiltro !== "Todas") lista = lista.filter((l) => l.area === areaFiltro);
     if (catFiltro !== "Todas") lista = lista.filter((l) => l.categoria === catFiltro);
     if (osFiltro !== "Todas") lista = lista.filter((l) => l.ordemServicoId === osFiltro);
@@ -472,7 +502,7 @@ export default function FluxoDeCaixaPage() {
     if (isNaN(numerico)) numerico = 0;
     if (negativo) numerico = -numerico;
     numerico = arredondar2(numerico);
-    const payload = { ...form, valor: numerico };
+    const payload = { ...form, valor: numerico, banco: normalizarBanco(form.banco) };
     try {
       if (editando) {
         await fetch(`/api/fluxo-caixa/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -645,15 +675,16 @@ export default function FluxoDeCaixaPage() {
             if (!l || typeof l.valor !== "number" || !l.banco) continue;
             const d = new Date((l.data || "") + "T12:00:00");
             if (isNaN(d.getTime())) continue;
+            const bancoNorm = normalizarBanco(l.banco);
             // Rastreia o banco do lançamento mais antigo
             if (l.data < dataMaisAntiga || !bancoMaisAntigo) {
-              bancoMaisAntigo = l.banco;
+              bancoMaisAntigo = bancoNorm;
               dataMaisAntiga = l.data;
             }
             if (d < limite) {
-              saldoAntePorBanco.set(l.banco, (saldoAntePorBanco.get(l.banco) ?? 0) + l.valor);
+              saldoAntePorBanco.set(bancoNorm, (saldoAntePorBanco.get(bancoNorm) ?? 0) + l.valor);
             }
-            todosBancos.add(l.banco);
+            todosBancos.add(bancoNorm);
           }
 
           // Atribui o saldoInicial ao banco mais antigo
@@ -669,7 +700,7 @@ export default function FluxoDeCaixaPage() {
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Saldo Real por Banco</p>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                 {bancosOrdenados.map((banco) => {
-                  const mov = lancamentosMes.filter((l) => l.banco === banco);
+                  const mov = lancamentosMes.filter((l) => normalizarBanco(l.banco) === banco);
                   const entradas = mov.filter((l) => l.valor > 0).reduce((s, l) => s + l.valor, 0);
                   const saidas = mov.filter((l) => l.valor < 0).reduce((s, l) => s + l.valor, 0);
                   const saldoAnte = saldoAntePorBanco.get(banco) ?? 0;
@@ -733,7 +764,7 @@ export default function FluxoDeCaixaPage() {
                 <select value={bancoFiltro} onChange={(e) => setBancoFiltro(e.target.value)}
                   className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
                   <option>Todos</option>
-                  {bancos.map((b) => <option key={b}>{b}</option>)}
+                  {todosBancosLista.map((b) => <option key={b}>{b}</option>)}
                 </select>
                 <select value={areaFiltro} onChange={(e) => setAreaFiltro(e.target.value)}
                   className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
@@ -1012,7 +1043,7 @@ export default function FluxoDeCaixaPage() {
                   <label className="block text-xs font-medium text-gray-500 mb-1">Banco</label>
                   <select value={form.banco} onChange={(e) => setForm((f) => ({ ...f, banco: e.target.value }))}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
-                    {bancos.map((b) => <option key={b}>{b}</option>)}
+                    {todosBancosLista.map((b) => <option key={b}>{b}</option>)}
                   </select>
                 </div>
               </div>
