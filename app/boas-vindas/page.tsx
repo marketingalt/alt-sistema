@@ -109,7 +109,7 @@ export default function BoasVindasPage() {
       setErro("Informe seu nome para continuar.");
       return;
     }
-    if (selecionados.size === 0) {
+    if (user?.publicMetadata?.role === "admin" && selecionados.size === 0) {
       setErro("Selecione pelo menos um módulo para acessar.");
       return;
     }
@@ -123,7 +123,7 @@ export default function BoasVindasPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           nomeExibicao: nome.trim(),
-          permissoes: Array.from(selecionados),
+          permissoes: user?.publicMetadata?.role === "admin" ? Array.from(selecionados) : [],
         }),
       });
 
@@ -214,69 +214,77 @@ export default function BoasVindasPage() {
             />
           </div>
 
-          {/* Módulos */}
-          <div className="mb-8">
-            <p className="text-sm font-medium text-gray-300 mb-3">
-              Quais módulos você quer acessar?
-            </p>
-            <div className="grid grid-cols-1 gap-2.5">
-              {MODULOS.map((mod) => {
-                const selecionado = selecionados.has(mod.key);
-                return (
-                  <button
-                    key={mod.key}
-                    type="button"
-                    onClick={() => toggle(mod.key)}
-                    disabled={user?.publicMetadata?.role === "admin"}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition ${
-                      selecionado
-                        ? "bg-[#fb4d06]/10 border-[#fb4d06]/40 text-white"
-                        : "bg-gray-800/50 border-gray-700 text-gray-400 hover:border-gray-600 hover:text-gray-300"
-                    } ${user?.publicMetadata?.role === "admin" ? "opacity-80 cursor-default" : "cursor-pointer"}`}
-                  >
-                    {/* Ícone */}
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                      selecionado
-                        ? "bg-[#fb4d06]/20"
-                        : "bg-gray-700/50"
-                    }`}>
-                      <svg className={`w-4.5 h-4.5 ${selecionado ? "text-[#fb4d06]" : "text-gray-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={mod.icone} />
-                      </svg>
-                    </div>
-
-                    {/* Texto */}
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium ${selecionado ? "text-white" : "text-gray-300"}`}>
-                        {mod.label}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-0.5">{mod.descricao}</p>
-                    </div>
-
-                    {/* Checkbox */}
-                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition ${
-                      selecionado
-                        ? "bg-[#fb4d06] border-[#fb4d06]"
-                        : "border-gray-600 bg-transparent"
-                    }`}>
-                      {selecionado && (
-                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+          {/* Módulos — só admin vê a seleção */}
+          {user?.publicMetadata?.role === "admin" ? (
+            <div className="mb-8">
+              <p className="text-sm font-medium text-gray-300 mb-3">
+                Quais módulos você quer acessar?
+              </p>
+              <div className="grid grid-cols-1 gap-2.5">
+                {MODULOS.map((mod) => {
+                  const selecionado = selecionados.has(mod.key);
+                  return (
+                    <button
+                      key={mod.key}
+                      type="button"
+                      onClick={() => toggle(mod.key)}
+                      disabled={true}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition ${
+                        selecionado
+                          ? "bg-[#fb4d06]/10 border-[#fb4d06]/40 text-white"
+                          : "bg-gray-800/50 border-gray-700 text-gray-400 hover:border-gray-600 hover:text-gray-300"
+                      } opacity-80 cursor-default`}
+                    >
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                        selecionado
+                          ? "bg-[#fb4d06]/20"
+                          : "bg-gray-700/50"
+                      }`}>
+                        <svg className={`w-4.5 h-4.5 ${selecionado ? "text-[#fb4d06]" : "text-gray-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={mod.icone} />
                         </svg>
-                      )}
-                    </div>
+                      </div>
 
-                    {/* Atenção de admin */}
-                    {user?.publicMetadata?.role === "admin" && (
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${selecionado ? "text-white" : "text-gray-300"}`}>
+                          {mod.label}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">{mod.descricao}</p>
+                      </div>
+
+                      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition ${
+                        selecionado
+                          ? "bg-[#fb4d06] border-[#fb4d06]"
+                          : "border-gray-600 bg-transparent"
+                      }`}>
+                        {selecionado && (
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+
                       <span className="text-[10px] text-[#fb4d06]/60 font-medium whitespace-nowrap">
                         Admin
                       </span>
-                    )}
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="mb-8 p-6 rounded-xl bg-gray-800/30 border border-gray-700/50 text-center">
+              <svg className="w-10 h-10 text-gray-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <p className="text-gray-300 text-sm font-medium mb-1">
+                Aguardando liberação de acesso
+              </p>
+              <p className="text-gray-500 text-xs">
+                Após concluir, um administrador precisará liberar seus acessos aos módulos.
+              </p>
+            </div>
+          )}
 
           {/* Erro */}
           {erro && (

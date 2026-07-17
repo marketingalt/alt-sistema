@@ -17,9 +17,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Nome de exibição é obrigatório" }, { status: 400 });
     }
 
-    if (!Array.isArray(permissoes) || permissoes.length === 0) {
+    if (!Array.isArray(permissoes)) {
       return NextResponse.json(
-        { error: "Selecione pelo menos um módulo" },
+        { error: "Lista de permissões inválida" },
         { status: 400 }
       );
     }
