@@ -185,8 +185,9 @@ export default function VisaoGeralFinanceiro() {
     if (!dados) return [];
 
     // ── 1. Receitas confirmadas do Fluxo de Caixa ──
-    const receitas = dados.lancamentos.filter(
-      (l) => l.categoria === "RECEITA OPERACIONAL BRUTA" && l.valor > 0
+    const lancamentos = dados.lancamentos || [];
+    const receitas = lancamentos.filter(
+      (l) => l?.categoria === "RECEITA OPERACIONAL BRUTA" && l?.valor > 0
     );
 
     // ── 2. Contas a Receber não pagas (evita duplicidade com FC) ──
