@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import type { Orcamento, ItemOrcamento, StatusOrcamento, Fornecedor, VersaoOrcamento } from "@/app/types";
+import type { Orcamento, ItemOrcamento, StatusOrcamento, Fornecedor, VersaoOrcamento, Produto } from "@/app/types";
 import { STATUS_CONFIG } from "@/app/types";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
 import ComboboxFornecedor from "@/app/components/ComboboxFornecedor";
+import BuscaProdutoInput from "@/app/components/BuscaProdutoInput";
 import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima } from "@/lib/calculos";
 import PedidoComprasAnexo from "@/app/components/PedidoComprasAnexo";
 import CampoData from "@/app/components/CampoData";
@@ -106,6 +107,9 @@ export default function VisualizarOrcamento() {
   const [modo, setModo] = useState<ModoVisualizacao>("visualizacao");
   const [osVinculada, setOsVinculada] = useState<{ id: string; numero: string } | null>(null);
 
+  // ── Produtos cadastrados (para autocomplete ao editar itens) ──
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+
   // ── Estado de versões ──
   const [mostrarPainelVersoes, setMostrarPainelVersoes] = useState(false);
   const [versoes, setVersoes] = useState<VersaoOrcamento[]>([]);
@@ -143,6 +147,11 @@ export default function VisualizarOrcamento() {
         setCienteAlteracao(jaDifere);
       });
   }, [id]);
+
+  // Carrega produtos cadastrados para autocomplete na edição de itens
+  useEffect(() => {
+    fetch("/api/produtos").then((r) => r.json()).then(setProdutos).catch(() => {});
+  }, []);
 
   // Carrega projetos do planejamento para tags
   useEffect(() => {
@@ -301,6 +310,38 @@ export default function VisualizarOrcamento() {
   function removerItem(itemId: string) {
     setSalvo(false);
     setOrcamento((prev) => prev ? { ...prev, itens: prev.itens.filter((i) => i.id !== itemId) } : prev);
+  }
+
+  /* ═══ Busca e seleção de produtos cadastrados ═══ */
+
+  function selecionarProduto(itemId: string, p: Produto) {
+    setSalvo(false);
+    setOrcamento((prev) => {
+      if (!prev) return prev;
+      const me = margemExtraAtual(prev);
+      return {
+        ...prev,
+        itens: prev.itens.map((item) => {
+          if (item.id !== itemId) return item;
+          return recalcularItem({
+            ...item,
+            item: p.nome,
+            referencia: p.sku || item.referencia,
+            fornecedorId: p.fornecedorId || item.fornecedorId,
+            fornecedorNome: p.fornecedorNome || item.fornecedorNome,
+            imagemReferencia: p.imagemUrl || item.imagemReferencia,
+            cor: p.cor || item.cor,
+            ncm: p.ncm || item.ncm,
+            custoUnitario: p.precoCusto || 0,
+            descricao: p.informacaoTecnica || "",
+          }, me);
+        }),
+      };
+    });
+  }
+
+  function novoProdutoCriado(p: Produto) {
+    setProdutos((prev) => [p, ...prev]);
   }
 
   /* ═══ Variantes helpers ═══ */
@@ -1261,7 +1302,13 @@ export default function VisualizarOrcamento() {
                             {/* Dados do produto */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                           <Campo label="Kit" value={item.kit} onChange={(v) => atualizarItem(item.id, "kit", v)} />
-                          <Campo label="Item / Produto" value={item.item} onChange={(v) => atualizarItem(item.id, "item", v)} />
+                          <BuscaProdutoInput
+                            value={item.item}
+                            onChange={(v) => atualizarItem(item.id, "item", v)}
+                            produtos={produtos}
+                            onSelect={(p) => selecionarProduto(item.id, p)}
+                            onNovoProduto={(p) => { novoProdutoCriado(p); selecionarProduto(item.id, p); }}
+                          />
                           <Campo label="Cor" value={item.cor || ""} onChange={(v) => atualizarItem(item.id, "cor", v)} />
                           <Campo label="Referência / SKU" value={item.referencia} onChange={(v) => atualizarItem(item.id, "referencia", v)} />
                           <Campo label="NCM" value={item.ncm || ""} onChange={(v) => atualizarItem(item.id, "ncm", v)} />
