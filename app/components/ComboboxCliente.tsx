@@ -46,7 +46,7 @@ export default function ComboboxCliente({
   }, []);
 
   const filtrados = busca.trim().length < 1
-    ? clientes.slice(0, 20)
+    ? clientes
     : clientes.filter((c) => {
         const q = busca.toLowerCase();
         return (
@@ -55,7 +55,7 @@ export default function ComboboxCliente({
           c.cnpj?.replace(/\D/g, "").includes(q.replace(/\D/g, "")) ||
           c.nomeContato?.toLowerCase().includes(q)
         );
-      }).slice(0, 20);
+      });
 
   // Agrupa por CNPJ (sem máscara); clientes sem CNPJ ficam isolados
   const grupos: Cliente[][] = useMemo(() => {

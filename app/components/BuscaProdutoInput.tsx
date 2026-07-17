@@ -57,7 +57,7 @@ export default function BuscaProdutoInput({ value, onChange, produtos, onSelect,
           p.sku?.toLowerCase().includes(q) ||
           p.marca?.toLowerCase().includes(q)
         );
-      }).slice(0, 16);
+      });
 
   // Group by name (case-insensitive). Groups with multiple entries = color variants.
   const grupos = useMemo(() => {

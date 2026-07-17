@@ -46,7 +46,7 @@ export default function ComboboxFornecedor({
   }, []);
 
   const filtrados = busca.trim().length < 1
-    ? fornecedores.slice(0, 20)
+    ? fornecedores
     : fornecedores.filter((f) => {
         const q = busca.toLowerCase();
         return (
@@ -55,7 +55,7 @@ export default function ComboboxFornecedor({
           f.cnpj?.replace(/\D/g, "").includes(q.replace(/\D/g, "")) ||
           f.nomeContato?.toLowerCase().includes(q)
         );
-      }).slice(0, 20);
+      });
 
   // Agrupa por CNPJ (sem máscara); sem CNPJ ficam isolados
   const grupos: Fornecedor[][] = useMemo(() => {
