@@ -160,7 +160,6 @@ export default function VisaoGeralFinanceiro() {
 
   const [anoSelecionado, setAnoSelecionado] = useState<string>("");
   const [mesSelecionado, setMesSelecionado] = useState<string>("Todos");
-  const [erroPagina, setErroPagina] = useState<string | null>(null);
 
   // Busca dados do fluxo de caixa + contas a receber
   useEffect(() => {
@@ -209,11 +208,16 @@ export default function VisaoGeralFinanceiro() {
     // ── 3. Unifica ──
     const todas = [...receitas, ...pendentes];
 
-    // Agrupa por mês
+    // Agrupa por mês, validando o formato da data
     const grupos = new Map<string, Lancamento[]>();
     for (const r of todas) {
-      const chave = r.data ? r.data.substring(0, 7) : ""; // YYYY-MM
-      if (!chave) continue;
+      // Proteção contra data ausente ou em formato inválido
+      if (!r.data || typeof r.data !== "string") continue;
+      const trimmed = r.data.trim();
+      if (trimmed.length < 7) continue;
+      const chave = trimmed.substring(0, 7); // YYYY-MM
+      // Só aceita chave com hífen (formato YYYY-MM ou YYYY-MM-DD)
+      if (!chave.includes("-")) continue;
       if (!grupos.has(chave)) grupos.set(chave, []);
       grupos.get(chave)!.push(r);
     }
@@ -226,7 +230,11 @@ export default function VisaoGeralFinanceiro() {
       const [anoStr, mesStr] = chave.split("-");
       const ano = Number(anoStr);
       const mes = Number(mesStr);
-      const chaveId = `${String(ano).slice(-2)}-${mesStr}`;
+
+      // Pula se ano ou mês não forem números válidos
+      if (isNaN(ano) || isNaN(mes) || mes < 1 || mes > 12) continue;
+
+      const chaveId = `${String(ano).slice(-2)}-${String(mes).padStart(2, "0")}`;
 
       // Agrupa receitas por cliente dentro do mês
       const clientes = new Map<string, number>();
