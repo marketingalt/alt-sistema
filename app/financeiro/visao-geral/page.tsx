@@ -292,7 +292,8 @@ export default function VisaoGeralFinanceiro() {
     if (mesSelecionado !== "Todos") {
       filtrado = filtrado.filter((m) => m.mes === mesSelecionado);
     }
-    return filtrado;
+    // Filtro de segurança: remove entradas com dados ausentes
+    return filtrado.filter((m) => m.mes && m.ano);
   }, [meses, anoSelecionado, mesSelecionado]);
 
   // Renderiza/atualiza o gráfico quando os meses filtrados mudam
@@ -304,7 +305,7 @@ export default function VisaoGeralFinanceiro() {
     const ctx = canvasRef.current.getContext("2d");
     if (!ctx) return;
 
-    const labels = mesesFiltrados.map((m) => `${m.mes.substring(0, 3)}/${m.ano.substring(2)}`);
+    const labels = mesesFiltrados.map((m) => `${(m.mes || "?").substring(0, 3)}/${(m.ano || "??").substring(2)}`);
     const totals = mesesFiltrados.map((m) => m.total);
 
     chartRef.current = new Chart(ctx, {
