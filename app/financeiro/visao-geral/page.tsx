@@ -160,6 +160,7 @@ export default function VisaoGeralFinanceiro() {
 
   const [anoSelecionado, setAnoSelecionado] = useState<string>("");
   const [mesSelecionado, setMesSelecionado] = useState<string>("Todos");
+  const [erroPagina, setErroPagina] = useState<string | null>(null);
 
   // Busca dados do fluxo de caixa + contas a receber
   useEffect(() => {
