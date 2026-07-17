@@ -9,6 +9,7 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
 import ComboboxFornecedor from "@/app/components/ComboboxFornecedor";
 import BuscaProdutoInput from "@/app/components/BuscaProdutoInput";
+import ImagemReferencia from "@/app/components/ImagemReferencia";
 import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima } from "@/lib/calculos";
 import PedidoComprasAnexo from "@/app/components/PedidoComprasAnexo";
 import CampoData from "@/app/components/CampoData";
@@ -1300,41 +1301,61 @@ export default function VisualizarOrcamento() {
                           /* ═══ Brindes ═══ */
                           <>
                             {/* Dados do produto */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          <Campo label="Kit" value={item.kit} onChange={(v) => atualizarItem(item.id, "kit", v)} />
-                          <BuscaProdutoInput
-                            value={item.item}
-                            onChange={(v) => atualizarItem(item.id, "item", v)}
-                            produtos={produtos}
-                            onSelect={(p) => selecionarProduto(item.id, p)}
-                            onNovoProduto={(p) => { novoProdutoCriado(p); selecionarProduto(item.id, p); }}
-                          />
-                          <Campo label="Cor" value={item.cor || ""} onChange={(v) => atualizarItem(item.id, "cor", v)} />
-                          <Campo label="Referência / SKU" value={item.referencia} onChange={(v) => atualizarItem(item.id, "referencia", v)} />
-                          <Campo label="NCM" value={item.ncm || ""} onChange={(v) => atualizarItem(item.id, "ncm", v)} />
-                          <ComboboxFornecedor value={item.fornecedorNome || ""} onChange={(v) => atualizarItem(item.id, "fornecedorNome", v)} onSelect={(f) => { atualizarItem(item.id, "fornecedorId", f.id); atualizarItem(item.id, "fornecedorNome", f.nomeFantasia || f.razaoSocial); }} />
-                          <div>
-                            <label className="block text-sm font-medium text-gray-600 mb-1.5">Acabamento</label>
-                            <select
-                              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
-                              value={item.acabamento}
-                              onChange={(e) => atualizarItem(item.id, "acabamento", e.target.value)}
-                            >
-                              {TIPOS.map((t) => <option key={t}>{t}</option>)}
-                            </select>
-                          </div>
-                          {item.variantes && item.variantes.length > 0 ? (
-                            <div className="flex flex-col gap-1">
-                              <label className="block text-sm font-medium text-gray-500">Quantidade total (calculada)</label>
-                              <div className="w-full border border-emerald-200 bg-emerald-50 rounded-lg px-3 py-2.5 text-base text-emerald-700 font-semibold cursor-default">
-                                {item.quantidade}
+                            {/* Linha principal: imagem + kit + item */}
+                            <div className="flex items-end gap-3">
+                              <ImagemReferencia
+                                valor={item.imagemReferencia}
+                                onChange={(v) => atualizarItem(item.id, "imagemReferencia", v)}
+                              />
+                              <div className="w-36 shrink-0">
+                                <label className="block text-sm font-medium text-gray-600 mb-1.5">Kit</label>
+                                <input
+                                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
+                                  placeholder="Nome do kit"
+                                  value={item.kit}
+                                  onChange={(e) => atualizarItem(item.id, "kit", e.target.value)}
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <label className="block text-sm font-medium text-gray-600 mb-1.5">Item / Produto</label>
+                                <BuscaProdutoInput
+                                  value={item.item}
+                                  onChange={(v) => atualizarItem(item.id, "item", v)}
+                                  produtos={produtos}
+                                  onSelect={(p) => selecionarProduto(item.id, p)}
+                                  onNovoProduto={(p) => { novoProdutoCriado(p); selecionarProduto(item.id, p); }}
+                                />
                               </div>
                             </div>
-                          ) : (
-                            <CampoNumero label="Quantidade" value={item.quantidade} onChange={(v) => atualizarItem(item.id, "quantidade", v)} />
-                          )}
-                          <CampoNumero label="Prazo prod. (dias úteis)" value={item.diasProducao || 0} onChange={(v) => atualizarItem(item.id, "diasProducao", v)} />
-                        </div>
+
+                            {/* Linha secundária: referência + NCM + fornecedor + cor + acabamento + quantidade + prazo prod */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                              <Campo label="Referência / SKU" value={item.referencia} onChange={(v) => atualizarItem(item.id, "referencia", v)} />
+                              <Campo label="NCM" value={item.ncm || ""} onChange={(v) => atualizarItem(item.id, "ncm", v)} />
+                              <ComboboxFornecedor value={item.fornecedorNome || ""} onChange={(v) => atualizarItem(item.id, "fornecedorNome", v)} onSelect={(f) => { atualizarItem(item.id, "fornecedorId", f.id); atualizarItem(item.id, "fornecedorNome", f.nomeFantasia || f.razaoSocial); }} />
+                              <Campo label="Cor" value={item.cor || ""} onChange={(v) => atualizarItem(item.id, "cor", v)} />
+                              <div>
+                                <label className="block text-sm font-medium text-gray-600 mb-1.5">Acabamento</label>
+                                <select
+                                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                                  value={item.acabamento}
+                                  onChange={(e) => atualizarItem(item.id, "acabamento", e.target.value)}
+                                >
+                                  {TIPOS.map((t) => <option key={t}>{t}</option>)}
+                                </select>
+                              </div>
+                              {item.variantes && item.variantes.length > 0 ? (
+                                <div className="flex flex-col gap-1">
+                                  <label className="block text-sm font-medium text-gray-500">Quantidade total (calculada)</label>
+                                  <div className="w-full border border-emerald-200 bg-emerald-50 rounded-lg px-3 py-2.5 text-base text-emerald-700 font-semibold cursor-default">
+                                    {item.quantidade}
+                                  </div>
+                                </div>
+                              ) : (
+                                <CampoNumero label="Quantidade" value={item.quantidade} onChange={(v) => atualizarItem(item.id, "quantidade", v)} />
+                              )}
+                              <CampoNumero label="Prazo prod. (dias úteis)" value={item.diasProducao || 0} onChange={(v) => atualizarItem(item.id, "diasProducao", v)} />
+                            </div>
 
                         {/* ═══ Variantes de quantidade ═══ */}
                         <div>
