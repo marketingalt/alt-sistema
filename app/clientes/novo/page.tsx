@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ClienteForm from "@/app/components/ClienteForm";
 import DocumentosFornecedor from "@/app/components/DocumentosFornecedor";
@@ -11,9 +12,13 @@ function gerarId() { return Math.random().toString(36).substring(2, 10); }
 
 export default function NovoCliente() {
   const router = useRouter();
+  const { user } = useUser();
+  const podeRestringir = user?.publicMetadata?.role === "admin" ||
+    ((user?.publicMetadata?.permissoes as string[]) || []).includes("financeiro");
   const [id] = useState(() => gerarId());
   const [dados, setDados] = useState<Partial<Cliente>>({
     status: "Ativo",
+    restritoFinanceiro: false,
     mesmoContatoFinanceiro: true,
     formasPagamento: [],
     documentos: [],
@@ -59,7 +64,7 @@ export default function NovoCliente() {
           </button>
         </div>
 
-        <ClienteForm dados={dados} onChange={onChange} />
+        <ClienteForm dados={dados} onChange={onChange} showRestritoToggle={podeRestringir} />
 
         <div className="mt-5">
           <DocumentosFornecedor

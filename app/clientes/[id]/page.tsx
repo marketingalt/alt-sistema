@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ClienteForm from "@/app/components/ClienteForm";
 import DocumentosFornecedor from "@/app/components/DocumentosFornecedor";
@@ -26,6 +27,9 @@ function totalOrcamento(o: Orcamento) {
 export default function DetalheCliente() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useUser();
+  const podeRestringir = user?.publicMetadata?.role === "admin" ||
+    ((user?.publicMetadata?.permissoes as string[]) || []).includes("financeiro");
   const [dados, setDados] = useState<Cliente | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [salvo, setSalvo] = useState(false);
@@ -79,6 +83,11 @@ export default function DetalheCliente() {
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_CORES[dados.status || "Ativo"]}`}>
                 {dados.status || "Ativo"}
               </span>
+              {dados.restritoFinanceiro && (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 border border-yellow-200">
+                  🔒 Financeiro
+                </span>
+              )}
             </div>
           </div>
           <div className="flex gap-2 items-center">
@@ -91,7 +100,7 @@ export default function DetalheCliente() {
           </div>
         </div>
 
-        <ClienteForm dados={dados} onChange={onChange} />
+        <ClienteForm dados={dados} onChange={onChange} showRestritoToggle={podeRestringir} />
 
         {/* Projetos / Jobs vinculados */}
         <div className="mt-6 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">

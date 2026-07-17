@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import FornecedorForm from "@/app/components/FornecedorForm";
 import type { Fornecedor } from "@/app/types";
@@ -12,10 +13,16 @@ function gerarId() {
 
 export default function NovoFornecedor() {
   const router = useRouter();
-  const [dados, setDados] = useState<Partial<Fornecedor>>({ status: "Ativo" });
+  const { user } = useUser();
+  const podeRestringir = user?.publicMetadata?.role === "admin" ||
+    ((user?.publicMetadata?.permissoes as string[]) || []).includes("financeiro");
+  const [dados, setDados] = useState<Partial<Fornecedor>>({
+    status: "Ativo",
+    restritoFinanceiro: false
+  });
   const [salvando, setSalvando] = useState(false);
 
-  function onChange(campo: keyof Fornecedor, valor: string) {
+  function onChange(campo: keyof Fornecedor, valor: unknown) {
     setDados((prev) => ({ ...prev, [campo]: valor }));
   }
 
@@ -57,7 +64,7 @@ export default function NovoFornecedor() {
           </button>
         </div>
 
-        <FornecedorForm dados={dados} onChange={onChange} />
+        <FornecedorForm dados={dados} onChange={onChange} showRestritoToggle={podeRestringir} />
 
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mt-5 flex items-center gap-3">
           <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

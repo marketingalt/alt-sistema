@@ -81,7 +81,10 @@ export default function ListaClientes() {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-gray-800 truncate">{c.nomeEmpresa || c.razaoSocial}</h3>
-                      {c.nomeEmpresa && c.razaoSocial && <p className="text-xs text-gray-400 truncate">{c.razaoSocial}</p>}
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {c.nomeEmpresa && c.razaoSocial && <p className="text-xs text-gray-400 truncate">{c.razaoSocial}</p>}
+                        {c.restritoFinanceiro && <span className="text-[10px] leading-none">🔒</span>}
+                      </div>
                     </div>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ml-2 shrink-0 ${STATUS_CORES[c.status || "Ativo"]}`}>
                       {c.status || "Ativo"}

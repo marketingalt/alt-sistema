@@ -145,6 +145,26 @@ export async function getAllAdmins(): Promise<ClerkUserWithRole[]> {
   return users.filter((u) => u.role === "admin");
 }
 
+// ── Permission checking helpers ──────────────────────
+
+export async function userHasPermissao(
+  userId: string,
+  permissao: Permissao
+): Promise<boolean> {
+  try {
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+
+    // Admin tem todas as permissões
+    if (user.publicMetadata?.role === "admin") return true;
+
+    const permissoes = (user.publicMetadata?.permissoes as string[]) || [];
+    return permissoes.includes(permissao);
+  } catch {
+    return false;
+  }
+}
+
 // ── Settings helpers ──────────────────────────────
 
 const CONFIGURACOES_PADRAO: SystemSettings = {

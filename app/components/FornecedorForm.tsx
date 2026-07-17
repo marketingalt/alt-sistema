@@ -19,7 +19,8 @@ const CATEGORIAS = [
 
 interface Props {
   dados: Partial<Fornecedor>;
-  onChange: (campo: keyof Fornecedor, valor: string) => void;
+  onChange: (campo: keyof Fornecedor, valor: unknown) => void;
+  showRestritoToggle?: boolean;
 }
 
 function Secao({ titulo, children }: { titulo: string; children: React.ReactNode }) {
@@ -66,7 +67,7 @@ function CampoTexto({ label, value, onChange, placeholder, full = false }: {
   );
 }
 
-export default function FornecedorForm({ dados, onChange }: Props) {
+export default function FornecedorForm({ dados, onChange, showRestritoToggle }: Props) {
   const v = (campo: keyof Fornecedor) => (dados[campo] as string) || "";
 
   return (
@@ -136,6 +137,24 @@ export default function FornecedorForm({ dados, onChange }: Props) {
             <option value="Inativo">Inativo</option>
           </select>
         </div>
+
+        {/* Restrito ao Financeiro */}
+        {showRestritoToggle && (
+          <div className="mt-5 pt-5 border-t border-gray-100">
+            <label className="flex items-center gap-3 cursor-pointer group w-fit">
+              <div
+                onClick={() => onChange("restritoFinanceiro", !dados.restritoFinanceiro)}
+                className={`w-10 h-5 rounded-full transition-colors relative ${dados.restritoFinanceiro ? "bg-[#fb4d06]" : "bg-gray-300"}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${dados.restritoFinanceiro ? "translate-x-5" : "translate-x-0.5"}`} />
+              </div>
+              <div>
+                <span className="text-sm font-semibold text-gray-700">🔒 Restrito ao Financeiro</span>
+                <p className="text-xs text-gray-400 mt-0.5">Apenas usuários com acesso ao módulo Financeiro poderão ver e editar este fornecedor</p>
+              </div>
+            </label>
+          </div>
+        )}
       </Secao>
     </div>
   );

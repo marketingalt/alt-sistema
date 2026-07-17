@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import FornecedorForm from "@/app/components/FornecedorForm";
 import DocumentosFornecedor from "@/app/components/DocumentosFornecedor";
@@ -10,6 +11,9 @@ import type { Fornecedor, DocumentoFornecedor } from "@/app/types";
 export default function DetalheFornecedor() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useUser();
+  const podeRestringir = user?.publicMetadata?.role === "admin" ||
+    ((user?.publicMetadata?.permissoes as string[]) || []).includes("financeiro");
   const [dados, setDados] = useState<Fornecedor | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [salvo, setSalvo] = useState(false);
@@ -20,7 +24,7 @@ export default function DetalheFornecedor() {
       .then(setDados);
   }, [id]);
 
-  function onChange(campo: keyof Fornecedor, valor: string) {
+  function onChange(campo: keyof Fornecedor, valor: unknown) {
     setSalvo(false);
     setDados((prev) => prev ? { ...prev, [campo]: valor } : prev);
   }
@@ -65,6 +69,11 @@ export default function DetalheFornecedor() {
               }`}>
                 {dados.status}
               </span>
+              {dados.restritoFinanceiro && (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 border border-yellow-200">
+                  🔒 Financeiro
+                </span>
+              )}
             </div>
           </div>
           <div className="flex gap-2 items-center">
@@ -82,7 +91,7 @@ export default function DetalheFornecedor() {
           </div>
         </div>
 
-        <FornecedorForm dados={dados} onChange={onChange} />
+        <FornecedorForm dados={dados} onChange={onChange} showRestritoToggle={podeRestringir} />
 
         <div className="mt-5">
           <DocumentosFornecedor

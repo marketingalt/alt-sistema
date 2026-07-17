@@ -122,6 +122,8 @@ export interface Cliente {
   documentos?: DocumentoFornecedor[];
   // Solicitantes cadastrados neste cliente
   solicitantes?: string[];
+  // Restrição de acesso
+  restritoFinanceiro?: boolean;
   // Meta
   createdAt: string;
   userId?: string;
@@ -153,6 +155,8 @@ export interface Fornecedor {
   condicoesPagamento: string;
   dadosBancarios: string;
   status: "Ativo" | "Inativo";
+  // Restrição de acesso
+  restritoFinanceiro?: boolean;
   // Meta
   createdAt: string;
   userId?: string;
