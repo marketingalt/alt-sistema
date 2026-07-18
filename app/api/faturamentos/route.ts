@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { dbGet, dbSet } from "@/lib/storage-adapter";
 
 interface FaturamentosDB {
@@ -17,6 +18,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const { userId } = await auth();
+  const user = await currentUser();
   const body = await req.json();
   const dados = await ler();
   const novo = {
@@ -24,6 +27,8 @@ export async function POST(req: Request) {
     id: `fat${Date.now()}`,
     tipo: "manual",
     createdAt: new Date().toISOString().split("T")[0],
+    userId: userId || undefined,
+    userName: user?.fullName || user?.firstName || undefined,
   };
   dados.registros.push(novo);
   await salvar(dados);

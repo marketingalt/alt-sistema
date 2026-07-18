@@ -424,6 +424,10 @@ export async function gerarOSdeOrcamento(orcamento: Orcamento): Promise<OrdemSer
     criadoAutomaticamente: true,
     createdAt: agora,
     updatedAt: agora,
+    // Carrega userId/userName/participantes do orçamento
+    userId: orcamento.userId,
+    userName: orcamento.userName,
+    participantes: orcamento.participantes,
   };
 
   await salvarOrdemServico(nova);

@@ -5,6 +5,8 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
+import AvatarIniciais from "@/app/components/AvatarIniciais";
+import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 
 // ── Tipos ──
 
@@ -26,6 +28,8 @@ interface ReembolsoDespesa {
   createdAt: string;
   createdBy: string;
   createdByName: string;
+  userName?: string;
+  participantes?: { userId: string; nome: string }[];
 }
 
 interface Usuario {
@@ -65,6 +69,7 @@ export default function ReembolsosPage() {
   const [reembolsos, setReembolsos] = useState<ReembolsoDespesa[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [ordensServico, setOrdensServico] = useState<OrdemServico[]>([]);
+  const [filtroUsuario, setFiltroUsuario] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -271,11 +276,17 @@ export default function ReembolsosPage() {
       os.cliente?.toLowerCase().includes(buscaOSEdit.toLowerCase())
   );
 
-  // ── Totais ──
-  const totalPendente = reembolsos
+  const reembolsosFiltrados = reembolsos.filter((r) => {
+    if (!filtroUsuario) return true;
+    if (filtroUsuario === "meus") return r.createdBy === user?.id;
+    return r.createdBy === filtroUsuario;
+  });
+
+  // ── Totais (sobre array filtrado) ──
+  const totalPendente = reembolsosFiltrados
     .filter((r) => r.status === "pendente")
     .reduce((a, r) => a + r.valor, 0);
-  const totalPago = reembolsos
+  const totalPago = reembolsosFiltrados
     .filter((r) => r.status === "pago")
     .reduce((a, r) => a + r.valor, 0);
 
@@ -317,6 +328,21 @@ export default function ReembolsosPage() {
           </div>
         </div>
 
+        {/* Filtro por usuário */}
+        <div className="flex items-center gap-3 mb-4">
+          <select
+            value={filtroUsuario}
+            onChange={(e) => setFiltroUsuario(e.target.value)}
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+          >
+            <option value="">👤 Todos</option>
+            <option value="meus">🙋 Meus registros</option>
+            {usuarios.map((u) => (
+              <option key={u.id} value={u.id}>{u.nome}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Tabela */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
@@ -330,6 +356,7 @@ export default function ReembolsosPage() {
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Valor</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Pagamento</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Aprovado por</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Criado por</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Ações</th>
                 </tr>
@@ -337,18 +364,18 @@ export default function ReembolsosPage() {
               <tbody className="divide-y divide-gray-50">
                 {carregando ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-sm text-gray-400">
+                    <td colSpan={10} className="px-4 py-8 text-center text-sm text-gray-400">
                       Carregando...
                     </td>
                   </tr>
-                ) : reembolsos.length === 0 ? (
+                ) : reembolsosFiltrados.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-sm text-gray-400">
+                    <td colSpan={10} className="px-4 py-8 text-center text-sm text-gray-400">
                       Nenhum reembolso encontrado.
                     </td>
                   </tr>
                 ) : (
-                  reembolsos.map((reb) => (
+                  reembolsosFiltrados.map((reb) => (
                     <tr key={reb.id} className="hover:bg-gray-50 transition">
                       <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
                         {new Date(reb.data + "T12:00:00").toLocaleDateString("pt-BR")}
@@ -376,6 +403,20 @@ export default function ReembolsosPage() {
                         {PAGAMENTO_LABEL[reb.pagamento] || reb.pagamento}
                       </td>
                       <td className="px-4 py-3 text-gray-700 text-sm">{reb.aprovadoPorNome}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                            <AvatarIniciais nome={reb.userName || reb.createdByName || "?"} size="sm" />
+                            <span>{reb.userName || reb.createdByName || "—"}</span>
+                            {reb.createdBy === user?.id && (
+                              <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Eu</span>
+                            )}
+                          </div>
+                          {reb.participantes && reb.participantes.length > 0 && (
+                            <ParticipantesAvatar participantes={reb.participantes} />
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-center">
                         {reb.status === "pago" ? (
                           <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg bg-green-100 text-green-700">

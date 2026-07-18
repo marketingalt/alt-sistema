@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { dbGet, dbSet } from "@/lib/storage-adapter";
 import type { Projeto, Tarefa } from "@/app/types";
 
@@ -70,6 +71,8 @@ export async function GET() {
 // ── POST /api/planejamento ──
 
 export async function POST(req: NextRequest) {
+  const { userId } = await auth();
+  const user = await currentUser();
   const body = await req.json();
   const { nome, descricao, cor } = body;
 
@@ -95,6 +98,8 @@ export async function POST(req: NextRequest) {
     statuses: statusesPadrao,
     createdAt: agora,
     updatedAt: agora,
+    userId: userId || undefined,
+    userName: user?.fullName || user?.firstName || undefined,
   };
 
   projetos.push(novo);

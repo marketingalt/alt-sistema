@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { dbGet, dbSet } from "@/lib/storage-adapter";
 import { buscarOrcamento } from "@/lib/storage";
 
@@ -39,8 +40,14 @@ export async function PUT(
 ) {
   const { orcamentoId } = await params;
   const body = await req.json();
+  const { userId } = await auth();
+  const user = await currentUser();
   const dados = await lerFat();
   const updatedAt = new Date().toISOString().split("T")[0];
+
+  // Injeta metadados de alteração
+  body.updatedById = userId || undefined;
+  body.updatedBy = user?.fullName || user?.firstName || undefined;
 
   const idx = dados.registros.findIndex(
     (r: { id?: string; orcamentoId?: string }) =>

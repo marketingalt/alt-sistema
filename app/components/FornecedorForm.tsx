@@ -1,6 +1,7 @@
 "use client";
 
 import type { Fornecedor } from "@/app/types";
+import MultiUserSelect from "@/app/components/MultiUserSelect";
 
 const ESTADOS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
 
@@ -156,6 +157,14 @@ export default function FornecedorForm({ dados, onChange, showRestritoToggle }: 
           </div>
         )}
       </Secao>
+
+      {/* Participantes */}
+      <MultiUserSelect
+        value={dados.participantes || []}
+        onChange={(participantes) => onChange("participantes", participantes)}
+        label="Participantes"
+        placeholder="Adicionar participante..."
+      />
     </div>
   );
 }

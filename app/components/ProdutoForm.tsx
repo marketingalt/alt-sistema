@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import type { Produto, Fornecedor } from "@/app/types";
+import MultiUserSelect from "@/app/components/MultiUserSelect";
 
 interface Props {
   dados: Partial<Produto>;
@@ -248,6 +249,14 @@ export default function ProdutoForm({ dados, onChange, produtoId, onImagemAtuali
           />
         </Campo>
       </div>
+
+      {/* Participantes */}
+      <MultiUserSelect
+        value={dados.participantes || []}
+        onChange={(participantes) => onChange("participantes", participantes)}
+        label="Participantes"
+        placeholder="Adicionar participante..."
+      />
     </div>
   );
 }

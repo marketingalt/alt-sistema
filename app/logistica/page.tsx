@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import AvatarIniciais from "@/app/components/AvatarIniciais";
+import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import type { OrdemServico } from "@/app/types";
 
 type Aba = "reembolsos" | "entregas";
@@ -40,6 +42,9 @@ interface Reembolso {
   dataPagamento?: string;
   ordemServicoId?: string;
   createdAt: string;
+  userId?: string;
+  userName?: string;
+  participantes?: { userId: string; nome: string }[];
 }
 
 interface MotoristaHeader {
@@ -309,6 +314,7 @@ function MotoristaForm({ dados, onSave }: { dados: MotoristaHeader; onSave: (d: 
 // ═══════════════════════════════════════════════════════════
 
 function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
+  const { user } = useUser();
   const [reembolsos, setReembolsos] = useState<Reembolso[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -321,6 +327,8 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
   const [buscaOS, setBuscaOS] = useState("");
   const [osSelecionada, setOsSelecionada] = useState<OrdemServico | null>(null);
   const [buscaOSEdit, setBuscaOSEdit] = useState("");
+  const [usuarios, setUsuarios] = useState<{ id: string; nome: string }[]>([]);
+  const [filtroUsuario, setFiltroUsuario] = useState("");
 
   function carregar() {
     setCarregando(true);
@@ -337,6 +345,13 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
   }
 
   useEffect(() => { carregar(); }, []);
+
+  useEffect(() => {
+    fetch("/api/usuarios")
+      .then((r) => r.json())
+      .then(setUsuarios)
+      .catch(() => {});
+  }, []);
 
   function addItem() {
     setItems((prev) => [...prev, itemLoteVazio()]);
@@ -535,10 +550,15 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
     }
   }
 
-  // Totais
-  const totalPendente = reembolsos.filter((r) => r.status === "pendente").reduce((a, r) => a + r.total, 0);
-  const totalPago = reembolsos.filter((r) => r.status === "pago").reduce((a, r) => a + r.total, 0);
-  const totalKm = reembolsos.reduce((a, r) => a + r.distanciaKm, 0);
+  // Filtro + totais
+  const reembolsosFiltrados = filtroUsuario === "meus"
+    ? reembolsos.filter((r) => r.userId === user?.id)
+    : filtroUsuario
+      ? reembolsos.filter((r) => r.userId === filtroUsuario)
+      : reembolsos;
+  const totalPendente = reembolsosFiltrados.filter((r) => r.status === "pendente").reduce((a, r) => a + r.total, 0);
+  const totalPago = reembolsosFiltrados.filter((r) => r.status === "pago").reduce((a, r) => a + r.total, 0);
+  const totalKm = reembolsosFiltrados.reduce((a, r) => a + r.distanciaKm, 0);
 
   if (carregando) {
     return <p className="text-gray-500 text-sm">Carregando reembolsos...</p>;
@@ -562,14 +582,31 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
         </div>
       </div>
 
-      {/* Botão novo lote */}
-      <div className="mb-4">
+      {/* Botão novo lote + filtro */}
+      <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => setShowModal(true)}
           className="bg-[#fb4d06] text-white font-semibold text-sm px-5 py-2.5 rounded-xl hover:opacity-90 transition"
         >
           + Novo Lote de Reembolsos
         </button>
+
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-gray-500">Criado por:</label>
+          <select
+            value={filtroUsuario}
+            onChange={(e) => setFiltroUsuario(e.target.value)}
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+          >
+            <option value="">👤 Todos</option>
+            <option value="meus">🙋 Meus registros</option>
+            {usuarios.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.nome}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Tabela */}
@@ -588,18 +625,19 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">OS</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Status</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Comprovante</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600">Criado por</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {reembolsos.length === 0 ? (
+              {reembolsosFiltrados.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="text-center py-12 text-gray-400">
+                  <td colSpan={12} className="text-center py-12 text-gray-400">
                     Nenhum reembolso encontrado.
                   </td>
                 </tr>
               ) : (
-                reembolsos.map((reb) => (
+                reembolsosFiltrados.map((reb) => (
                   <tr key={reb.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition">
                     <td className="px-4 py-3 font-medium text-gray-800">{reb.motorista}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">
@@ -691,6 +729,16 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
                       {reb.status === "pendente" && (
                         <span className="text-xs text-gray-300">—</span>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <AvatarIniciais nome={reb.userName || "?"} size="sm" />
+                        <span className="text-xs text-gray-500">{reb.userName || "—"}</span>
+                        {reb.userId === user?.id && (
+                          <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium leading-none">Eu</span>
+                        )}
+                      </div>
+                      <ParticipantesAvatar participantes={reb.participantes} />
                     </td>
                     <td className="px-2 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">

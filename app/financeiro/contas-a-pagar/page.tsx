@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useState, useMemo, Fragment } from "react";
+import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import AvatarIniciais from "@/app/components/AvatarIniciais";
+import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import { downloadCSV } from "@/lib/export-csv";
 
 interface Conta {
   id: string;
+  userId?: string;
+  userName?: string;
+  participantes?: { userId: string; nome: string }[];
   dataVencimento: string;
   dataPagamento?: string;
   fornecedor: string;
@@ -127,6 +133,7 @@ const FORM_VAZIO = {
 };
 
 export default function ContasAPagarPage() {
+  const { user } = useUser();
   const [contas, setContas] = useState<Conta[]>([]);
   const [loading, setLoading] = useState(true);
   const [bancos, setBancos] = useState(["C6 BANK", "Banco Itaú"]);
@@ -176,6 +183,8 @@ export default function ContasAPagarPage() {
   const [catFiltro, setCatFiltro] = useState("Todas");
   const [busca, setBusca] = useState("");
   const [showUltimos, setShowUltimos] = useState(false);
+  const [usuarios, setUsuarios] = useState<{ id: string; nome: string }[]>([]);
+  const [filtroUsuario, setFiltroUsuario] = useState("");
 
   // Modal editar/criar
   const [modalForm, setModalForm] = useState(false);
@@ -222,6 +231,13 @@ export default function ContasAPagarPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    fetch("/api/usuarios")
+      .then((r) => r.ok ? r.json() : [])
+      .then(setUsuarios)
+      .catch(() => {});
+  }, []);
+
   // Contas do mês selecionado
   const contasMes = useMemo(() => {
     return contas.filter((c) => {
@@ -263,8 +279,10 @@ export default function ContasAPagarPage() {
       const q = busca.toLowerCase();
       lista = lista.filter((c) => c.fornecedor.toLowerCase().includes(q) || c.descricao.toLowerCase().includes(q) || (c.obs ?? "").toLowerCase().includes(q));
     }
+    if (filtroUsuario === "meus") lista = lista.filter((c) => c.userId === user?.id);
+    else if (filtroUsuario) lista = lista.filter((c) => c.userId === filtroUsuario);
     return lista.sort((a, b) => a.dataVencimento.localeCompare(b.dataVencimento));
-  }, [contasMes, statusFiltro, areaFiltro, catFiltro, busca]);
+  }, [contasMes, statusFiltro, areaFiltro, catFiltro, busca, filtroUsuario, user?.id]);
 
   const ultimosManuais = useMemo(() => {
     return [...contas]
@@ -722,6 +740,16 @@ export default function ContasAPagarPage() {
               <option value="Todas">Todas categorias</option>
               {(categorias.length ? categorias : CATEGORIAS_FALLBACK).map((c) => <option key={c}>{c}</option>)}
             </select>
+            {usuarios.length > 0 && (
+              <select value={filtroUsuario} onChange={(e) => setFiltroUsuario(e.target.value)}
+                className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
+                <option value="">👤 Todos</option>
+                <option value="meus">🙋 Meus registros</option>
+                {usuarios.map((u) => (
+                  <option key={u.id} value={u.id}>{u.nome}</option>
+                ))}
+              </select>
+            )}
             <span className="text-xs text-gray-400 ml-auto flex items-center gap-2">
               <button
                 onClick={() => setShowUltimos((v) => !v)}
@@ -784,12 +812,13 @@ export default function ContasAPagarPage() {
                   <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">Banco</th>
                   <th className="text-right px-3 py-2.5 text-xs font-semibold text-gray-500">Valor</th>
                   <th className="text-center px-3 py-2.5 text-xs font-semibold text-gray-500">Status</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Criado por</th>
                   <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {contasFiltradas.length === 0 && (
-                  <tr><td colSpan={8} className="text-center py-12 text-gray-400 text-sm">Nenhuma conta encontrada para este período.</td></tr>
+                  <tr><td colSpan={9} className="text-center py-12 text-gray-400 text-sm">Nenhuma conta encontrada para este período.</td></tr>
                 )}
                 {contasFiltradas.map((c) => {
                   const st = statusEfetivo(c);
@@ -896,6 +925,20 @@ export default function ContasAPagarPage() {
                           {cfg.label}
                         </span>
                       </td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <AvatarIniciais nome={c.userName || "?"} size="sm" />
+                          <div className="flex flex-col">
+                            <span className="text-xs text-gray-500">{c.userName || "—"}</span>
+                            {c.userId === user?.id && (
+                              <span className="text-[9px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded font-medium leading-none">Eu</span>
+                            )}
+                          </div>
+                          {c.participantes && c.participantes.length > 0 && (
+                            <ParticipantesAvatar participantes={c.participantes} />
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           {/* Botão Pagar — destaque quando pendente/vencido */}
@@ -944,7 +987,7 @@ export default function ContasAPagarPage() {
                     </tr>
                     {c.isLote && expandedLotes.has(c.id) && (
                       <tr className="bg-gray-50/50 border-b border-gray-100">
-                        <td colSpan={8} className="px-4 py-2">
+                        <td colSpan={9} className="px-4 py-2">
                           <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 px-4 py-2">
                             <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Descrição</div>
                             <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider text-right">Valor</div>

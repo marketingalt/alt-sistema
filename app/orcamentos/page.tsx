@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 import type { Orcamento, StatusOrcamento } from "@/app/types";
 import { STATUS_CONFIG } from "@/app/types";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import AvatarIniciais from "@/app/components/AvatarIniciais";
+import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 
 const TODOS_STATUS = Object.keys(STATUS_CONFIG) as StatusOrcamento[];
 
@@ -161,6 +164,9 @@ export default function ListaOrcamentos() {
   const [erro, setErro] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [projetosPlanejamento, setProjetosPlanejamento] = useState<Record<string, { nome: string; cor: string }>>({});
+  const { user } = useUser();
+  const [usuarios, setUsuarios] = useState<{ id: string; nome: string; email?: string }[]>([]);
+  const [filtroUsuario, setFiltroUsuario] = useState("");
 
   function carregarOrcamentos() {
     setCarregando(true);
@@ -211,6 +217,17 @@ export default function ListaOrcamentos() {
     };
   }, []);
 
+  useEffect(() => {
+    fetch("/api/usuarios", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setUsuarios(data.map((u: any) => ({ id: u.id, nome: u.nome || u.name || "", email: u.email })));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   function atualizarStatus(id: string, novo: StatusOrcamento) {
     setOrcamentos((prev) => prev.map((o) => o.id === id ? { ...o, status: novo } : o));
   }
@@ -235,6 +252,7 @@ export default function ListaOrcamentos() {
   }
 
   const filtrados = orcamentos.filter((o) => {
+    if (filtroUsuario && o.userId !== filtroUsuario) return false;
     const q = busca.toLowerCase();
     if (!q) return true;
     // Nomes dos projetos associados via tags
@@ -290,19 +308,31 @@ export default function ListaOrcamentos() {
           </div>
         )}
 
-        {/* Busca */}
+        {/* Busca + Filtro Usuário */}
         {!carregando && orcamentos.length > 0 && (
-          <div className="relative mb-4">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Buscar por número, projeto, cliente ou solicitante..."
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-            />
+          <div className="flex items-center gap-3 mb-4">
+            <div className="relative flex-1">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Buscar por número, projeto, cliente ou solicitante..."
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+            </div>
+            <select
+              value={filtroUsuario}
+              onChange={(e) => setFiltroUsuario(e.target.value)}
+              className="py-2.5 px-3 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white min-w-[140px]"
+            >
+              <option value="">Todos usuários</option>
+              {usuarios.map((u) => (
+                <option key={u.id} value={u.id}>{u.nome}</option>
+              ))}
+            </select>
           </div>
         )}
 
@@ -328,7 +358,9 @@ export default function ListaOrcamentos() {
             <Link href="/novo" className="text-[#fb4d06] hover:underline text-sm">Criar primeiro orçamento →</Link>
           </div>
         ) : filtrados.length === 0 ? (
-          <div className="text-center text-gray-400 py-10">Nenhum resultado para &quot;{busca}&quot;</div>
+          <div className="text-center text-gray-400 py-10">
+            {busca ? `Nenhum resultado para "${busca}"` : filtroUsuario ? "Nenhum orçamento deste usuário" : "Nenhum resultado"}
+          </div>
         ) : (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible">
             <table className="w-full text-sm">
@@ -343,6 +375,8 @@ export default function ListaOrcamentos() {
                   <th className="px-4 py-3 text-right">Total</th>
                   <th className="px-4 py-3 text-right">Margem</th>
                   <th className="px-4 py-3 text-center">Ações</th>
+                  <th className="px-4 py-3 text-left">Criado por</th>
+                  <th className="px-4 py-3 text-center">Part.</th>
                 </tr>
               </thead>
               <tbody>
@@ -438,6 +472,16 @@ export default function ListaOrcamentos() {
                             </svg>
                           </button>
                         </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                          <AvatarIniciais nome={o.userName || "?"} size="sm" />
+                          <span>{o.userName || "—"}</span>
+                          {o.userId === user?.id && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Eu</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <ParticipantesAvatar participantes={o.participantes || []} />
                       </td>
                     </tr>
                   );

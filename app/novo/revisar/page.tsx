@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAutoSave, getDraft, clearDraft } from "@/hooks/useAutoSave";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import MultiUserSelect from "@/app/components/MultiUserSelect";
 import type { ItemOrcamento, Orcamento, Cliente, Produto, Fornecedor } from "@/app/types";
 import TagSelector from "@/app/components/TagSelector";
 import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima } from "@/lib/calculos";
@@ -69,6 +70,7 @@ export default function RevisarOrcamento() {
     percImpostos: PERC_IMPOSTOS_PADRAO,
     percComissao: PERC_COMISSAO_PADRAO,
     tags: [],
+    participantes: [],
     status: "Em andamento" as const,
     itens: [itemVazio(MARGEM_PADRAO)],
   });
@@ -542,6 +544,16 @@ export default function RevisarOrcamento() {
               projetos={projetosPlanejamento}
               selected={orcamento.tags || []}
               onChange={(ids) => setOrcamento((prev) => ({ ...prev, tags: ids }))}
+            />
+          </div>
+
+          {/* Participantes */}
+          <div className="mb-4">
+            <MultiUserSelect
+              value={orcamento.participantes || []}
+              onChange={(participantes) => setOrcamento((prev) => ({ ...prev, participantes }))}
+              label="Participantes"
+              placeholder="Adicionar participante..."
             />
           </div>
 

@@ -65,6 +65,14 @@ export default function DetalheProduto() {
           </div>
         </div>
 
+        {/* Audit trail */}
+        {(dados.userName || dados.updatedBy) && (
+          <p className="text-xs text-gray-400 mb-6">
+            👤 Criado por {dados.userName || "—"} · {dados.createdAt ? new Date(dados.createdAt).toLocaleDateString("pt-BR") : "—"}
+            {dados.updatedBy && <> · ✏️ Última alteração por {dados.updatedBy} · {dados.updatedAt ? new Date(dados.updatedAt).toLocaleString("pt-BR") : "—"}</>}
+          </p>
+        )}
+
         <ProdutoForm
           dados={dados}
           onChange={onChange}

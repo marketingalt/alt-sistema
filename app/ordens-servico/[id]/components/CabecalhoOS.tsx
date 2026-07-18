@@ -2,6 +2,7 @@
 
 import type { OrdemServico, Cliente } from "@/app/types";
 import UserAutocomplete from "@/app/components/UserAutocomplete";
+import MultiUserSelect from "@/app/components/MultiUserSelect";
 
 interface Props {
   os: OrdemServico;
@@ -70,6 +71,33 @@ export default function CabecalhoOS({ os, cliente, onUpdateOS }: Props) {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Participantes */}
+      <div className="mt-4">
+        {onUpdateOS ? (
+          <MultiUserSelect
+            value={os.participantes || []}
+            onChange={(participantes) => onUpdateOS({ participantes })}
+            label="Participantes"
+            placeholder="Adicionar participante..."
+          />
+        ) : (
+          <div>
+            <p className="text-[10px] font-semibold uppercase text-gray-500 tracking-wide mb-2">Participantes</p>
+            {os.participantes?.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {os.participantes.map((p) => (
+                  <span key={p.userId} className="inline-flex items-center gap-1 bg-gray-100 rounded-lg px-2 py-1 text-xs text-gray-700">
+                    {p.nome}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">—</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Observações */}

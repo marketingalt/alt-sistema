@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { dbGet, dbSet } from "@/lib/storage-adapter";
 
 interface ContasPagarDB {
@@ -26,6 +27,14 @@ async function salvarFC(d: FluxoCaixaDB) {
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json();
+  const { userId } = await auth();
+  const user = await currentUser();
+
+  // Injeta metadados de alteração no body para persistir em todos os fluxos
+  body.updatedAt = new Date().toISOString();
+  body.updatedById = userId || undefined;
+  body.updatedBy = user?.fullName || user?.firstName || undefined;
+
   const dadosCP = await lerCP();
 
   const conta = dadosCP.contas.find((c: { id: string }) => c.id === id);

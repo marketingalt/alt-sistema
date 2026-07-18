@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import { downloadCSV } from "@/lib/export-csv";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
+import AvatarIniciais from "@/app/components/AvatarIniciais";
+import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 
 interface Lancamento {
   id: string;
@@ -19,6 +22,9 @@ interface Lancamento {
   comprovanteUrl?: string;
   cliente?: string;
   createdAt: string;
+  userId?: string;
+  userName?: string;
+  participantes?: { userId: string; nome: string }[];
 }
 
 interface ContaPagarItem {
@@ -194,6 +200,9 @@ export default function FluxoDeCaixaPage() {
   const [showModalAreas, setShowModalAreas] = useState(false);
   const [ordensServico, setOrdensServico] = useState<OrdemServicoItem[]>([]);
   const [contasPagar, setContasPagar] = useState<ContaPagarItem[]>([]);
+  const { user } = useUser();
+  const [usuarios, setUsuarios] = useState<{ id: string; name?: string }[]>([]);
+  const [filtroUsuario, setFiltroUsuario] = useState("");
 
   useEffect(() => {
     fetch("/api/config")
@@ -217,6 +226,13 @@ export default function FluxoDeCaixaPage() {
     fetch("/api/contas-a-pagar")
       .then((r) => r.json())
       .then((d) => setContasPagar(Array.isArray(d?.contas) ? d.contas : []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/usuarios")
+      .then((r) => r.json())
+      .then((d) => setUsuarios(Array.isArray(d) ? d : []))
       .catch(() => {});
   }, []);
 
@@ -313,6 +329,8 @@ export default function FluxoDeCaixaPage() {
     if (areaFiltro !== "Todas") lista = lista.filter((l) => l.area === areaFiltro);
     if (catFiltro !== "Todas") lista = lista.filter((l) => l.categoria === catFiltro);
     if (osFiltro !== "Todas") lista = lista.filter((l) => l.ordemServicoId === osFiltro);
+    if (filtroUsuario === "meus") lista = lista.filter((l) => l.userId === user?.id);
+    else if (filtroUsuario) lista = lista.filter((l) => l.userId === filtroUsuario);
     if (busca.trim()) {
       const q = busca.toLowerCase();
       lista = lista.filter((l) => (l.obs ?? "").toLowerCase().includes(q) || (l.categoria ?? "").toLowerCase().includes(q));
@@ -331,7 +349,7 @@ export default function FluxoDeCaixaPage() {
       });
     }
     return lista;
-  }, [lancamentosMes, bancoFiltro, areaFiltro, catFiltro, osFiltro, busca, ordemCampo, ordemDir, dados, buscaGlobal]);
+  }, [lancamentosMes, bancoFiltro, areaFiltro, catFiltro, osFiltro, busca, ordemCampo, ordemDir, dados, buscaGlobal, filtroUsuario, user?.id]);
 
   // KPIs do mês — separa estorno/transferência das entradas/saidas reais
   const kpis = useMemo(() => {
@@ -783,6 +801,16 @@ export default function FluxoDeCaixaPage() {
                     <option key={os.id} value={os.id}>#{os.numero}</option>
                   ))}
                 </select>
+                {usuarios.length > 0 && (
+                  <select value={filtroUsuario} onChange={(e) => setFiltroUsuario(e.target.value)}
+                    className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 min-w-28">
+                    <option value="">👤 Todos</option>
+                    <option value="meus">🙋 Meus registros</option>
+                    {usuarios.map((u) => (
+                      <option key={u.id} value={u.id}>{u.name || u.id}</option>
+                    ))}
+                  </select>
+                )}
                 <span className="text-xs text-gray-400 ml-auto flex items-center gap-2">
                   <button
                     onClick={() => setShowUltimos((v) => !v)}
@@ -850,6 +878,7 @@ export default function FluxoDeCaixaPage() {
                       <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Conta</th>
                       <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">Cliente</th>
                       <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Observação</th>
+                      <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">Criado por</th>
                       <th onClick={() => toggleOrdem("valor")} className="text-right px-3 py-2.5 text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-700 select-none whitespace-nowrap">
                         Valor {ordemCampo === "valor" ? (ordemDir === "asc" ? "↑" : "↓") : ""}
                       </th>
@@ -859,9 +888,10 @@ export default function FluxoDeCaixaPage() {
                   </thead>
                   <tbody>
                     {comSaldo.length === 0 && (
-                      <tr><td colSpan={11} className="text-center py-12 text-gray-400 text-sm">Nenhum lançamento encontrado para este período.</td></tr>
+                      <tr><td colSpan={12} className="text-center py-12 text-gray-400 text-sm">Nenhum lançamento encontrado para este período.</td></tr>
                     )}
                     {comSaldo.map((l) => (
+                      <>
                       <tr key={l.id} className="border-b border-gray-50 hover:bg-gray-50/50 group">
                         <td className="px-4 py-2.5 text-gray-600 text-xs whitespace-nowrap font-medium">
                           {new Date(l.data + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
@@ -912,6 +942,15 @@ export default function FluxoDeCaixaPage() {
                         <td className="px-3 py-2.5 text-xs text-gray-600 max-w-xs">
                           <span className="line-clamp-1" title={l.obs}>{l.obs}</span>
                         </td>
+                        <td className="px-3 py-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <AvatarIniciais nome={l.userName || "?"} size="sm" />
+                            <span className="text-xs text-gray-500">{l.userName || "—"}</span>
+                            {l.userId === user?.id && (
+                              <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Eu</span>
+                            )}
+                          </div>
+                        </td>
                         <td className={`px-3 py-2.5 text-right font-semibold text-sm whitespace-nowrap ${l.valor >= 0 ? "text-green-700" : "text-red-600"}`}>
                           {l.valor >= 0 ? "+" : ""}{fmt(l.valor)}
                         </td>
@@ -934,6 +973,19 @@ export default function FluxoDeCaixaPage() {
                           </div>
                         </td>
                       </tr>
+                      <tr className="border-b border-gray-100 bg-gray-50/30">
+                        <td colSpan={11} className="px-4 py-1.5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                              <AvatarIniciais nome={l.userName || "?"} size="sm" />
+                              <span>{l.userName || "—"}</span>
+                              {l.userId === user?.id && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Eu</span>}
+                            </div>
+                            <ParticipantesAvatar participantes={l.participantes || []} />
+                          </div>
+                        </td>
+                      </tr>
+                      </>
                     ))}
                   </tbody>
                   {comSaldo.length > 0 && (

@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import AvatarIniciais from "@/app/components/AvatarIniciais";
+import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import type { Produto } from "@/app/types";
 
 function badgeEstoque(estoque: number) {
@@ -15,6 +18,7 @@ function badgeEstoque(estoque: number) {
 const FILTROS_VAZIOS = { texto: "", quantidade: "", precoMin: "", precoMax: "", cor: "", origem: "todos" as "todos" | "xbz" | "manual" };
 
 export default function ListaProdutos() {
+  const { user } = useUser();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [sincronizando, setSincronizando] = useState(false);
@@ -23,6 +27,8 @@ export default function ListaProdutos() {
   const [ultimaSync, setUltimaSync] = useState<string | null>(null);
   const [filtros, setFiltros] = useState(FILTROS_VAZIOS);
   const [buscaAtiva, setBuscaAtiva] = useState(false);
+  const [usuarios, setUsuarios] = useState<{ id: string; name: string }[]>([]);
+  const [filtroUsuario, setFiltroUsuario] = useState("");
 
   function carregar() {
     setCarregando(true);
@@ -37,6 +43,16 @@ export default function ListaProdutos() {
       .then((data) => {
         if (data.ultimaSync) setUltimaSync(data.ultimaSync);
         if (data.sincronizado) carregar();
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/usuarios")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setUsuarios(data);
+        else if (data?.usuarios) setUsuarios(data.usuarios);
       })
       .catch(() => {});
   }, []);
@@ -80,6 +96,8 @@ export default function ListaProdutos() {
 
         if (filtros.cor && p.cor?.trim() !== filtros.cor) return false;
 
+        if (filtroUsuario && p.userId !== filtroUsuario) return false;
+
         return true;
       })
       .sort((a, b) => {
@@ -89,7 +107,7 @@ export default function ListaProdutos() {
         if (!semA && semB) return -1;
         return 0;
       });
-  }, [produtos, filtros, buscaAtiva]);
+  }, [produtos, filtros, buscaAtiva, filtroUsuario]);
 
   function buscar(e: React.FormEvent) {
     e.preventDefault();
@@ -98,6 +116,7 @@ export default function ListaProdutos() {
 
   function limpar() {
     setFiltros(FILTROS_VAZIOS);
+    setFiltroUsuario("");
     setBuscaAtiva(false);
   }
 
@@ -258,6 +277,23 @@ export default function ListaProdutos() {
                 {cores.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
+
+            {/* Responsável */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
+              <select
+                className={INPUT}
+                value={filtroUsuario}
+                onChange={(e) => setFiltroUsuario(e.target.value)}
+              >
+                <option value="">Todos</option>
+                {usuarios.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} {u.id === user?.id ? "(Eu)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Origem + botões */}
@@ -344,6 +380,14 @@ export default function ListaProdutos() {
                         <span className="text-sm font-bold text-gray-800">
                           {p.precoCusto?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                         </span>
+                      </div>
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                          <AvatarIniciais nome={p.userName || "?"} size="sm" />
+                          <span>{p.userName || "—"}</span>
+                          {p.userId === user?.id && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Eu</span>}
+                        </div>
+                        <ParticipantesAvatar participantes={p.participantes} />
                       </div>
                     </div>
                   </div>

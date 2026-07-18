@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { listarReembolsosDespesas, criarReembolsoDespesa, atualizarReembolsoDespesa, removerReembolsoDespesa } from "@/lib/reembolsos-despesas";
 import { criarOuAtualizarLoteContaPagar } from "@/lib/reembolsos";
 
@@ -87,11 +87,16 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
+    const user = await currentUser();
     const { id, ...dados } = body;
 
     if (!id) {
       return NextResponse.json({ error: "ID é obrigatório" }, { status: 400 });
     }
+
+    dados.updatedAt = new Date().toISOString();
+    dados.updatedById = userId;
+    dados.updatedBy = user?.fullName || user?.firstName || "Desconhecido";
 
     const reembolso = await atualizarReembolsoDespesa(id, dados);
     if (!reembolso) {

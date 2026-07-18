@@ -567,6 +567,14 @@ export default function DetalheOSPage() {
           onModuleClick={abrirDocumentos}
         />
 
+        {/* ── Audit trail ──────────────────────── */}
+        {(os.userName || os.updatedBy) && (
+          <p className="text-xs text-gray-400 mb-4">
+            👤 Criado por {os.userName || "—"} · {os.createdAt ? new Date(os.createdAt).toLocaleDateString("pt-BR") : "—"}
+            {os.updatedBy && <> · ✏️ Última alteração por {os.updatedBy} · {os.updatedAt ? new Date(os.updatedAt).toLocaleString("pt-BR") : "—"}</>}
+          </p>
+        )}
+
         {/* ── CABEÇALHO ──────────────────────────── */}
         <CabecalhoOS os={os} cliente={cliente} onUpdateOS={salvarOS} />
 

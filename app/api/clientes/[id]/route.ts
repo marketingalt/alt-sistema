@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { buscarCliente, salvarCliente, deletarCliente } from "@/lib/storage";
 
@@ -43,7 +43,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     delete dados.restritoFinanceiro;
   }
 
-  return NextResponse.json(await salvarCliente({ ...dados, id }));
+  const user = await currentUser();
+  return NextResponse.json(await salvarCliente({
+    ...dados,
+    id,
+    updatedAt: new Date().toISOString(),
+    updatedById: userId || undefined,
+    updatedBy: user?.fullName || user?.firstName || undefined,
+  }));
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -5,6 +5,9 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
 import { calcularCustoTotal } from "@/lib/calculos";
 import { downloadCSV } from "@/lib/export-csv";
+import { useUser } from "@clerk/nextjs";
+import AvatarIniciais from "@/app/components/AvatarIniciais";
+import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import type { Orcamento, ItemOrcamento, OrdemServico } from "@/app/types";
 
 // ── Error boundary para capturar erro real ──────────────────────────────────────
@@ -60,6 +63,9 @@ interface RegistroFaturamento {
   pago?: boolean;
   dataPagamento?: string;
   ordemServicoId?: string;
+  userId?: string;
+  userName?: string;
+  participantes?: { userId: string; nome: string }[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -75,6 +81,9 @@ interface RowUnificada {
   custosCalculados: number;
   fat: RegistroFaturamento;
   orcamento?: Orcamento;
+  userId?: string;
+  userName?: string;
+  participantes?: { userId: string; nome: string }[];
 }
 
 function calcCustosOrcamento(orc: Orcamento): number {
@@ -1004,6 +1013,9 @@ function ContasAReceberPage() {
   const [statusFiltro, setStatusFiltro] = useState("todos");
   const [busca, setBusca] = useState("");
   const [showUltimos, setShowUltimos] = useState(false);
+  const { user } = useUser();
+  const [usuarios, setUsuarios] = useState<any[]>([]);
+  const [filtroUsuario, setFiltroUsuario] = useState("");
 
   const nomesClientes = useMemo(() =>
     clientes.map((c) => c.nomeEmpresa || c.razaoSocial || "").filter(Boolean),
@@ -1034,6 +1046,13 @@ function ContasAReceberPage() {
   }
 
   useEffect(() => { carregar(); }, []);
+
+  useEffect(() => {
+    fetch("/api/usuarios")
+      .then((r) => r.json())
+      .then((data) => setUsuarios(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
 
   // Lookup OS by orcamentoId
   const osPorOrcamentoId = useMemo(() => {
@@ -1088,6 +1107,9 @@ function ContasAReceberPage() {
         custosCalculados: calcCustosOrcamento(orc),
         fat,
         orcamento: orc,
+        userId: (orc as any).userId,
+        userName: (orc as any).userName,
+        participantes: (orc as any).participantes,
       };
     });
 
@@ -1103,6 +1125,9 @@ function ContasAReceberPage() {
         valorAprovado: fat.valorAprovadoManual || 0,
         custosCalculados: fat.custosReais || 0,
         fat,
+        userId: fat.userId,
+        userName: fat.userName,
+        participantes: fat.participantes,
       }));
 
     return [...orcRows, ...manualRows];
@@ -1144,8 +1169,10 @@ function ContasAReceberPage() {
       const q = busca.toLowerCase();
       lista = lista.filter((r) => r.cliente.toLowerCase().includes(q) || r.job.toLowerCase().includes(q) || (r.fat.numeroNota ?? "").toLowerCase().includes(q));
     }
+    if (filtroUsuario === "meus") lista = lista.filter((r) => r.userId === user?.id);
+    else if (filtroUsuario) lista = lista.filter((r) => r.userId === filtroUsuario);
     return lista;
-  }, [rowsMes, statusFiltro, busca]);
+  }, [rowsMes, statusFiltro, busca, filtroUsuario, user?.id]);
 
   const ultimosManuais = useMemo(() => {
     return [...faturamentos]
@@ -1452,6 +1479,19 @@ function ContasAReceberPage() {
                 </button>
               ))}
             </div>
+            {usuarios.length > 0 && (
+              <select
+                value={filtroUsuario}
+                onChange={(e) => setFiltroUsuario(e.target.value)}
+                className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white max-w-[160px]"
+              >
+                <option value="">👤 Todos</option>
+                <option value="meus">🙋 Meus registros</option>
+                {usuarios.map((u: any) => (
+                  <option key={u.id} value={u.id}>{u.name || u.nome || u.id}</option>
+                ))}
+              </select>
+            )}
             <span className="text-xs text-gray-400 ml-auto flex items-center gap-2">
               <button
                 onClick={() => setShowUltimos((v) => !v)}
@@ -1510,7 +1550,7 @@ function ContasAReceberPage() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-100">
-                  {["CLIENTE", "JOB", "RESPONSÁVEL", "STATUS DO JOB", "VALOR APROVADO", "IMPOSTO", "COMISSÃO", "CUSTO", "A PAGAR", "RENTABILIDADE", "STATUS NOTA", "OS", "Nº NOTA", "EMISSÃO", "VENCIMENTO", "PAGO", ""].map((h) => (
+                  {["CLIENTE", "JOB", "RESPONSÁVEL", "STATUS DO JOB", "VALOR APROVADO", "IMPOSTO", "COMISSÃO", "CUSTO", "A PAGAR", "RENTABILIDADE", "STATUS NOTA", "OS", "Nº NOTA", "EMISSÃO", "VENCIMENTO", "PAGO", "CRIADO POR", ""].map((h) => (
                     <th key={h} className="text-left px-4 py-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
                       {h}
                     </th>
@@ -1527,6 +1567,7 @@ function ContasAReceberPage() {
                   const rent = row.valorAprovado > 0 ? ((row.valorAprovado - despesasTotais) / row.valorAprovado) * 100 : 0;
 
                   return (
+                    <>
                     <tr key={row.rowId} className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer ${!row.fat.vencimento && row.tipo === "orcamento" && row.orcamento?.status === "Aprovado" ? "bg-amber-50/40" : ""}`} onClick={() => setDetalheAberto(row)}>
                       <td className="px-4 py-3 font-medium text-gray-800 whitespace-nowrap">
                         <div className="flex items-center gap-2">
@@ -1719,6 +1760,19 @@ function ContasAReceberPage() {
                         )}
                       </td>
                     </tr>
+                    <tr key={`${row.rowId}-creator`} className="border-b border-gray-50">
+                      <td colSpan={17} className="px-4 py-1">
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                            <AvatarIniciais nome={row.userName || "?"} size="sm" />
+                            <span>{row.userName || "—"}</span>
+                            {row.userId === user?.id && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Eu</span>}
+                          </div>
+                          <ParticipantesAvatar participantes={row.participantes || []} />
+                        </div>
+                      </td>
+                    </tr>
+                  </>
                   );
                 })}
               </tbody>

@@ -2,14 +2,20 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import AvatarIniciais from "@/app/components/AvatarIniciais";
+import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import type { Fornecedor } from "@/app/types";
 
 export default function ListaFornecedores() {
+  const { user } = useUser();
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [busca, setBusca] = useState(false ? "" : "");
   const [filtro, setFiltro] = useState("");
+  const [usuarios, setUsuarios] = useState<{ id: string; nome: string }[]>([]);
+  const [filtroUsuario, setFiltroUsuario] = useState("");
 
   useEffect(() => {
     fetch("/api/fornecedores")
@@ -17,14 +23,21 @@ export default function ListaFornecedores() {
       .then((d) => { setFornecedores(d); setCarregando(false); });
   }, []);
 
+  useEffect(() => {
+    fetch("/api/usuarios")
+      .then((r) => r.json())
+      .then((d) => setUsuarios(d));
+  }, []);
+
   const filtrados = fornecedores.filter((f) => {
     const q = filtro.toLowerCase();
-    return (
+    const matchBusca =
       f.nomeFantasia?.toLowerCase().includes(q) ||
       f.razaoSocial?.toLowerCase().includes(q) ||
       f.categoria?.toLowerCase().includes(q) ||
-      f.cidade?.toLowerCase().includes(q)
-    );
+      f.cidade?.toLowerCase().includes(q);
+    const matchUsuario = !filtroUsuario || f.userId === filtroUsuario;
+    return matchBusca && matchUsuario;
   });
 
   const ativos = fornecedores.filter((f) => f.status === "Ativo").length;
@@ -57,6 +70,20 @@ export default function ListaFornecedores() {
               value={filtro}
               onChange={(e) => setFiltro(e.target.value)}
             />
+          </div>
+        )}
+        {!carregando && usuarios.length > 0 && (
+          <div className="flex gap-3 mb-5">
+            <select
+              className="border border-gray-200 rounded-xl text-sm px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+              value={filtroUsuario}
+              onChange={(e) => setFiltroUsuario(e.target.value)}
+            >
+              <option value="">Todos os usuários</option>
+              {usuarios.map((u) => (
+                <option key={u.id} value={u.id}>{u.nome}</option>
+              ))}
+            </select>
           </div>
         )}
 
@@ -129,6 +156,15 @@ export default function ListaFornecedores() {
                         Entrega: {f.prazoEntregaDias} dias
                       </div>
                     )}
+                  </div>
+
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <AvatarIniciais nome={f.userName || "?"} size="sm" />
+                      <span>{f.userName || "—"}</span>
+                      {f.userId === user?.id && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Eu</span>}
+                    </div>
+                    <ParticipantesAvatar participantes={f.participantes || []} />
                   </div>
                 </div>
               </Link>

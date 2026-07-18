@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import AvatarIniciais from "@/app/components/AvatarIniciais";
+import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import { STATUS_OS_CONFIG, type OrdemServico, type StatusOS } from "@/app/types";
 
 function Icone({ d, className = "w-5 h-5" }: { d: string; className?: string }) {
@@ -19,6 +22,9 @@ export default function OrdensServicoPage() {
   const [ordens, setOrdens] = useState<OrdemServico[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState<StatusOS | "">("");
+  const [usuarios, setUsuarios] = useState<{ id: string; name: string }[]>([]);
+  const [filtroUsuario, setFiltroUsuario] = useState("");
+  const { user } = useUser();
 
   async function carregar() {
     try {
@@ -33,7 +39,19 @@ export default function OrdensServicoPage() {
 
   useEffect(() => { carregar(); }, []);
 
-  const filtradas = filtroStatus ? ordens.filter((o) => o.status === filtroStatus) : ordens;
+  useEffect(() => {
+    fetch("/api/usuarios")
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => setUsuarios(data))
+      .catch(() => {});
+  }, []);
+
+  const filtradas = (filtroStatus ? ordens.filter((o) => o.status === filtroStatus) : ordens)
+    .filter((o) => {
+      if (!filtroUsuario) return true;
+      if (filtroUsuario === "meus") return o.userId === user?.id;
+      return o.userId === filtroUsuario;
+    });
 
   // Totais por OS
   const totalCustoOS = (os: OrdemServico) =>
@@ -81,6 +99,17 @@ export default function OrdensServicoPage() {
               </button>
             ))}
           </div>
+          <select
+            value={filtroUsuario}
+            onChange={(e) => setFiltroUsuario(e.target.value)}
+            className="ml-auto text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+          >
+            <option value="">👤 Todos</option>
+            <option value="meus">🙋 Meus registros</option>
+            {usuarios.map((u) => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
+          </select>
         </div>
 
         {/* Tabela */}
@@ -104,6 +133,8 @@ export default function OrdensServicoPage() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Custos</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Criação</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Criado por</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Participantes</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Ações</th>
                   </tr>
                 </thead>
@@ -133,6 +164,18 @@ export default function OrdensServicoPage() {
                       <td className="px-4 py-3 text-right font-semibold text-gray-800">{formatarMoeda(totalCustoOS(os))}</td>
                       <td className="px-4 py-3 text-gray-500 text-xs">
                         {new Date(os.createdAt).toLocaleDateString("pt-BR")}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <AvatarIniciais nome={os.userName || "?"} size="sm" />
+                          <span className="text-xs text-gray-500">{os.userName || "—"}</span>
+                          {os.userId === user?.id && (
+                            <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Eu</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <ParticipantesAvatar participantes={os.participantes} />
                       </td>
                       <td className="px-4 py-3 text-right">
                         <Link

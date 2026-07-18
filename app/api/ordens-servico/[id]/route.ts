@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { buscarOrdemServico, salvarOrdemServico, deletarOrdemServico } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!os) return NextResponse.json({ error: "OS não encontrada" }, { status: 404 });
 
     const patch = await req.json();
-    const atualizada: any = { ...os, ...patch, id, updatedAt: new Date().toISOString() };
+    const { userId } = await auth();
+    const user = await currentUser();
+    const atualizada: any = {
+      ...os,
+      ...patch,
+      id,
+      updatedAt: new Date().toISOString(),
+      updatedById: userId || undefined,
+      updatedBy: user?.fullName || user?.firstName || undefined,
+    };
     const salva = await salvarOrdemServico(atualizada);
     return NextResponse.json(salva, { headers: NO_CACHE_HEADERS });
   } catch (err) {

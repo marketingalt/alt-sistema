@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { buscarOrcamento, salvarOrcamento, deletarOrcamento, listarOrcamentos, sincronizarTarefasOrcamento, gerarOSdeOrcamento, criarTarefaFinanceira, moverTarefaPlanejamentoParaConcluido } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params;
     const dados = await req.json();
-    const salvo = await salvarOrcamento({ ...dados, id });
+    const { userId } = await auth();
+    const user = await currentUser();
+    const salvo = await salvarOrcamento({
+      ...dados,
+      id,
+      updatedAt: new Date().toISOString(),
+      updatedById: userId || undefined,
+      updatedBy: user?.fullName || user?.firstName || undefined,
+    });
 
     // Sincronizar tarefas no Planejamento
     sincronizarTarefasOrcamento(salvo).catch((err) =>
@@ -56,7 +65,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const orcamento = await buscarOrcamento(id);
     if (!orcamento) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
     const patch = await req.json();
-    const salvo = await salvarOrcamento({ ...orcamento, ...patch });
+    const { userId } = await auth();
+    const user = await currentUser();
+    const salvo = await salvarOrcamento({
+      ...orcamento,
+      ...patch,
+      updatedAt: new Date().toISOString(),
+      updatedById: userId || undefined,
+      updatedBy: user?.fullName || user?.firstName || undefined,
+    });
 
     // Sincronizar tarefas no Planejamento
     sincronizarTarefasOrcamento(salvo).catch((err) =>

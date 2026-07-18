@@ -2,7 +2,10 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import AvatarIniciais from "@/app/components/AvatarIniciais";
+import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import type { Orcamento, StatusOrcamento } from "@/app/types";
 import { calcularCustoTotal } from "@/lib/calculos";
 
@@ -114,12 +117,15 @@ function CelulaEditavel({
 
 /* ───────── página ───────── */
 export default function FaturamentosPage() {
+  const { user } = useUser();
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [registros, setRegistros] = useState<RegistroFaturamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [statusFiltro, setStatusFiltro] = useState<"todos" | StatusOrcamento>("todos");
   const [salvando, setSalvando] = useState<Set<string>>(new Set());
+  const [usuarios, setUsuarios] = useState<{ id: string; nome: string }[]>([]);
+  const [filtroUsuario, setFiltroUsuario] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -129,6 +135,10 @@ export default function FaturamentosPage() {
       setOrcamentos(orcs.filter((o) => STATUS_FATURAMENTO.includes(o.status)));
       setRegistros(fats.registros || []);
     }).finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/usuarios").then((r) => r.json()).then(setUsuarios).catch(() => {});
   }, []);
 
   const rows: RowData[] = useMemo(() => {
@@ -149,8 +159,10 @@ export default function FaturamentosPage() {
         (r.nomeProjeto || "").toLowerCase().includes(q)
       );
     }
+    if (filtroUsuario === "meus") lista = lista.filter((r) => r.userId === user?.id);
+    else if (filtroUsuario) lista = lista.filter((r) => r.userId === filtroUsuario);
     return lista;
-  }, [rows, statusFiltro, busca]);
+  }, [rows, statusFiltro, busca, filtroUsuario, user?.id]);
 
   const kpis = useMemo(() => {
     const totalAprovado = rows.reduce((s, r) => s + valorAprovado(r), 0);
@@ -262,6 +274,16 @@ export default function FaturamentosPage() {
               {s === "todos" ? "Todos" : s}
             </button>
           ))}
+          {usuarios.length > 0 && (
+            <select value={filtroUsuario} onChange={(e) => setFiltroUsuario(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
+              <option value="">👤 Todos</option>
+              <option value="meus">🙋 Meus registros</option>
+              {usuarios.map((u) => (
+                <option key={u.id} value={u.id}>{u.nome}</option>
+              ))}
+            </select>
+          )}
           <span className="text-xs text-gray-400 ml-auto">{filtrados.length} job(s) · clique numa célula para editar</span>
         </div>
 
@@ -273,7 +295,7 @@ export default function FaturamentosPage() {
                 {[
                   "CLIENTE", "JOB", "RESPONSÁVEL", "STATUS DO JOB",
                   "VALOR APROVADO", "IMPOSTO", "COMISSÃO", "CUSTO", "A PAGAR", "RENTABILIDADE",
-                  "STATUS NOTA", "Nº NOTA", "EMISSÃO", "VENCIMENTO", "PAGO",
+                  "STATUS NOTA", "Nº NOTA", "EMISSÃO", "VENCIMENTO", "PAGO", "CRIADO POR",
                 ].map((h) => (
                   <th key={h} className="text-left px-3 py-2.5 font-semibold text-[10px] text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
@@ -281,7 +303,7 @@ export default function FaturamentosPage() {
             </thead>
             <tbody>
               {filtrados.length === 0 && (
-                <tr><td colSpan={15} className="text-center py-12 text-gray-400">Nenhum faturamento encontrado.</td></tr>
+                <tr><td colSpan={16} className="text-center py-12 text-gray-400">Nenhum faturamento encontrado.</td></tr>
               )}
               {filtrados.map((row) => {
                 const vAprov     = valorAprovado(row);
@@ -297,6 +319,7 @@ export default function FaturamentosPage() {
                 const isSaving = salvando.has(row.id);
 
                 return (
+                  <>
                   <tr key={row.id} className={`border-b border-gray-50 hover:bg-gray-50/40 ${isSaving ? "opacity-60" : ""}`}>
                     {/* CLIENTE */}
                     <td className="px-3 py-2.5">
@@ -475,6 +498,20 @@ export default function FaturamentosPage() {
                       )}
                     </td>
                   </tr>
+                  {/* Creator + participantes footer */}
+                  <tr key={`${row.id}-footer`} className="border-b border-gray-50 hover:bg-gray-50/40">
+                    <td colSpan={16} className="px-3 py-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                          <AvatarIniciais nome={(row as any).userName || "?"} size="sm" />
+                          <span>{(row as any).userName || "—"}</span>
+                          {(row as any).userId === user?.id && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Eu</span>}
+                        </div>
+                        <ParticipantesAvatar participantes={(row as any).participantes || []} />
+                      </div>
+                    </td>
+                  </tr>
+                  </>
                 );
               })}
             </tbody>
@@ -490,7 +527,7 @@ export default function FaturamentosPage() {
                   <td className="px-3 py-2.5 text-right font-bold text-green-700">
                     {fmt(filtrados.reduce((s, r) => s + (valorAprovado(r) - (r.fat.imposto ?? 0) - (r.fat.comissao ?? 0) - (r.fat.custo ?? r.fat.custosReais ?? custosCalculados(r))), 0))}
                   </td>
-                  <td colSpan={5} />
+                  <td colSpan={6} />
                 </tr>
               </tfoot>
             )}

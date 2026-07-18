@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { dbGet, dbSet } from "@/lib/storage-adapter";
 
 interface FluxoCaixaDB {
@@ -29,6 +30,13 @@ export async function PUT(
   const { id } = await params;
   const dados = await ler();
   const body = await req.json();
+  const { userId } = await auth();
+  const user = await currentUser();
+
+  // Injeta metadados de alteração
+  body.updatedAt = new Date().toISOString();
+  body.updatedById = userId || undefined;
+  body.updatedBy = user?.fullName || user?.firstName || undefined;
 
   // Encontra o lançamento atual antes da edição
   const lancamentoAtual = dados.lancamentos.find(

@@ -128,6 +128,10 @@ export interface Cliente {
   createdAt: string;
   userId?: string;
   userName?: string;
+  updatedAt?: string;
+  updatedById?: string;
+  updatedBy?: string;
+  participantes?: { userId: string; nome: string }[];
 }
 
 export interface Fornecedor {
@@ -161,6 +165,10 @@ export interface Fornecedor {
   createdAt: string;
   userId?: string;
   userName?: string;
+  updatedAt?: string;
+  updatedById?: string;
+  updatedBy?: string;
+  participantes?: { userId: string; nome: string }[];
 }
 
 export interface Produto {
@@ -183,6 +191,10 @@ export interface Produto {
   createdAt: string;
   userId?: string;
   userName?: string;
+  updatedAt?: string;
+  updatedById?: string;
+  updatedBy?: string;
+  participantes?: { userId: string; nome: string }[];
 }
 
 export interface VersaoOrcamento {
@@ -225,6 +237,10 @@ export interface Orcamento {
   documentos?: DocumentoFornecedor[];
   createdAt: string;
   versoes?: VersaoOrcamento[];
+  updatedAt?: string;
+  updatedById?: string;
+  updatedBy?: string;
+  participantes?: { userId: string; nome: string }[];
 }
 
 // ── Planejamento (ClickUp-style) ─────────────────────
@@ -271,6 +287,9 @@ export interface Projeto {
   statuses: StatusKanban[];
   createdAt: string;
   updatedAt: string;
+  userId?: string;
+  userName?: string;
+  participantes?: { userId: string; nome: string }[];
 }
 
 // ── Ordem de Serviço (OS) ──────────────────────
@@ -319,6 +338,11 @@ export interface OrdemServico {
   criadoAutomaticamente: boolean;
   createdAt: string;
   updatedAt: string;
+  userId?: string;
+  userName?: string;
+  updatedById?: string;
+  updatedBy?: string;
+  participantes?: { userId: string; nome: string }[];
   // Campos dinâmicos
   camposDinamicos?: Record<string, any>;
   documentos?: DocumentoFornecedor[];

@@ -75,21 +75,29 @@ export default function DetalheFornecedor() {
                 </span>
               )}
             </div>
+            <div className="flex gap-2 items-center">
+              {salvo && <span className="text-green-600 text-sm font-medium">✓ Salvo</span>}
+              <button
+                onClick={salvar}
+                  disabled={salvando}
+                  className="bg-green-600 text-white text-sm font-semibold py-2 px-5 rounded-xl hover:bg-green-700 transition disabled:opacity-50"
+                >
+                  {salvando ? "Salvando..." : "Salvar alterações"}
+                </button>
+                <button onClick={deletar} className="text-sm text-red-400 hover:text-red-600 px-3 py-2">
+                  Excluir
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-2 items-center">
-            {salvo && <span className="text-green-600 text-sm font-medium">✓ Salvo</span>}
-            <button
-              onClick={salvar}
-              disabled={salvando}
-              className="bg-green-600 text-white text-sm font-semibold py-2 px-5 rounded-xl hover:bg-green-700 transition disabled:opacity-50"
-            >
-              {salvando ? "Salvando..." : "Salvar alterações"}
-            </button>
-            <button onClick={deletar} className="text-sm text-red-400 hover:text-red-600 px-3 py-2">
-              Excluir
-            </button>
-          </div>
-        </div>
+
+          {/* Audit trail */}
+          {(dados.userName || dados.updatedBy) && (
+            <p className="text-xs text-gray-400 mb-6">
+              👤 Criado por {dados.userName || "—"} · {dados.createdAt ? new Date(dados.createdAt).toLocaleDateString("pt-BR") : "—"}
+              {dados.updatedBy && <> · ✏️ Última alteração por {dados.updatedBy} · {dados.updatedAt ? new Date(dados.updatedAt).toLocaleString("pt-BR") : "—"}</>}
+            </p>
+          )}
 
         <FornecedorForm dados={dados} onChange={onChange} showRestritoToggle={podeRestringir} />
 

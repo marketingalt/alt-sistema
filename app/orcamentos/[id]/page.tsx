@@ -19,6 +19,7 @@ import CampoPrazoPagamento from "@/app/components/CampoPrazoPagamento";
 import type { DocumentoFornecedor } from "@/app/types";
 import DocumentoPreview from "./DocumentoPreview";
 import TagSelector from "@/app/components/TagSelector";
+import MultiUserSelect from "@/app/components/MultiUserSelect";
 import { validarOrcamento } from "@/lib/validacao";
 import type { ErroValidacao } from "@/lib/validacao";
 import { useAutoSave, getDraft, clearDraft } from "@/hooks/useAutoSave";
@@ -973,6 +974,14 @@ export default function VisualizarOrcamento() {
               </div>
             )}
 
+              {/* Audit trail */}
+              {(orcamento.userName || orcamento.updatedBy) && (
+                <p className="text-xs text-gray-400 mb-4">
+                  👤 Criado por {orcamento.userName || "—"} · {orcamento.createdAt ? new Date(orcamento.createdAt).toLocaleDateString("pt-BR") : "—"}
+                  {orcamento.updatedBy && <> · ✏️ Última alteração por {orcamento.updatedBy} · {orcamento.updatedAt ? new Date(orcamento.updatedAt).toLocaleString("pt-BR") : "—"}</>}
+                </p>
+              )}
+
             {/* Informações gerais */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
               <h2 className="text-base font-semibold text-gray-600 uppercase tracking-wide mb-4">Informações Gerais</h2>
@@ -997,6 +1006,16 @@ export default function VisualizarOrcamento() {
                   projetos={projetosPlanejamento}
                   selected={orcamento.tags || []}
                   onChange={(ids) => { setSalvo(false); setOrcamento((prev) => prev ? { ...prev, tags: ids } : prev); }}
+                />
+              </div>
+
+              {/* Participantes */}
+              <div className="mb-4">
+                <MultiUserSelect
+                  value={orcamento.participantes || []}
+                  onChange={(participantes) => { setSalvo(false); setOrcamento((prev) => prev ? { ...prev, participantes } : prev); }}
+                  label="Participantes"
+                  placeholder="Adicionar participante..."
                 />
               </div>
 

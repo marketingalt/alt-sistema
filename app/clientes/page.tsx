@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import AvatarIniciais from "@/app/components/AvatarIniciais";
+import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import type { Cliente, StatusCliente } from "@/app/types";
 
 const STATUS_CORES: Record<StatusCliente, string> = {
@@ -12,15 +15,23 @@ const STATUS_CORES: Record<StatusCliente, string> = {
 };
 
 export default function ListaClientes() {
+  const { user } = useUser();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [filtro, setFiltro] = useState("");
+  const [usuarios, setUsuarios] = useState<{ id: string; nome: string }[]>([]);
+  const [filtroUsuario, setFiltroUsuario] = useState("");
 
   useEffect(() => {
     fetch("/api/clientes").then((r) => r.json()).then((d) => { setClientes(d); setCarregando(false); });
   }, []);
 
+  useEffect(() => {
+    fetch("/api/usuarios").then((r) => r.json()).then(setUsuarios).catch(() => {});
+  }, []);
+
   const filtrados = clientes.filter((c) => {
+    if (filtroUsuario && c.userId !== filtroUsuario) return false;
     const q = filtro.toLowerCase();
     return c.nomeEmpresa?.toLowerCase().includes(q) ||
       c.razaoSocial?.toLowerCase().includes(q) ||
@@ -49,13 +60,24 @@ export default function ListaClientes() {
         </div>
 
         {!carregando && clientes.length > 0 && (
-          <div className="relative mb-5">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-            </svg>
-            <input type="text" placeholder="Buscar por empresa, contato ou cidade..."
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
-              value={filtro} onChange={(e) => setFiltro(e.target.value)} />
+          <div className="flex items-center gap-3 mb-5">
+            <div className="relative flex-1">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+              </svg>
+              <input type="text" placeholder="Buscar por empresa, contato ou cidade..."
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
+                value={filtro} onChange={(e) => setFiltro(e.target.value)} />
+            </div>
+            <select
+              className="border border-gray-200 rounded-xl text-sm py-2.5 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+              value={filtroUsuario} onChange={(e) => setFiltroUsuario(e.target.value)}
+            >
+              <option value="">Todos os usuários</option>
+              {usuarios.map((u) => (
+                <option key={u.id} value={u.id}>{u.nome}</option>
+              ))}
+            </select>
           </div>
         )}
 
@@ -110,6 +132,14 @@ export default function ListaClientes() {
                         ))}
                       </div>
                     )}
+                  </div>
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <AvatarIniciais nome={c.userName || "?"} size="sm" />
+                      <span>{c.userName || "—"}</span>
+                      {c.userId === user?.id && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Eu</span>}
+                    </div>
+                    <ParticipantesAvatar participantes={c.participantes || []} />
                   </div>
                 </div>
               </Link>
