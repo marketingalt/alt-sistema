@@ -12,13 +12,13 @@ export function temSurchargeQtdMinima(item: ItemOrcamento): boolean {
 export function calcularCustoTotal(item: ItemOrcamento): number {
   const qty = item.quantidade || 1;
   const fatorSurcharge = temSurchargeQtdMinima(item) ? 1.05 : 1;
-  return (
+  return Math.round((
     (item.custoUnitario || 0) * fatorSurcharge +
     (item.freteProducao || 0) / qty +
     (item.custoPersonalizacao || 0) / qty +
     (item.custoEmbalagemIndividual ?? 0) +
     (item.custoEmbalagemTransporte || 0) / qty
-  );
+  ) * 100) / 100;
 }
 
 // margemExtra = honorários% + impostos% + comissão% definidos no orçamento
@@ -26,7 +26,7 @@ export function calcularValorSugerido(item: ItemOrcamento, margemExtra = 0): num
   const custo = calcularCustoTotal(item);
   const margemTotal = (item.margem || 0) + margemExtra;
   if (margemTotal >= 100 || custo === 0) return 0;
-  return custo / (1 - margemTotal / 100);
+  return Math.round((custo / (1 - margemTotal / 100)) * 100) / 100;
 }
 
 // Margem real dado o custo e o preço final informado
@@ -37,9 +37,11 @@ export function calcularMargemReal(custo: number, precoFinal: number): number {
 
 /** Recalcula uma variante individual: total = quantidade * valorUnitario */
 function recalcularVariante(v: ItemVariante): ItemVariante {
+  const valorUnitario = Math.round(v.valorUnitario * 100) / 100;
   return {
     ...v,
-    total: Math.round(v.quantidade * v.valorUnitario * 100) / 100,
+    valorUnitario,
+    total: Math.round(v.quantidade * valorUnitario * 100) / 100,
   };
 }
 
@@ -80,9 +82,10 @@ export function recalcularItem(item: ItemOrcamento, margemExtra = 0): ItemOrcame
 
   // Sem variantes — comportamento original
   const valorFinal = item.valorAjustado ? item.valorUnitario : calcularValorSugerido(item, margemExtra);
+  const valorUnitario = Math.round(valorFinal * 100) / 100;
   return {
     ...item,
-    valorUnitario: valorFinal,
-    total: valorFinal * (item.quantidade || 0),
+    valorUnitario,
+    total: Math.round(valorUnitario * (item.quantidade || 0) * 100) / 100,
   };
 }

@@ -274,7 +274,8 @@ export default function RevisarOrcamento() {
           const atualizado = { ...item, [campo]: valor };
           if (campo === "valorUnitario") {
             atualizado.valorAjustado = true;
-            atualizado.total = Number(valor) * (atualizado.quantidade || 0);
+            atualizado.valorUnitario = Math.round(Number(valor) * 100) / 100;
+            atualizado.total = Math.round(atualizado.valorUnitario * (atualizado.quantidade || 0) * 100) / 100;
             return atualizado;
           }
           return recalcularItem(atualizado, me);
