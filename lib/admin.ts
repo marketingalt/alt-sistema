@@ -67,9 +67,9 @@ export async function setAdminRole(
   role: "admin" | "user"
 ): Promise<void> {
   const client = await clerkClient();
-  await client.users.updateUser(userId, {
-    publicMetadata: { role },
-  });
+  const user = await client.users.getUser(userId);
+  const metadata = { ...(user.publicMetadata || {}), role, onboarding: true };
+  await client.users.updateUser(userId, { publicMetadata: metadata });
 }
 
 export async function setUserPermissions(
@@ -77,9 +77,9 @@ export async function setUserPermissions(
   permissoes: Permissao[]
 ): Promise<void> {
   const client = await clerkClient();
-  await client.users.updateUser(userId, {
-    publicMetadata: { permissoes },
-  });
+  const user = await client.users.getUser(userId);
+  const metadata = { ...(user.publicMetadata || {}), permissoes, onboarding: true };
+  await client.users.updateUser(userId, { publicMetadata: metadata });
 }
 
 export async function deleteUser(
@@ -98,9 +98,9 @@ export async function autoSeedAdmin(userId: string): Promise<boolean> {
     );
 
     if (!hasAdmin) {
-      await client.users.updateUser(userId, {
-        publicMetadata: { role: "admin" },
-      });
+      const user = await client.users.getUser(userId);
+      const metadata = { ...(user.publicMetadata || {}), role: "admin", onboarding: true };
+      await client.users.updateUser(userId, { publicMetadata: metadata });
       return true;
     }
 

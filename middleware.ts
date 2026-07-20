@@ -38,9 +38,17 @@ export default clerkMiddleware(async (auth, req) => {
     const onboarding = user.publicMetadata?.onboarding;
     const onboardingCookie = req.cookies.get("onboarding_complete")?.value === "true";
 
+    // Se já tem role/permissões definidas (admin já configurou), considera onboarding completo
+    const temRole = user.publicMetadata?.role === "admin" || user.publicMetadata?.role === "user";
+    const temPermissoes = Array.isArray(user.publicMetadata?.permissoes) && user.publicMetadata!.permissoes!.length > 0;
+    const temNomeExibicao = typeof user.publicMetadata?.nomeExibicao === "string" && user.publicMetadata.nomeExibicao.trim().length > 0;
+
     if (
       !onboarding &&
       !onboardingCookie &&
+      !temRole &&
+      !temPermissoes &&
+      !temNomeExibicao &&
       !req.nextUrl.pathname.startsWith("/api/") &&
       !req.nextUrl.pathname.startsWith("/_next")
     ) {

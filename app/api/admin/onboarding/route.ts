@@ -38,13 +38,14 @@ export async function POST(req: NextRequest) {
     const permissoesFinais = isAdmin ? VALIDAS : permissoes;
 
     const client = await clerkClient();
-    await client.users.updateUser(userId, {
-      publicMetadata: {
-        onboarding: true,
-        nomeExibicao: nomeExibicao.trim(),
-        permissoes: permissoesFinais,
-      },
-    });
+    const clerkUser = await client.users.getUser(userId);
+    const metadata = {
+      ...(clerkUser.publicMetadata || {}),
+      onboarding: true,
+      nomeExibicao: nomeExibicao.trim(),
+      permissoes: permissoesFinais,
+    };
+    await client.users.updateUser(userId, { publicMetadata: metadata });
 
     // Cookie como fallback para o middleware (evita loop de redirecionamento
     // enquanto o Clerk propaga os metadados)
