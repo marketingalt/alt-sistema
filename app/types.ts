@@ -204,6 +204,17 @@ export interface VersaoOrcamento {
   criadaEm: string;
 }
 
+export interface HistoricoAlteracao {
+  id: string;
+  tipo: "criacao" | "status" | "edicao";
+  descricao: string;
+  valorAnterior?: string;
+  valorNovo?: string;
+  usuarioNome: string;
+  usuarioId?: string;
+  timestamp: string;
+}
+
 export interface Orcamento {
   id: string;
   userId?: string;
@@ -237,6 +248,7 @@ export interface Orcamento {
   documentos?: DocumentoFornecedor[];
   createdAt: string;
   versoes?: VersaoOrcamento[];
+  historico?: HistoricoAlteracao[];
   updatedAt?: string;
   updatedById?: string;
   updatedBy?: string;

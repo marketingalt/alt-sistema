@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { listarOrcamentos, salvarOrcamento, sincronizarTarefasOrcamento, gerarOSdeOrcamento } from "@/lib/storage";
+import type { HistoricoAlteracao } from "@/app/types";
 
 export const dynamic = "force-dynamic";
 
@@ -25,11 +26,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Dados do orçamento inválidos" }, { status: 400 });
     }
 
+    const nomeUsuario = user?.fullName || user?.firstName || "Desconhecido";
+
+    const entradaCriacao: HistoricoAlteracao = {
+      id: Math.random().toString(36).substring(2, 10),
+      tipo: "criacao",
+      descricao: "Orçamento criado",
+      usuarioNome: nomeUsuario,
+      usuarioId: userId || undefined,
+      timestamp: new Date().toISOString(),
+    };
+
     const salvo = await salvarOrcamento({
       ...orcamento,
       userId: userId || undefined,
       userEmail: user?.emailAddresses[0]?.emailAddress || undefined,
-      userName: user?.fullName || user?.firstName || undefined,
+      userName: nomeUsuario,
+      historico: [entradaCriacao],
     });
 
     // Sincronizar tarefas no Planejamento

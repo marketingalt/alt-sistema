@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { buscarOrcamento, salvarOrcamento, deletarOrcamento, listarOrcamentos, sincronizarTarefasOrcamento, gerarOSdeOrcamento, criarTarefaFinanceira, moverTarefaPlanejamentoParaConcluido } from "@/lib/storage";
+import type { HistoricoAlteracao } from "@/app/types";
+
+function gerarId() {
+  return Math.random().toString(36).substring(2, 10);
+}
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +28,68 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const dados = await req.json();
     const { userId } = await auth();
     const user = await currentUser();
+    const nomeUsuario = user?.fullName || user?.firstName || "Desconhecido";
+
+    // Busca orçamento anterior para comparar
+    const orcamentoAnterior = await buscarOrcamento(id);
+
+    // Gera entradas de histórico baseadas nas alterações
+    const novasEntradas: HistoricoAlteracao[] = [];
+
+    if (orcamentoAnterior) {
+      const camposTexto: { campo: string; label: string; valorAnterior: string; valorNovo: string }[] = [
+        { campo: "status", label: "Status", valorAnterior: orcamentoAnterior.status || "", valorNovo: dados.status || "" },
+        { campo: "cliente", label: "Cliente", valorAnterior: orcamentoAnterior.cliente || "", valorNovo: dados.cliente || "" },
+        { campo: "nomeProjeto", label: "Projeto", valorAnterior: orcamentoAnterior.nomeProjeto || "", valorNovo: dados.nomeProjeto || "" },
+        { campo: "solicitante", label: "Solicitante", valorAnterior: orcamentoAnterior.solicitante || "", valorNovo: dados.solicitante || "" },
+        { campo: "responsavel", label: "Responsável", valorAnterior: orcamentoAnterior.responsavel || "", valorNovo: dados.responsavel || "" },
+        { campo: "prazoPagamento", label: "Prazo de pagamento", valorAnterior: orcamentoAnterior.prazoPagamento || "", valorNovo: dados.prazoPagamento || "" },
+        { campo: "prazoEntrega", label: "Prazo de entrega", valorAnterior: orcamentoAnterior.prazoEntrega || "", valorNovo: dados.prazoEntrega || "" },
+      ];
+
+      for (const c of camposTexto) {
+        if (c.valorAnterior !== c.valorNovo) {
+          novasEntradas.push({
+            id: gerarId(),
+            tipo: c.campo === "status" ? "status" : "edicao",
+            descricao: c.campo === "status"
+              ? `Status alterado de "${c.valorAnterior}" para "${c.valorNovo}"`
+              : `${c.label} alterado de "${c.valorAnterior || "—"}" para "${c.valorNovo || "—"}"`,
+            valorAnterior: c.valorAnterior || undefined,
+            valorNovo: c.valorNovo || undefined,
+            usuarioNome: nomeUsuario,
+            usuarioId: userId || undefined,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+
+      // Verifica se itens foram alterados (mudança no total)
+      const totalAntes = orcamentoAnterior.itens.reduce((a: number, i: any) => a + (i.total || 0), 0);
+      const totalDepois = (dados.itens || []).reduce((a: number, i: any) => a + (i.total || 0), 0);
+      if (Math.abs(totalDepois - totalAntes) > 0.01 && (dados.itens || []).length > 0) {
+        novasEntradas.push({
+          id: gerarId(),
+          tipo: "edicao",
+          descricao: `Valor total alterado de R$ ${totalAntes.toFixed(2).replace(".", ",")} para R$ ${totalDepois.toFixed(2).replace(".", ",")}`,
+          valorAnterior: totalAntes.toFixed(2),
+          valorNovo: totalDepois.toFixed(2),
+          usuarioNome: nomeUsuario,
+          usuarioId: userId || undefined,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    const historicoFinal = [...(orcamentoAnterior?.historico || []), ...novasEntradas];
+
     const salvo = await salvarOrcamento({
       ...dados,
       id,
+      historico: historicoFinal,
       updatedAt: new Date().toISOString(),
       updatedById: userId || undefined,
-      updatedBy: user?.fullName || user?.firstName || undefined,
+      updatedBy: nomeUsuario,
     });
 
     // Sincronizar tarefas no Planejamento
@@ -67,12 +128,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const patch = await req.json();
     const { userId } = await auth();
     const user = await currentUser();
+    const nomeUsuario = user?.fullName || user?.firstName || "Desconhecido";
+
+    // Gera entradas de histórico baseadas nas alterações
+    const novasEntradas: HistoricoAlteracao[] = [];
+
+    if (patch.status && patch.status !== orcamento.status) {
+      novasEntradas.push({
+        id: gerarId(),
+        tipo: "status",
+        descricao: `Status alterado de "${orcamento.status}" para "${patch.status}"`,
+        valorAnterior: orcamento.status,
+        valorNovo: patch.status,
+        usuarioNome: nomeUsuario,
+        usuarioId: userId || undefined,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     const salvo = await salvarOrcamento({
       ...orcamento,
       ...patch,
+      historico: [...(orcamento.historico || []), ...novasEntradas],
       updatedAt: new Date().toISOString(),
       updatedById: userId || undefined,
-      updatedBy: user?.fullName || user?.firstName || undefined,
+      updatedBy: nomeUsuario,
     });
 
     // Sincronizar tarefas no Planejamento

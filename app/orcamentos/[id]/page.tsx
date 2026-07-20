@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import type { Orcamento, ItemOrcamento, StatusOrcamento, Fornecedor, VersaoOrcamento, Produto } from "@/app/types";
+import type { Orcamento, ItemOrcamento, StatusOrcamento, Fornecedor, VersaoOrcamento, Produto, HistoricoAlteracao } from "@/app/types";
 import { STATUS_CONFIG } from "@/app/types";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
@@ -23,6 +23,7 @@ import MultiUserSelect from "@/app/components/MultiUserSelect";
 import { validarOrcamento } from "@/lib/validacao";
 import type { ErroValidacao } from "@/lib/validacao";
 import { useAutoSave, getDraft, clearDraft } from "@/hooks/useAutoSave";
+import HistoricoAtividades from "@/app/components/HistoricoAtividades";
 
 const TODOS_STATUS = Object.keys(STATUS_CONFIG) as StatusOrcamento[];
 
@@ -114,6 +115,7 @@ export default function VisualizarOrcamento() {
 
   // ── Estado de versões ──
   const [mostrarPainelVersoes, setMostrarPainelVersoes] = useState(false);
+  const [mostrarPainelAtividades, setMostrarPainelAtividades] = useState(false);
   const [versoes, setVersoes] = useState<VersaoOrcamento[]>([]);
   const [mostrarModalVersao, setMostrarModalVersao] = useState(false);
   const [novaVersaoNome, setNovaVersaoNome] = useState("");
@@ -939,6 +941,25 @@ export default function VisualizarOrcamento() {
                   </span>
                 )}
               </button>
+              <button
+                onClick={() => setMostrarPainelAtividades(!mostrarPainelAtividades)}
+                className={`text-sm font-semibold py-2 px-4 rounded-lg border transition flex items-center gap-1.5 ${
+                  mostrarPainelAtividades
+                    ? "bg-gray-800 text-white border-gray-800"
+                    : "bg-white text-gray-700 border-gray-200 hover:border-gray-400 hover:bg-gray-50"
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Atividades
+                {(orcamento.historico?.length ?? 0) > 0 && (
+                  <span className="ml-0.5 text-sm bg-current rounded-full px-1.5 py-0.5"
+                    style={{ color: mostrarPainelAtividades ? "#fff" : "#6b7280", background: mostrarPainelAtividades ? "#fff" : "#e5e7eb" }}>
+                    {orcamento.historico!.length}
+                  </span>
+                )}
+              </button>
             </div>
 
             {/* Painel de versões */}
@@ -971,6 +992,16 @@ export default function VisualizarOrcamento() {
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Painel de atividades */}
+            {mostrarPainelAtividades && (
+              <div className="mb-6 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Atividades Recentes</h3>
+                </div>
+                <HistoricoAtividades historico={orcamento.historico} />
               </div>
             )}
 
