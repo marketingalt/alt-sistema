@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "./components/WorkspaceLayout";
+import StatusDropdown from "./components/StatusDropdown";
 import type { Orcamento, StatusOrcamento } from "./types";
 import { STATUS_CONFIG } from "./types";
 
@@ -71,6 +72,10 @@ export default function Dashboard() {
   })).filter((s) => s.count > 0);
 
   const recentes = [...orcamentos].slice(0, 5);
+
+  function atualizarStatus(id: string, novo: StatusOrcamento) {
+    setOrcamentos((prev) => prev.map((o) => (o.id === id ? { ...o, status: novo } : o)));
+  }
 
   const hora = new Date().getHours();
   const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
@@ -188,30 +193,40 @@ export default function Dashboard() {
               <Link href="/orcamentos" className="text-xs text-[#fb4d06] hover:underline">Ver todos →</Link>
             </div>
             <div className="flex flex-col gap-2">
-              {recentes.map((o) => {
-                const cfg = STATUS_CONFIG[o.status || "Em andamento"];
-                return (
-                  <Link key={o.id} href={`/orcamentos/${o.id}`}>
-                    <div className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-gray-50 transition cursor-pointer">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-[#fb4d06] bg-[#fb4d06]/5 px-2 py-0.5 rounded-full whitespace-nowrap">
-                          #{o.numero}
-                        </span>
-                        <span className="text-sm font-medium text-gray-800">{o.nomeProjeto || o.cliente || "Sem projeto"}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.cor}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                          {o.status || "Em andamento"}
-                        </span>
-                        <span className="text-sm font-bold text-[#fb4d06] whitespace-nowrap">
-                          {fmt(totalOrcamento(o))}
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
+              {recentes.map((o) => (
+                <div
+                  key={o.id}
+                  className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-gray-50 transition cursor-pointer"
+                  onClick={() => window.location.href = `/orcamentos/${o.id}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-[#fb4d06] bg-[#fb4d06]/5 px-2 py-0.5 rounded-full whitespace-nowrap">
+                      #{o.numero}
+                    </span>
+                    <Link
+                      href={`/orcamentos/${o.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-sm font-medium text-gray-800 hover:text-[#fb4d06] transition"
+                    >
+                      {o.nomeProjeto || o.cliente || "Sem projeto"}
+                    </Link>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <StatusDropdown
+                      orcamentoId={o.id}
+                      statusAtual={o.status || "Em andamento"}
+                      onChange={(novo) => atualizarStatus(o.id, novo)}
+                      alinhamento="right"
+                    />
+                    <span
+                      className="text-sm font-bold text-[#fb4d06] whitespace-nowrap"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {fmt(totalOrcamento(o))}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

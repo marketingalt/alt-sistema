@@ -4,12 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import type { Orcamento, StatusOrcamento } from "@/app/types";
-import { STATUS_CONFIG } from "@/app/types";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import StatusDropdown from "@/app/components/StatusDropdown";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
 import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
-
-const TODOS_STATUS = Object.keys(STATUS_CONFIG) as StatusOrcamento[];
 
 function totalOrcamento(o: Orcamento) {
   const itens = o.itens.reduce((a, i) => a + (i.total || 0), 0);
@@ -36,71 +34,6 @@ function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function StatusBadge({ status }: { status: StatusOrcamento }) {
-  const cfg = STATUS_CONFIG[status];
-  return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${cfg.bg} ${cfg.cor}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-      {status}
-    </span>
-  );
-}
-
-function StatusDropdown({ orcamentoId, statusAtual, onChange }: {
-  orcamentoId: string;
-  statusAtual: StatusOrcamento;
-  onChange: (novo: StatusOrcamento) => void;
-}) {
-  const [aberto, setAberto] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function fechar(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setAberto(false);
-    }
-    document.addEventListener("mousedown", fechar);
-    return () => document.removeEventListener("mousedown", fechar);
-  }, []);
-
-  async function mudar(novo: StatusOrcamento) {
-    setAberto(false);
-    await fetch(`/api/orcamentos/${orcamentoId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: novo }),
-    });
-    onChange(novo);
-  }
-
-  return (
-    <div ref={ref} className="relative" onClick={(e) => e.preventDefault()}>
-      <button
-        onClick={(e) => { e.preventDefault(); setAberto((p) => !p); }}
-        className="flex items-center gap-1"
-      >
-        <StatusBadge status={statusAtual} />
-        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {aberto && (
-        <div className="absolute z-20 top-full mt-1 left-0 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]">
-          {TODOS_STATUS.map((s) => (
-            <button
-              key={s}
-              onClick={() => mudar(s)}
-              className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 ${s === statusAtual ? "font-bold" : ""}`}
-            >
-              <span className={`w-2 h-2 rounded-full ${STATUS_CONFIG[s].dot}`} />
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function DownloadDropdown({ orcamentoId }: { orcamentoId: string }) {
   const [aberto, setAberto] = useState(false);
