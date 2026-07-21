@@ -26,6 +26,10 @@ interface Conta {
   status: "pendente" | "pago" | "cancelado";
   recorrente?: boolean;
   periodicidade?: string | null;
+  recorrentePersonalizado?: boolean;
+  intervaloValor?: number;
+  intervaloUnidade?: string;
+  qtdParcelas?: number;
   fluxoCaixaId?: string;
   driveLink?: string;
   boletoUrl?: string;
@@ -126,6 +130,10 @@ const FORM_VAZIO = {
   modalidade: "PIX", banco: "C6 BANK", area: "MISTO",
   categoria: "DESPESAS ADM E GERAIS", obs: "",
   recorrente: false, periodicidade: "mensal",
+  recorrentePersonalizado: false,
+  intervaloValor: 30,
+  intervaloUnidade: "dia" as "dia" | "mes" | "ano",
+  qtdParcelas: 12,
   ordemServicoId: "",
   cliente: "",
   status: "pendente",
@@ -404,6 +412,10 @@ export default function ContasAPagarPage() {
       valor: String(c.valor), modalidade: c.modalidade, banco: c.banco, area: c.area,
       categoria: c.categoria, obs: c.obs ?? "",
       recorrente: c.recorrente ?? false, periodicidade: c.periodicidade ?? "mensal",
+      recorrentePersonalizado: (c as any).periodicidade === "personalizado",
+      intervaloValor: (c as any).intervaloValor ?? 30,
+      intervaloUnidade: (c as any).intervaloUnidade ?? "dia",
+      qtdParcelas: (c as any).qtdParcelas ?? 12,
       ordemServicoId: c.ordemServicoId ?? "",
       cliente: c.cliente ?? "",
       status: c.status,
@@ -434,6 +446,9 @@ export default function ContasAPagarPage() {
       ...form,
       valor: valorLote || parseFloat(String(form.valor).replace(",", ".")) || 0,
       boletoUrl: boletoUrl || undefined,
+      intervaloValor: form.recorrentePersonalizado ? form.intervaloValor : undefined,
+      intervaloUnidade: form.recorrentePersonalizado ? form.intervaloUnidade : undefined,
+      qtdParcelas: form.recorrentePersonalizado ? form.qtdParcelas : undefined,
     };
     if (editando?.isLote) {
       payload.loteItens = editandoLoteItens;
@@ -1390,24 +1405,71 @@ export default function ContasAPagarPage() {
               {/* Recorrência */}
               <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <div onClick={() => setForm((f) => ({ ...f, recorrente: !f.recorrente }))}
+                  <div onClick={() => setForm((f) => ({ ...f, recorrente: !f.recorrente, recorrentePersonalizado: false }))}
                     className={`w-9 h-5 rounded-full relative transition-colors ${form.recorrente ? "bg-[#fb4d06]" : "bg-gray-300"}`}>
                     <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${form.recorrente ? "translate-x-4" : "translate-x-0.5"}`} />
                   </div>
                   <span className="text-sm font-medium text-gray-700">Conta recorrente</span>
                 </label>
                 {form.recorrente && (
-                  <div className="mt-3">
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Periodicidade</label>
-                    <div className="flex gap-2">
-                      {PERIODICIDADES.map((p) => (
-                        <button key={p} type="button" onClick={() => setForm((f) => ({ ...f, periodicidade: p }))}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition capitalize ${
-                            form.periodicidade === p ? "border-[#fb4d06] bg-[#fb4d06]/5 text-[#fb4d06]" : "border-gray-200 text-gray-500 hover:border-gray-300"
-                          }`}>{p}</button>
-                      ))}
-                    </div>
-                  </div>
+                  <>
+                    {!form.recorrentePersonalizado ? (
+                      <div className="mt-3">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Periodicidade</label>
+                        <div className="flex gap-2 flex-wrap">
+                          {PERIODICIDADES.map((p) => (
+                            <button key={p} type="button" onClick={() => setForm((f) => ({ ...f, periodicidade: p }))}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition capitalize ${
+                                form.periodicidade === p ? "border-[#fb4d06] bg-[#fb4d06]/5 text-[#fb4d06]" : "border-gray-200 text-gray-500 hover:border-gray-300"
+                              }`}>{p}</button>
+                          ))}
+                          <button type="button" onClick={() => setForm((f) => ({ ...f, recorrentePersonalizado: true, periodicidade: "personalizado" }))}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-dashed border-gray-300 text-gray-500 hover:border-[#fb4d06] hover:text-[#fb4d06] hover:bg-[#fb4d06]/5 transition flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            </svg>
+                            Personalizar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-3 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-medium text-gray-500">Configuração personalizada</label>
+                          <button type="button" onClick={() => setForm((f) => ({ ...f, recorrentePersonalizado: false, periodicidade: "mensal" }))}
+                            className="text-[11px] font-semibold text-[#fb4d06] hover:underline">
+                            Usar predefinidas
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">A cada</label>
+                            <div className="flex gap-1">
+                              <input type="number" min="1" step="1" value={form.intervaloValor}
+                                onChange={(e) => setForm((f) => ({ ...f, intervaloValor: parseInt(e.target.value) || 1 }))}
+                                className="w-16 border border-gray-200 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                              <select value={form.intervaloUnidade}
+                                onChange={(e) => setForm((f) => ({ ...f, intervaloUnidade: e.target.value as "dia" | "mes" | "ano" }))}
+                                className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
+                                <option value="dia">Dia(s)</option>
+                                <option value="mes">Mês(es)</option>
+                                <option value="ano">Ano(s)</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Total de parcelas</label>
+                            <input type="number" min="1" max="120" step="1" value={form.qtdParcelas}
+                              onChange={(e) => setForm((f) => ({ ...f, qtdParcelas: parseInt(e.target.value) || 1 }))}
+                              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-gray-400">
+                          Serão geradas {form.qtdParcelas} parcelas a cada {form.intervaloValor} {form.intervaloUnidade === "dia" ? "dia(s)" : form.intervaloUnidade === "mes" ? "mês(es)" : "ano(s)"}
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

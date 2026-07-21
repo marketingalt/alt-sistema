@@ -28,7 +28,17 @@ export async function GET() {
 
   for (const conta of dados.contas) {
     if (conta.recorrente && conta.periodicidade && !conta._parcelasGeradas && !conta._parcelaDe) {
-      const config = configs[conta.periodicidade];
+      let config: { incremento: number; unidade: "dia" | "mes" | "ano"; total: number } | undefined;
+
+      if (conta.periodicidade === "personalizado") {
+        const intervaloValor = parseInt(conta.intervaloValor) || 30;
+        const intervaloUnidade = conta.intervaloUnidade || "dia";
+        const qtdParcelas = Math.min(parseInt(conta.qtdParcelas) || 12, 120);
+        config = { incremento: intervaloValor, unidade: intervaloUnidade, total: qtdParcelas };
+      } else {
+        config = configs[conta.periodicidade];
+      }
+
       if (!config) continue;
 
       const dataBase = new Date(conta.dataVencimento + "T12:00:00");
@@ -100,9 +110,24 @@ export async function POST(req: Request) {
       semanal:    { incremento: 7, unidade: "dia", total: 52 },
       anual:      { incremento: 1, unidade: "ano", total: 5 },
     };
-    const config = configs[body.periodicidade];
-    if (!config) {
-      return NextResponse.json({ error: "Periodicidade inválida" }, { status: 400 });
+
+    let config: RecurrenceConfig;
+
+    if (body.periodicidade === "personalizado") {
+      // Valida campos personalizados
+      const intervaloValor = parseInt(body.intervaloValor) || 30;
+      const intervaloUnidade = body.intervaloUnidade || "dia";
+      const qtdParcelas = Math.min(parseInt(body.qtdParcelas) || 12, 120);
+      config = {
+        incremento: intervaloValor,
+        unidade: intervaloUnidade as "dia" | "mes" | "ano",
+        total: qtdParcelas,
+      };
+    } else {
+      config = configs[body.periodicidade];
+      if (!config) {
+        return NextResponse.json({ error: "Periodicidade inválida" }, { status: 400 });
+      }
     }
 
     const contas: any[] = [];
