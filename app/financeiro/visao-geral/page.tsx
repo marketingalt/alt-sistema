@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useMemo } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
-import MeusLembretes from "@/app/components/MeusLembretes";
 import Chart from "chart.js/auto";
 
 // ── Tipos ──
@@ -383,9 +382,6 @@ export default function VisaoGeralFinanceiro() {
   return (
     <WorkspaceLayout>
       <main className="px-6 py-6 max-w-7xl mx-auto space-y-8">
-        {/* ── Meus Lembretes ── */}
-        <MeusLembretes />
-
         {/* ── Cabeçalho ── */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
