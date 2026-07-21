@@ -338,6 +338,8 @@ export default function VisualizarOrcamento() {
             cor: p.cor || item.cor,
             ncm: p.ncm || item.ncm,
             custoUnitario: p.precoCusto || 0,
+            valorUnitario: p.precoFinal ?? item.valorUnitario,
+            valorAjustado: p.precoFinal ? true : item.valorAjustado,
             descricao: p.informacaoTecnica || "",
           }, me);
         }),

@@ -177,6 +177,7 @@ export interface Produto {
   nome: string;
   marca: string;
   precoCusto: number;
+  precoFinal?: number;
   fornecedorId: string;
   fornecedorNome: string;
   imagemUrl?: string;

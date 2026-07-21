@@ -117,9 +117,16 @@ export default function BuscaProdutoInput({ value, onChange, produtos, onSelect,
                               {grupo[0].sku && `${grupo[0].sku} · `}{grupo[0].marca}
                             </p>
                           </div>
-                          <p className="text-sm font-bold text-gray-700 shrink-0">
-                            {grupo[0].precoCusto?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                          </p>
+                          <div className="text-right shrink-0">
+                            <p className="text-sm font-bold text-gray-700">
+                              {grupo[0].precoCusto?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                            </p>
+                            {grupo[0].precoFinal ? (
+                              <p className="text-xs font-semibold text-emerald-600">
+                                {grupo[0].precoFinal?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
                         <div className="flex flex-wrap gap-1.5 ml-11">
                           {grupo.map((p) => (
@@ -152,9 +159,16 @@ export default function BuscaProdutoInput({ value, onChange, produtos, onSelect,
                           )}
                         </div>
                       </div>
-                      <p className="text-sm font-bold text-gray-700 shrink-0">
-                        {p.precoCusto?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                      </p>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold text-gray-700">
+                          {p.precoCusto?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </p>
+                        {p.precoFinal ? (
+                          <p className="text-xs font-semibold text-emerald-600">
+                            {p.precoFinal?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </p>
+                        ) : null}
+                      </div>
                     </li>
                   ));
                 })}

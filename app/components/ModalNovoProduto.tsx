@@ -23,6 +23,7 @@ export default function ModalNovoProduto({ nomeInicial = "", onSalvar, onFechar 
     sku: "",
     marca: "",
     precoCusto: 0,
+    precoFinal: 0,
     fornecedorId: "",
     fornecedorNome: "",
     informacaoTecnica: "",
@@ -130,6 +131,16 @@ export default function ModalNovoProduto({ nomeInicial = "", onSalvar, onFechar 
                 type="number" min="0" step="0.01"
                 value={dados.precoCusto || ""}
                 onChange={(e) => set("precoCusto", parseFloat(e.target.value) || 0)}
+                placeholder="0,00"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Preço Final (R$)</label>
+              <input
+                className={INPUT}
+                type="number" min="0" step="0.01"
+                value={dados.precoFinal || ""}
+                onChange={(e) => set("precoFinal", parseFloat(e.target.value) || 0)}
                 placeholder="0,00"
               />
             </div>

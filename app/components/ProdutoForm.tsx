@@ -221,6 +221,18 @@ export default function ProdutoForm({ dados, onChange, produtoId, onImagemAtuali
               onChange={(e) => onChange("precoCusto", parseFloat(e.target.value) || 0)}
             />
           </Campo>
+          <Campo label="Preço Final (R$)">
+            <input
+              className={INPUT}
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0,00"
+              value={dados.precoFinal ?? ""}
+              onChange={(e) => onChange("precoFinal", parseFloat(e.target.value) || 0)}
+            />
+            <p className="text-[10px] text-gray-400 mt-1">Preço de venda ao cliente. Ao selecionar o produto no orçamento, este valor preencherá o campo "Valor Unitário".</p>
+          </Campo>
           <Campo label="Fornecedor">
             <select
               className={INPUT}
