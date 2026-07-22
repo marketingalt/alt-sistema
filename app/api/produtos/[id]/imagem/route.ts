@@ -3,7 +3,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { buscarProduto, salvarProduto } from "@/lib/storage";
-import { uploadFile, deleteFile } from "@/lib/storage-file-adapter";
+import { uploadFile, deleteFile, getPublicUrl } from "@/lib/storage-file-adapter";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "produtos");
 
@@ -28,9 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await writeFile(path.join(UPLOAD_DIR, nomeArquivo), buffer);
     }
 
-    const imagemUrl = process.env.VERCEL === "1"
-      ? nomeArquivo
-      : `/uploads/produtos/${nomeArquivo}`;
+    const imagemUrl = getPublicUrl("produtos", id, nomeArquivo);
 
     // Salva a imagem no registro do produto (cria entrada mínima se for novo)
     const produto = await buscarProduto(id);
