@@ -742,10 +742,14 @@ export default function ContasAPagarPage() {
             ))}
           </div>
           <div className="flex items-center gap-1 border-l border-gray-200 pl-2">
-            {[2026, 2027, 2028].map((a) => (
-              <button key={a} onClick={() => setAnoSel(a)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${anoSel === a ? "bg-gray-800 text-white" : "text-gray-500 hover:bg-gray-100"}`}>{a}</button>
-            ))}
+            {(() => {
+              const anos = [...new Set(contas.map((c) => new Date(c.dataVencimento + "T12:00:00").getFullYear()))].sort();
+              if (anos.length === 0) anos.push(anoSel);
+              return anos.map((a) => (
+                <button key={a} onClick={() => setAnoSel(a)}
+                  className={`px-2 py-1 rounded-md text-xs font-medium transition ${anoSel === a ? "bg-gray-200 text-gray-800" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}>{a}</button>
+              ));
+            })()}
           </div>
           <button onClick={() => navMes(1)} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
