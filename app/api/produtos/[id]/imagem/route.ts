@@ -32,9 +32,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     ? nomeArquivo // stored in blob, use URL returned from adapter
     : `/uploads/produtos/${nomeArquivo}`;
 
-  // Atualiza no storage só se o produto já existir (no caso de edição)
+  // Salva a imagem no registro do produto (cria entrada mínima se for novo)
   const produto = await buscarProduto(id);
-  if (produto) await salvarProduto({ ...produto, imagemUrl });
+  if (produto) {
+    await salvarProduto({ ...produto, imagemUrl });
+  } else {
+    // Produto novo — cria registro mínimo para persistir a imagem
+    await salvarProduto({ id, imagemUrl } as any);
+  }
 
   return NextResponse.json({ imagemUrl });
 }
