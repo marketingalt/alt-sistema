@@ -397,3 +397,19 @@ export interface MaterialOS {
   quantidade: number;
   separado: boolean;
 }
+
+// ── Recorrência Personalizada ─────────────────────
+
+export type UnidadeRecorrencia = "dia" | "semana" | "mes" | "ano";
+export type DiaSemana = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0=Domingo
+
+export interface RecorrenciaConfig {
+  intervalo: number;
+  unidade: UnidadeRecorrencia;
+  diasSemana?: DiaSemana[];
+  termino: {
+    tipo: "nunca" | "em" | "apos";
+    data?: string;     // DD/MM/AAAA quando tipo = "em"
+    ocorrencias?: number; // quando tipo = "apos"
+  };
+}

@@ -6,6 +6,8 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
 import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import { downloadCSV } from "@/lib/export-csv";
+import ModalRecorrenciaPersonalizada from "@/app/components/ModalRecorrenciaPersonalizada";
+import type { RecorrenciaConfig } from "@/app/types";
 
 interface Conta {
   id: string;
@@ -112,6 +114,17 @@ function statusEfetivo(conta: Conta): "pendente" | "vencido" | "pago" | "cancela
   return "pendente";
 }
 
+function formatPeriodicidade(c: Conta): string {
+  if (!c.recorrente) return "";
+  if (c.periodicidade === "personalizado") {
+    const val = (c as any).intervaloValor ?? 1;
+    const unidade = (c as any).intervaloUnidade ?? "dia";
+    const label: Record<string, string> = { dia: "dia(s)", mes: "mês(es)", ano: "ano(s)", semana: "semana(s)" };
+    return `↻ ${val} ${label[unidade] ?? unidade}`;
+  }
+  return `↻ ${c.periodicidade}`;
+}
+
 const STATUS_CONFIG = {
   pendente: { label: "Pendente", bg: "bg-yellow-50", text: "text-yellow-700", dot: "bg-yellow-400" },
   vencido:  { label: "Vencido",  bg: "bg-red-50",    text: "text-red-700",    dot: "bg-red-500" },
@@ -199,6 +212,7 @@ export default function ContasAPagarPage() {
   const [editando, setEditando] = useState<Conta | null>(null);
   const [form, setForm] = useState({ ...FORM_VAZIO });
   const [salvando, setSalvando] = useState(false);
+  const [showModalRecorrencia, setShowModalRecorrencia] = useState(false);
 
   const [boletoUploading, setBoletoUploading] = useState(false);
   const [boletoUrl, setBoletoUrl] = useState("");
@@ -475,6 +489,52 @@ export default function ContasAPagarPage() {
     } finally {
       setSalvando(false);
     }
+  }
+
+  function aplicarRecorrenciaPersonalizada(config: RecorrenciaConfig) {
+    const { intervalo, unidade, termino } = config;
+
+    let intervaloValor = intervalo;
+    let intervaloUnidade: "dia" | "mes" | "ano" = "dia";
+
+    if (unidade === "semana") {
+      intervaloValor = intervalo * 7;
+      intervaloUnidade = "dia";
+    } else {
+      intervaloUnidade = unidade;
+    }
+
+    let qtdParcelas: number;
+    if (termino.tipo === "apos") {
+      qtdParcelas = termino.ocorrencias ?? 12;
+    } else if (termino.tipo === "em") {
+      // Estima parcelas da data inicial até a data final
+      const hoje = new Date();
+      const fim = termino.data
+        ? new Date(termino.data.split("/").reverse().join("-") + "T12:00:00")
+        : new Date(hoje.getFullYear() + 1, hoje.getMonth(), hoje.getDate());
+      const diffMs = fim.getTime() - hoje.getTime();
+      if (intervaloUnidade === "dia") {
+        qtdParcelas = Math.max(1, Math.ceil(diffMs / (intervaloValor * 86400000)));
+      } else if (intervaloUnidade === "mes") {
+        qtdParcelas = Math.max(1, Math.ceil(diffMs / (intervalo * 30 * 86400000)));
+      } else {
+        qtdParcelas = Math.max(1, Math.ceil(diffMs / (intervalo * 365 * 86400000)));
+      }
+    } else {
+      qtdParcelas = 52; // "nunca" — default alto
+    }
+
+    setForm((f) => ({
+      ...f,
+      recorrente: true,
+      recorrentePersonalizado: true,
+      periodicidade: "personalizado",
+      intervaloValor,
+      intervaloUnidade,
+      qtdParcelas: Math.min(qtdParcelas, 120),
+    }));
+    setShowModalRecorrencia(false);
   }
 
   async function confirmarPagamento() {
@@ -866,7 +926,7 @@ export default function ContasAPagarPage() {
                             )}
                             {c.recorrente && (
                               <span className="text-[9px] font-semibold text-indigo-500 bg-indigo-50 px-1 py-0.5 rounded mt-0.5 inline-block">
-                                ↻ {c.periodicidade}
+                                {formatPeriodicidade(c)}
                               </span>
                             )}
                           </div>
@@ -1441,32 +1501,26 @@ export default function ContasAPagarPage() {
                             Usar predefinidas
                           </button>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-white rounded-xl border border-gray-200 p-3 flex items-center justify-between">
                           <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">A cada</label>
-                            <div className="flex gap-1">
-                              <input type="number" min="1" step="1" value={form.intervaloValor}
-                                onChange={(e) => setForm((f) => ({ ...f, intervaloValor: parseInt(e.target.value) || 1 }))}
-                                className="w-16 border border-gray-200 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
-                              <select value={form.intervaloUnidade}
-                                onChange={(e) => setForm((f) => ({ ...f, intervaloUnidade: e.target.value as "dia" | "mes" | "ano" }))}
-                                className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30">
-                                <option value="dia">Dia(s)</option>
-                                <option value="mes">Mês(es)</option>
-                                <option value="ano">Ano(s)</option>
-                              </select>
-                            </div>
+                            <p className="text-sm font-medium text-gray-800">
+                              A cada {form.intervaloValor} {form.intervaloUnidade === "dia" ? "dia(s)" : form.intervaloUnidade === "mes" ? "mês(es)" : "ano(s)"}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {form.qtdParcelas} parcelas · {form.periodicidade === "personalizado" ? "personalizado" : form.periodicidade}
+                            </p>
                           </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Total de parcelas</label>
-                            <input type="number" min="1" max="120" step="1" value={form.qtdParcelas}
-                              onChange={(e) => setForm((f) => ({ ...f, qtdParcelas: parseInt(e.target.value) || 1 }))}
-                              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30" />
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowModalRecorrencia(true)}
+                            className="text-xs font-semibold text-[#fb4d06] hover:underline flex items-center gap-1"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                            Editar
+                          </button>
                         </div>
-                        <p className="text-[10px] text-gray-400">
-                          Serão geradas {form.qtdParcelas} parcelas a cada {form.intervaloValor} {form.intervaloUnidade === "dia" ? "dia(s)" : form.intervaloUnidade === "mes" ? "mês(es)" : "ano(s)"}
-                        </p>
                       </div>
                     )}
                   </>
@@ -1513,7 +1567,7 @@ export default function ContasAPagarPage() {
                       {cfg.label}
                     </span>
                     {detalhe.recorrente && (
-                      <span className="text-[10px] font-semibold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded">↻ {detalhe.periodicidade}</span>
+                      <span className="text-[10px] font-semibold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded">{formatPeriodicidade(detalhe)}</span>
                     )}
                   </div>
                   <h2 className="text-base font-bold text-gray-900 truncate">
@@ -1748,12 +1802,24 @@ export default function ContasAPagarPage() {
                           : "—"}
                       </p>
                     </div>
-                    <div className="bg-gray-50 rounded-xl p-3">
-                      <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Criado em</p>
-                      <p className="text-sm font-semibold text-gray-800">
-                        {new Date(detalhe.createdAt + "T12:00:00").toLocaleDateString("pt-BR")}
-                      </p>
-                    </div>
+                    {detalhe.recorrente ? (
+                      <div className="bg-indigo-50 rounded-xl p-3 col-span-2">
+                        <p className="text-[10px] font-medium text-indigo-400 uppercase mb-1">Recorrência</p>
+                        <p className="text-sm font-semibold text-indigo-800">
+                          {detalhe.periodicidade === "personalizado"
+                            ? `A cada ${(detalhe as any).intervaloValor ?? 1} ${((detalhe as any).intervaloUnidade) === "dia" ? "dia(s)" : (detalhe as any).intervaloUnidade === "mes" ? "mês(es)" : "ano(s)"} · ${(detalhe as any).qtdParcelas ?? 12} parcelas`
+                            : `↻ ${detalhe.periodicidade}`
+                          }
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 rounded-xl p-3">
+                        <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Criado em</p>
+                        <p className="text-sm font-semibold text-gray-800">
+                          {new Date(detalhe.createdAt + "T12:00:00").toLocaleDateString("pt-BR")}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -2021,6 +2087,22 @@ export default function ContasAPagarPage() {
             setShowModalImportar(false);
             setImportPreview(null);
           }}
+        />
+      )}
+
+      {/* Modal de Recorrência Personalizada */}
+      {showModalRecorrencia && (
+        <ModalRecorrenciaPersonalizada
+          valorInicial={{
+            intervalo: form.intervaloValor,
+            unidade: form.intervaloUnidade === "dia" ? "dia" : form.intervaloUnidade,
+            termino: {
+              tipo: "apos",
+              ocorrencias: form.qtdParcelas,
+            },
+          }}
+          onSalvar={aplicarRecorrenciaPersonalizada}
+          onFechar={() => setShowModalRecorrencia(false)}
         />
       )}
 
