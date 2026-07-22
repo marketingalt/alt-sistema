@@ -58,7 +58,8 @@ export default function ProdutoForm({ dados, onChange, produtoId, onImagemAtuali
       onImagemAtualizada?.(imagemUrl);
     } catch (e) {
       console.error("Erro ao enviar imagem:", e);
-      alert("Erro ao enviar imagem.");
+      const msg = e instanceof Error ? e.message : "Erro desconhecido";
+      alert(`Erro ao enviar imagem: ${msg}`);
     } finally {
       setEnviandoImagem(false);
       if (inputImgRef.current) inputImgRef.current.value = "";
