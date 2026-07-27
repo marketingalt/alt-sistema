@@ -248,6 +248,7 @@ export interface Orcamento {
   status: StatusOrcamento;
   itens: ItemOrcamento[];
   tags?: string[]; // IDs dos projetos de Planejamento
+  logoOrcamento?: string; // Logo específica do orçamento (independente da logo global)
   documentos?: DocumentoFornecedor[];
   createdAt: string;
   versoes?: VersaoOrcamento[];

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useRef, useState, useCallback } from "react";
 import type { Orcamento, ItemOrcamento } from "@/app/types";
 
 const ALT_EMPRESA = "ALT. MARKETING E PUBLICIDADE";
@@ -23,58 +23,32 @@ type Props = {
   onUpdateItem: (itemId: string, campo: keyof ItemOrcamento, valor: string | number | boolean | undefined) => void;
   onDownloadPdf: () => void;
   gerandoPdf: boolean;
-  logoBase64?: string | null;
-  onLogoChange?: (b64: string | null) => void;
 };
 
-export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateItem, onDownloadPdf, gerandoPdf, logoBase64: externalLogo, onLogoChange }: Props) {
+export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateItem, onDownloadPdf, gerandoPdf }: Props) {
   const imgRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [hoveredImg, setHoveredImg] = useState<string | null>(null);
-  const [logoBase64, setLogoBase64] = useState<string | null>(null);
+  const [logoOrcamento, setLogoOrcamento] = useState<string | null | undefined>(orcamento.logoOrcamento);
   const [hoverLogo, setHoverLogo] = useState(false);
   const logoSelRef = useRef<HTMLInputElement | null>(null);
 
-  // Sincroniza com a prop externa (vinda da página pai)
-  const logo = externalLogo ?? logoBase64;
-
-  // Carrega a logo salva (apenas se não veio do pai)
-  useEffect(() => {
-    if (externalLogo !== undefined) return;
-    fetch("/api/admin/logo")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.logoBase64) setLogoBase64(data.logoBase64);
-      })
-      .catch(() => {});
-  }, [externalLogo]);
+  const logo = logoOrcamento;
 
   // Upload de logo
   const uploadLogo = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
       const b64 = reader.result as string;
-      setLogoBase64(b64);
-      onLogoChange?.(b64);
-      fetch("/api/admin/logo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logoBase64: b64 }),
-      }).then((res) => {
-        if (!res.ok) {
-          console.warn("[Logo] Falha ao salvar no servidor, status:", res.status);
-        }
-      }).catch(() => {
-        console.warn("[Logo] Erro de rede ao salvar logo");
-      });
+      setLogoOrcamento(b64);
+      onUpdateCampo("logoOrcamento", b64);
     };
     reader.readAsDataURL(file);
-  }, [onLogoChange]);
+  }, [onUpdateCampo]);
 
   const removerLogo = useCallback(() => {
-    setLogoBase64(null);
-    onLogoChange?.(null);
-    fetch("/api/admin/logo", { method: "DELETE" }).catch(() => {});
-  }, [onLogoChange]);
+    setLogoOrcamento(null);
+    onUpdateCampo("logoOrcamento", "");
+  }, [onUpdateCampo]);
 
   const totalProdutos = orcamento.itens.reduce((a, i) => a + (i.total || 0), 0);
   const totalServicos = orcamento.manuseio && orcamento.custoManuseio ? orcamento.custoManuseio : 0;

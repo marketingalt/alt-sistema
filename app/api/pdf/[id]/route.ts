@@ -23,13 +23,16 @@ async function gerarPdfResponse(req: NextRequest, params: Promise<{ id: string }
       return NextResponse.json({ error: "Orçamento não encontrado" }, { status: 404 });
     }
 
-    // Aceita logo do body (enviado pelo cliente) ou do settings (servidor)
+    // Aceita logo: body > orçamento próprio > settings global
     let logoBase64: string | undefined;
     if (usePostBody) {
       try {
         const body = await req.json();
         logoBase64 = body.logoBase64 || undefined;
       } catch {}
+    }
+    if (!logoBase64) {
+      logoBase64 = orcamento.logoOrcamento || undefined;
     }
     if (!logoBase64) {
       const settings = await getSystemSettings();
