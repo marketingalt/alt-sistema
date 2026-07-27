@@ -541,10 +541,14 @@ function AbaConfiguracoes() {
     setSalvo(false);
     setErro("");
     try {
+      // Preserva logos salvas por componentes independentes (LogoUpload, LogoOrcamentoUpload)
+      const currentRes = await fetch("/api/admin/configuracoes");
+      const currentSettings: SystemSettings = await currentRes.json();
+      const merged = { ...currentSettings, ...settings, logoBase64: currentSettings.logoBase64, logoOrcamentoPadrao: currentSettings.logoOrcamentoPadrao };
       const res = await fetch("/api/admin/configuracoes", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(merged),
       });
       if (!res.ok) throw new Error("Erro ao salvar");
       setSalvo(true);
