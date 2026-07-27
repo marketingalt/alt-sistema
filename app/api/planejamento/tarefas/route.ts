@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dbGet, dbSet } from "@/lib/storage-adapter";
+import { atualizarOrcamentoPorStatusTarefa } from "@/lib/storage";
 import type { Tarefa } from "@/app/types";
 
 export const dynamic = "force-dynamic";
@@ -79,15 +80,25 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Tarefa não encontrada." }, { status: 404 });
   }
 
-  tarefas[idx] = {
+  const oldStatusId = tarefas[idx].statusId;
+
+  const tarefaAtualizada: Tarefa = {
     ...tarefas[idx],
     ...campos,
     id,
     updatedAt: agora(),
   };
 
+  tarefas[idx] = tarefaAtualizada;
   await dbSet("planejamento-tarefas", tarefas);
-  return NextResponse.json(tarefas[idx]);
+
+  // Se o status foi alterado, verifica se precisa atualizar o orçamento vinculado
+  const novoStatusId = campos.statusId;
+  if (novoStatusId && novoStatusId !== oldStatusId) {
+    atualizarOrcamentoPorStatusTarefa(tarefaAtualizada).catch(console.error);
+  }
+
+  return NextResponse.json(tarefaAtualizada);
 }
 
 // ── DELETE /api/planejamento/tarefas ──

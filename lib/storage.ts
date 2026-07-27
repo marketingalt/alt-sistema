@@ -301,6 +301,34 @@ export async function moverTarefaPlanejamentoParaConcluido(orcamento: Orcamento)
   }
 }
 
+/** Se a tarefa do Planejamento for movida para um status chamado "EM PRODUÇÃO",
+ *  atualiza automaticamente o orçamento vinculado para "Em produção" */
+export async function atualizarOrcamentoPorStatusTarefa(tarefa: Tarefa): Promise<void> {
+  if (!tarefa.customFields?.orcamentoId) return;
+
+  const projetos = await dbGet<Projeto[]>("planejamento", []);
+  const projeto = projetos.find((p) => p.id === tarefa.projectId);
+  if (!projeto) return;
+
+  const statusAtual = projeto.statuses.find((s) => s.id === tarefa.statusId);
+  if (!statusAtual || statusAtual.nome.toUpperCase() !== "EM PRODUÇÃO") return;
+
+  const orcamentos = await dbGet<Orcamento[]>("orcamentos", []);
+  const idx = orcamentos.findIndex((o) => o.id === tarefa.customFields!.orcamentoId);
+  if (idx === -1) return;
+
+  const orcamento = orcamentos[idx];
+  if (orcamento.status === "Em produção") return; // já está
+
+  orcamentos[idx] = {
+    ...orcamento,
+    status: "Em produção" as const,
+    updatedAt: new Date().toISOString(),
+  };
+
+  await dbSet("orcamentos", orcamentos);
+}
+
 // ── Ordem de Serviço (OS) ──────────────────────
 
 async function getOrdensServico(): Promise<OrdemServico[]> {
