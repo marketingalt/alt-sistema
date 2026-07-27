@@ -486,8 +486,8 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
               );
             })}
 
-            {/* Linha de frete/logística */}
-            {freteVal && (
+            {/* Linha de frete/logística — só aparece se há valor de frete */}
+            {freteVal && valorFrete > 0 && (
               <div className="flex py-1 px-1.5 items-center border-b border-gray-100 text-[8px] bg-blue-50" style={{ minHeight: 32 }}>
                 <div className="text-gray-400 text-center" style={{ width: COL_W.img }}> </div>
                 <span className="flex-1 font-bold text-blue-800 text-[8px]">LOGÍSTICA DE ENTREGA</span>
