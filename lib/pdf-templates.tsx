@@ -201,7 +201,7 @@ function HeaderCliente({ orcamento, logoBase64 }: { orcamento: Orcamento; logoBa
       <View style={base.header}>
         <View style={base.headerLeft}>
           {logoBase64 ? (
-            <Image src={toImgSrc(logoBase64)} style={{ maxWidth: 100, maxHeight: 32 }} />
+            <Image src={toImgSrc(logoBase64)} style={{ width: 300, height: 100, objectFit: "contain" }} />
           ) : (
             <>
               <Text style={base.logoText}>alt.</Text>
@@ -286,7 +286,7 @@ const v = StyleSheet.create({
   headerRow: { flexDirection: "row", marginBottom: 4 },
   hLabel: { fontSize: 6.5, color: "#9ca3af", width: 95 },
   hValue: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#ffffff", flex: 1 },
-  headerLogo: { width: 64, alignItems: "flex-end", justifyContent: "center" },
+  headerLogo: { width: 300, alignItems: "flex-end", justifyContent: "center" },
   vLogoText: { fontSize: 28, fontFamily: "Helvetica-Bold", color: "#D4AF37" },
   vLogoSub: { fontSize: 6.5, color: "#9ca3af" },
   strip: {
@@ -482,7 +482,7 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
             </View>
             <View style={v.headerLogo}>
               {logoBase64 ? (
-                <Image src={toImgSrc(logoBase64)} style={{ maxWidth: 64, maxHeight: 48 }} />
+                <Image src={toImgSrc(logoBase64)} style={{ width: 300, height: 100, objectFit: "contain" }} />
               ) : (
                 <>
                   <Text style={v.vLogoText}>alt.</Text>
@@ -678,7 +678,7 @@ export function PdfOrdemServico({ orcamento, logoBase64 }: { orcamento: Orcament
         <View style={os.header}>
           <View>
             {logoBase64 ? (
-              <Image src={toImgSrc(logoBase64)} style={{ maxWidth: 100, maxHeight: 28 }} />
+              <Image src={toImgSrc(logoBase64)} style={{ width: 300, height: 100, objectFit: "contain" }} />
             ) : (
               <>
                 <Text style={os.logoText}>alt.</Text>
