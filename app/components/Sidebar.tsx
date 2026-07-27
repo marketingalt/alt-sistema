@@ -46,6 +46,16 @@ const NAV: NavItem[] = [
     ),
   },
   {
+    label: "Faturamentos",
+    href: "/financeiro/faturamentos",
+    permKey: "faturamento",
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
+  {
     label: "RH",
     href: "/rh",
     permKey: "rh",
@@ -120,15 +130,6 @@ const FINANCEIRO_SUBITENS = [
     ),
   },
   {
-    label: "Faturamentos",
-    href: "/financeiro/faturamentos",
-    icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    ),
-  },
-  {
     label: "Vendas e Comissões",
     href: "/financeiro/vendas-comissoes",
     icon: (
@@ -180,7 +181,7 @@ export default function Sidebar() {
   }
 
   // Ordem dos itens do sidebar (carregada do localStorage)
-  const ORDEM_PADRAO: string[] = ["visao-geral", "clientes", "logistica", "rh", "orcamentos", "planejamento", "administracao", "financeiro", "novo-orcamento"];
+  const ORDEM_PADRAO: string[] = ["visao-geral", "clientes", "logistica", "faturamentos", "rh", "orcamentos", "planejamento", "administracao", "financeiro", "novo-orcamento"];
   const [sidebarOrdem, setSidebarOrdem] = useState<string[]>(ORDEM_PADRAO);
 
   useEffect(() => {
@@ -421,6 +422,7 @@ export default function Sidebar() {
             "visao-geral": () => renderNavItem(navItemMap.get("visao-geral")!),
             "clientes": () => renderNavItem(navItemMap.get("clientes")!),
             "logistica": () => renderNavItem(navItemMap.get("logistica")!),
+            "faturamentos": () => renderNavItem(navItemMap.get("faturamentos")!),
             "rh": () => renderNavItem(navItemMap.get("rh")!),
             "orcamentos": () => (
               orcamentosPermitido ? (
