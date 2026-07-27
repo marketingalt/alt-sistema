@@ -15,7 +15,7 @@ const INPUT_CLS =
   "bg-transparent border-none outline-none focus:outline-dashed focus:outline-1 focus:outline-[#fb4d06]/40 hover:outline-dashed hover:outline-1 hover:outline-gray-200 px-0.5 -mx-0.5 rounded transition-all cursor-text";
 
 // ─── Botão de export ───
-const COL_W = { img: 36, acab: 58, kit: 52, qtd: 30, und: 26, vun: 74, vtot: 82 };
+const COL_W = { img: 36, kit: 52, qtd: 30, und: 26, vun: 74, vtot: 82 };
 
 type Props = {
   orcamento: Orcamento;
@@ -281,7 +281,6 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
             <div className="flex bg-gray-700 py-1 px-1.5 rounded-t" style={{ fontSize: 7 }}>
               <span className="font-bold text-gray-100" style={{ width: COL_W.img }}> </span>
               <span className="font-bold text-gray-100 flex-1">MATERIAL / OPERACIONAL</span>
-              <span className="font-bold text-gray-100 text-right" style={{ width: COL_W.acab }}>ACABAMENTO</span>
               <span className="font-bold text-gray-100 text-right" style={{ width: COL_W.kit }}>KIT</span>
               <span className="font-bold text-gray-100 text-right" style={{ width: COL_W.qtd }}>QTD</span>
               <span className="font-bold text-gray-100 text-right" style={{ width: COL_W.und }}>UN.</span>
@@ -395,19 +394,15 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                         + descrição
                       </button>
                     )}
+                    {item.categoria !== "servico" && item.acabamento && item.acabamento !== "—" && (
+                      <span className="inline-flex items-center gap-1 mt-0.5 text-[6.5px] text-gray-400 font-medium">
+                        <svg className="w-2.5 h-2.5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4z" />
+                        </svg>
+                        {item.acabamento}
+                      </span>
+                    )}
                   </div>
-
-                  {/* Acabamento */}
-                  <select
-                    className={`${INPUT_CLS} text-gray-700`}
-                    style={{ width: COL_W.acab, fontSize: 8 }}
-                    value={item.acabamento}
-                    onChange={(e) => onUpdateItem(item.id, "acabamento", e.target.value)}
-                  >
-                    {["Silk", "DTF", "Bordado", "Laser", "Verniz UV", "Tampografia", "Sublimação", "Gravação em relevo", "Outro"].map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
 
                   {/* Kit */}
                   <input
@@ -469,7 +464,6 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                       <span className="flex-1 text-emerald-700">
                         {v.descricao || item.item}
                       </span>
-                      <span className="text-emerald-600 text-right" style={{ width: COL_W.acab, fontSize: 7.5 }}>—</span>
                       <span className="text-emerald-600 text-right" style={{ width: COL_W.kit, fontSize: 7.5 }}>—</span>
                       <span className="text-emerald-700 text-right font-medium" style={{ width: COL_W.qtd, fontSize: 7.5 }}>
                         {v.quantidade}
@@ -495,7 +489,6 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
               <div className="flex py-1 px-1.5 items-center border-b border-gray-100 text-[8px] bg-blue-50" style={{ minHeight: 32 }}>
                 <div className="text-gray-400 text-center" style={{ width: COL_W.img }}> </div>
                 <span className="flex-1 font-bold text-blue-800 text-[8px]">LOGÍSTICA DE ENTREGA</span>
-                <span className="text-gray-500" style={{ width: COL_W.acab, fontSize: 8 }}>Frete</span>
                 <span className="text-gray-500" style={{ width: COL_W.kit, fontSize: 8 }}>—</span>
                 <span className="text-gray-700 text-right" style={{ width: COL_W.qtd, fontSize: 8 }}>1</span>
                 <span className="text-gray-500 text-right" style={{ width: COL_W.und, fontSize: 8 }}>—</span>
