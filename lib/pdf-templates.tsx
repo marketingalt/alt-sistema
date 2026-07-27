@@ -562,7 +562,7 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
           })}
 
           {/* Logística */}
-          {freteVal && (
+          {freteVal && valorFrete > 0 && (
             <View style={[v.row, v.rowFrete]} wrap={false}>
               <View style={v.imgBox} />
               <Text style={[v.td, { flex: 1, fontFamily: "Helvetica-Bold", color: "#1e40af" }]}>
