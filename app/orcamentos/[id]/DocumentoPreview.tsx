@@ -190,7 +190,7 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                 {logo ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={logo} className="h-auto object-contain" style={{ width: 85 }} alt="Logo" />
+                    <img src={logo} className="h-auto object-contain" style={{ width: 65 }} alt="Logo" />
                     {hoverLogo && (
                       <button
                         onClick={(e) => { e.stopPropagation(); removerLogo(); }}
