@@ -182,7 +182,7 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
               </div>
               {/* Logo */}
               <div
-                className="relative w-[300px] flex flex-col items-end justify-center ml-4 cursor-pointer"
+                className="relative flex flex-col items-end justify-center ml-4 cursor-pointer"
                 onMouseEnter={() => setHoverLogo(true)}
                 onMouseLeave={() => setHoverLogo(false)}
                 onClick={() => logoSelRef.current?.click()}
@@ -190,7 +190,7 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                 {logo ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={logo} className="h-[100px] w-[300px] object-contain" alt="Logo" />
+                    <img src={logo} className="h-auto object-contain" style={{ width: 85 }} alt="Logo" />
                     {hoverLogo && (
                       <button
                         onClick={(e) => { e.stopPropagation(); removerLogo(); }}
