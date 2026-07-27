@@ -30,7 +30,7 @@ export interface SystemSettings {
   osCamposDinamicos?: CampoDinamicoDef[];
 }
 
-export type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "planejamento" | "rh";
+export type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "planejamento" | "rh" | "faturamento";
 
 export interface ClerkUserWithRole {
   id: string;
@@ -123,9 +123,9 @@ export async function getAllUsers(): Promise<ClerkUserWithRole[]> {
       const role = (u.publicMetadata?.role as "admin" | "user") || "user";
       const rawPerms = u.publicMetadata?.permissoes as string[] | undefined;
       const permissoes: Permissao[] = role === "admin"
-        ? ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "planejamento", "rh"]
+        ? ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "planejamento", "rh", "faturamento"]
         : Array.isArray(rawPerms) ? rawPerms.filter((p): p is Permissao =>
-            ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "planejamento", "rh"].includes(p)
+            ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "planejamento", "rh", "faturamento"].includes(p)
           ) : [];
       return {
         id: u.id,

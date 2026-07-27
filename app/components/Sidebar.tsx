@@ -6,7 +6,7 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import Image from "next/image";
 import { useState, useEffect, useMemo, useRef } from "react";
 
-type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "planejamento" | "rh";
+type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "planejamento" | "rh" | "faturamento";
 
 interface NavItem {
   label: string;
@@ -120,6 +120,15 @@ const FINANCEIRO_SUBITENS = [
     ),
   },
   {
+    label: "Faturamentos",
+    href: "/financeiro/faturamentos",
+    icon: (
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
+  {
     label: "Vendas e Comissões",
     href: "/financeiro/vendas-comissoes",
     icon: (
@@ -190,7 +199,7 @@ export default function Sidebar() {
 
   // Permissões do usuário (admins têm todas)
   const permissoes = useMemo<Set<Permissao>>(() => {
-    if (isAdmin) return new Set(["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "planejamento", "rh"]);
+    if (isAdmin) return new Set(["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "planejamento", "rh", "faturamento"]);
     const raw = user?.publicMetadata?.permissoes;
     if (Array.isArray(raw)) return new Set(raw as Permissao[]);
     return new Set();
