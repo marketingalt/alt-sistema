@@ -24,6 +24,7 @@ export interface SystemSettings {
     dominioPermitido: string;
   };
   logoBase64?: string;
+  logoOrcamentoPadrao?: string; // Logo padrão para orçamentos (cada orçamento pode ter a sua)
   bancos?: string[];
   categorias?: string[];
   areas?: string[];

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import type { Orcamento, ItemOrcamento } from "@/app/types";
 
 const ALT_EMPRESA = "ALT. MARKETING E PUBLICIDADE";
@@ -29,10 +29,22 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
   const imgRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [hoveredImg, setHoveredImg] = useState<string | null>(null);
   const [logoOrcamento, setLogoOrcamento] = useState<string | null | undefined>(orcamento.logoOrcamento);
+  const [logoPadrao, setLogoPadrao] = useState<string | null>(null);
   const [hoverLogo, setHoverLogo] = useState(false);
   const logoSelRef = useRef<HTMLInputElement | null>(null);
 
-  const logo = logoOrcamento;
+  // Carrega a logo padrão de orçamentos (fallback quando o orçamento não tem a sua)
+  useEffect(() => {
+    if (orcamento.logoOrcamento) return;
+    fetch("/api/admin/logo-orcamento")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.logoBase64) setLogoPadrao(data.logoBase64);
+      })
+      .catch(() => {});
+  }, [orcamento.logoOrcamento]);
+
+  const logo = logoOrcamento ?? logoPadrao;
 
   // Upload de logo
   const uploadLogo = useCallback((file: File) => {
