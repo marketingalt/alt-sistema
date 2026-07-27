@@ -44,7 +44,7 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
       .catch(() => {});
   }, [orcamento.logoOrcamento]);
 
-  const logo = logoOrcamento ?? logoPadrao;
+  const logo = logoOrcamento || logoPadrao;
 
   // Upload de logo
   const uploadLogo = useCallback((file: File) => {
