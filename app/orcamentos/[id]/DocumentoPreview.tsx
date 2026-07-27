@@ -353,23 +353,25 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                       onChange={(e) => onUpdateItem(item.id, "item", e.target.value)}
                       placeholder="Nome do item"
                     />
-                    {/* Cor do item */}
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <input
-                        type="color"
-                        className="w-3 h-3 p-0 border-0 cursor-pointer rounded"
-                        value={item.cor || "#000000"}
-                        onChange={(e) => onUpdateItem(item.id, "cor", e.target.value)}
-                        title="Cor do item"
-                      />
-                      <input
-                        className={`${INPUT_CLS} text-gray-400 w-16`}
-                        style={{ fontSize: 6.5 }}
-                        value={item.cor || ""}
-                        onChange={(e) => onUpdateItem(item.id, "cor", e.target.value)}
-                        placeholder="Cor"
-                      />
-                    </div>
+                    {/* Cor do item (só para brindes/produtos) */}
+                    {item.categoria !== "servico" && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <input
+                          type="color"
+                          className="w-3 h-3 p-0 border-0 cursor-pointer rounded"
+                          value={item.cor || "#000000"}
+                          onChange={(e) => onUpdateItem(item.id, "cor", e.target.value)}
+                          title="Cor do item"
+                        />
+                        <input
+                          className={`${INPUT_CLS} text-gray-400 w-16`}
+                          style={{ fontSize: 6.5 }}
+                          value={item.cor || ""}
+                          onChange={(e) => onUpdateItem(item.id, "cor", e.target.value)}
+                          placeholder="Cor"
+                        />
+                      </div>
+                    )}
                     {item.ncm && (
                       <span className="text-[6px] text-gray-400 font-mono mt-0.5 block">
                         NCM: {item.ncm}
