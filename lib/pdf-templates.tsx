@@ -260,9 +260,9 @@ export function PdfEspecificacoes({ orcamento, logoBase64 }: { orcamento: Orcame
               <View style={base.tdItem}>
                 <Text>{item.item}</Text>
                 {item.ncm ? <Text style={{ fontSize: 6.5, color: "#9ca3af", marginTop: 1 }}>NCM: {item.ncm}</Text> : null}
-                {item.categoria !== "servico" && item.acabamento && item.acabamento !== "—" ? (
-                  <Text style={{ fontSize: 6.5, color: "#9ca3af", marginTop: 1, fontFamily: "Helvetica-Bold" }}>
-                    {item.acabamento}
+                {item.categoria !== "servico" && (item.acabamento && item.acabamento !== "—" || item.kit && item.kit !== "—") ? (
+                  <Text style={{ fontSize: 6.5, color: "#9ca3af", marginTop: 1 }}>
+                    {[item.acabamento, item.kit].filter(Boolean).filter(v => v !== "—").join(" · ")}
                   </Text>
                 ) : null}
               </View>
@@ -545,9 +545,9 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
                   {item.descricao ? (
                     <Text style={{ fontSize: 7, color: "#6b7280", marginTop: 2, lineHeight: 1.3 }}>{item.descricao}</Text>
                   ) : null}
-                  {item.categoria !== "servico" && item.acabamento && item.acabamento !== "—" ? (
-                    <Text style={{ fontSize: 6.5, color: "#9ca3af", marginTop: 1, fontFamily: "Helvetica-Bold" }}>
-                      {item.acabamento}
+                  {item.categoria !== "servico" && (item.acabamento && item.acabamento !== "—" || item.kit && item.kit !== "—") ? (
+                    <Text style={{ fontSize: 6.5, color: "#9ca3af", marginTop: 1 }}>
+                      {[item.acabamento, item.kit].filter(Boolean).filter(v => v !== "—").join(" · ")}
                     </Text>
                   ) : null}
                 </View>
@@ -765,9 +765,9 @@ export function PdfOrdemServico({ orcamento, logoBase64 }: { orcamento: Orcament
             <View key={item.id} style={[os.row, idx % 2 !== 0 ? os.rowAlt : {}]} wrap={false}>
               <Text style={os.tdRef}>{item.referencia}{item.ncm ? ` · NCM ${item.ncm}` : ""}</Text>
               <Text style={os.tdItem}>{item.item}</Text>
-              {item.categoria !== "servico" && item.acabamento && item.acabamento !== "—" ? (
-                <Text style={{ fontSize: 6.5, color: "#9ca3af", marginTop: 1, fontFamily: "Helvetica-Bold" }}>
-                  {item.acabamento}
+              {item.categoria !== "servico" && (item.acabamento && item.acabamento !== "—" || item.kit && item.kit !== "—") ? (
+                <Text style={{ fontSize: 6.5, color: "#9ca3af", marginTop: 1 }}>
+                  {[item.acabamento, item.kit].filter(Boolean).filter(v => v !== "—").join(" · ")}
                 </Text>
               ) : null}
               <Text style={os.tdDesc}>{item.descricao}</Text>

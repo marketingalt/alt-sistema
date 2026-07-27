@@ -381,12 +381,24 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                         + descrição
                       </button>
                     )}
-                    {item.categoria !== "servico" && item.acabamento && item.acabamento !== "—" && (
-                      <span className="inline-flex items-center gap-1 mt-0.5 text-[6.5px] text-gray-400 font-medium">
-                        <svg className="w-2.5 h-2.5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4z" />
-                        </svg>
-                        {item.acabamento}
+                    {item.categoria !== "servico" && (
+                      <span className="inline-flex items-center gap-2 mt-0.5 text-[6.5px] text-gray-400 font-medium flex-wrap">
+                        {item.acabamento && item.acabamento !== "—" && (
+                          <>
+                            <svg className="w-2.5 h-2.5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4z" />
+                            </svg>
+                            {item.acabamento}
+                          </>
+                        )}
+                        {item.kit && item.kit !== "—" && (
+                          <>
+                            <svg className="w-2.5 h-2.5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                            {item.kit}
+                          </>
+                        )}
                       </span>
                     )}
                   </div>
