@@ -213,6 +213,9 @@ export default function ContasAPagarPage() {
   const [form, setForm] = useState({ ...FORM_VAZIO });
   const [salvando, setSalvando] = useState(false);
   const [showModalRecorrencia, setShowModalRecorrencia] = useState(false);
+  const [modalEditarRecorrente, setModalEditarRecorrente] = useState(false);
+  const [acaoRecorrente, setAcaoRecorrente] = useState<"this" | "all" | "thisAndFuture" | null>(null);
+  const [editandoRecorrente, setEditandoRecorrente] = useState<Conta | null>(null);
 
   const [boletoUploading, setBoletoUploading] = useState(false);
   const [boletoUrl, setBoletoUrl] = useState("");
@@ -420,6 +423,14 @@ export default function ContasAPagarPage() {
   }
 
   function abrirEditar(c: Conta) {
+    // Se fizer parte de uma série recorrente, pergunta como editar
+    const ehRecorrente = c.recorrente || (c as any)._parcelaDe;
+    if (ehRecorrente) {
+      setEditandoRecorrente(c);
+      setModalEditarRecorrente(true);
+      return;
+    }
+
     setEditando(c);
     setForm({
       dataVencimento: c.dataVencimento, fornecedor: c.fornecedor, fornecedorId: c.fornecedorId ?? "", descricao: c.descricao,
@@ -449,6 +460,30 @@ export default function ContasAPagarPage() {
     });
   }
 
+  function continuarEditarRecorrente(acao: "this" | "all" | "thisAndFuture") {
+    setAcaoRecorrente(acao);
+    setModalEditarRecorrente(false);
+    const c = editandoRecorrente!;
+    setEditando(c);
+    setForm({
+      dataVencimento: c.dataVencimento, fornecedor: c.fornecedor, fornecedorId: c.fornecedorId ?? "", descricao: c.descricao,
+      valor: String(c.valor), modalidade: c.modalidade, banco: c.banco, area: c.area,
+      categoria: c.categoria, obs: c.obs ?? "",
+      recorrente: c.recorrente ?? false, periodicidade: c.periodicidade ?? "mensal",
+      recorrentePersonalizado: (c as any).periodicidade === "personalizado",
+      intervaloValor: (c as any).intervaloValor ?? 30,
+      intervaloUnidade: (c as any).intervaloUnidade ?? "dia",
+      qtdParcelas: (c as any).qtdParcelas ?? 12,
+      ordemServicoId: c.ordemServicoId ?? "",
+      cliente: c.cliente ?? "",
+      status: c.status,
+      dataPagamento: c.dataPagamento ?? "",
+    });
+    setBoletoUrl(c.boletoUrl ?? "");
+    setEditandoLoteItens(c.isLote ? (c.loteItens || []).map((item) => ({ ...item })) : []);
+    setModalForm(true);
+  }
+
   async function salvarConta() {
     if (!form.dataVencimento) return;
     if (!editando?.isLote && !form.descricao.trim()) return;
@@ -467,15 +502,29 @@ export default function ContasAPagarPage() {
     if (editando?.isLote) {
       payload.loteItens = editandoLoteItens;
     }
+    // Propaga o modo de edição para a API quando for conta recorrente
+    if (acaoRecorrente && editando) {
+      payload._updateMode = acaoRecorrente;
+      payload._updateModeRef = (editando as any)._parcelaDe || editando.id;
+    }
     try {
       if (editando) {
         const res = await fetch(`/api/contas-a-pagar/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         const data = await res.json();
-        setContas((prev) => prev.map((c) =>
-          c.id === editando.id
-            ? { ...c, ...payload, ...(data.fluxoCaixaId ? { fluxoCaixaId: data.fluxoCaixaId } : {}) } as Conta
-            : c
-        ));
+        // Se propagou para várias, atualiza todas na lista local
+        if (acaoRecorrente && data.contasAtualizadas) {
+          setContas((prev) => prev.map((c) => {
+            const atualizada = data.contasAtualizadas.find((a: any) => a.id === c.id);
+            return atualizada ? { ...c, ...atualizada } as Conta : c;
+          }));
+        } else {
+          setContas((prev) => prev.map((c) =>
+            c.id === editando.id
+              ? { ...c, ...payload, ...(data.fluxoCaixaId ? { fluxoCaixaId: data.fluxoCaixaId } : {}) } as Conta
+              : c
+          ));
+        }
+        setAcaoRecorrente(null);
       } else {
         const res = await fetch("/api/contas-a-pagar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         const result = await res.json();
@@ -2092,6 +2141,47 @@ export default function ContasAPagarPage() {
             setImportPreview(null);
           }}
         />
+      )}
+
+      {/* Modal de Edição de Conta Recorrente — escolher escopo */}
+      {modalEditarRecorrente && editandoRecorrente && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40" onClick={() => setModalEditarRecorrente(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Editar conta recorrente</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Esta conta faz parte de uma série de parcelas. Como deseja editar?
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => continuarEditarRecorrente("this")}
+                className="text-left w-full border border-gray-200 rounded-xl p-4 hover:border-[#fb4d06]/40 hover:bg-orange-50/50 transition"
+              >
+                <span className="font-semibold text-gray-900 block">Alterar apenas esta</span>
+                <span className="text-sm text-gray-500">As outras parcelas da série não serão afetadas.</span>
+              </button>
+              <button
+                onClick={() => continuarEditarRecorrente("thisAndFuture")}
+                className="text-left w-full border border-gray-200 rounded-xl p-4 hover:border-[#fb4d06]/40 hover:bg-orange-50/50 transition"
+              >
+                <span className="font-semibold text-gray-900 block">Alterar esta e as seguintes</span>
+                <span className="text-sm text-gray-500">Todas as parcelas a partir desta serão alteradas.</span>
+              </button>
+              <button
+                onClick={() => continuarEditarRecorrente("all")}
+                className="text-left w-full border border-gray-200 rounded-xl p-4 hover:border-[#fb4d06]/40 hover:bg-orange-50/50 transition"
+              >
+                <span className="font-semibold text-gray-900 block">Alterar todas</span>
+                <span className="text-sm text-gray-500">Todas as parcelas da série serão alteradas, incluindo as anteriores.</span>
+              </button>
+            </div>
+            <button
+              onClick={() => { setModalEditarRecorrente(false); setEditandoRecorrente(null); }}
+              className="mt-6 w-full text-sm text-gray-400 hover:text-gray-600 transition"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Modal de Recorrência Personalizada */}
