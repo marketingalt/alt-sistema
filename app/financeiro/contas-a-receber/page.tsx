@@ -8,6 +8,7 @@ import { downloadCSV } from "@/lib/export-csv";
 import { useUser } from "@clerk/nextjs";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
 import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
+import CampoMoeda from "@/app/components/CampoMoeda";
 import type { Orcamento, ItemOrcamento, OrdemServico } from "@/app/types";
 
 // ── Error boundary para capturar erro real ──────────────────────────────────────
@@ -63,6 +64,7 @@ interface RegistroFaturamento {
   pago?: boolean;
   dataPagamento?: string;
   ordemServicoId?: string;
+  comprovanteId?: string;
   userId?: string;
   userName?: string;
   participantes?: { userId: string; nome: string }[];
@@ -437,13 +439,10 @@ function NovoLancamentoModal({ onClose, onSalvar, ordensServico = [] }: NovoLanc
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-600">Valor Aprovado (R$) *</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
+              <CampoMoeda
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
-                value={form.valorAprovadoManual || ""}
-                onChange={(e) => set("valorAprovadoManual", parseFloat(e.target.value) || 0)}
+                value={form.valorAprovadoManual}
+                onChange={(v) => set("valorAprovadoManual", v)}
                 required
               />
             </div>
@@ -464,13 +463,10 @@ function NovoLancamentoModal({ onClose, onSalvar, ordensServico = [] }: NovoLanc
               <label className="text-xs font-medium text-gray-600">Imposto</label>
               <div className="flex gap-2 items-center">
                 <div className="flex-1 relative">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <CampoMoeda
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-7"
-                    value={form.imposto || ""}
-                    onChange={(e) => set("imposto", parseFloat(e.target.value) || 0)}
+                    value={form.imposto}
+                    onChange={(v) => set("imposto", v)}
                   />
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">R$</span>
                 </div>
@@ -498,13 +494,10 @@ function NovoLancamentoModal({ onClose, onSalvar, ordensServico = [] }: NovoLanc
               <label className="text-xs font-medium text-gray-600">Comissão</label>
               <div className="flex gap-2 items-center">
                 <div className="flex-1 relative">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <CampoMoeda
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-7"
-                    value={form.comissao || ""}
-                    onChange={(e) => set("comissao", parseFloat(e.target.value) || 0)}
+                    value={form.comissao}
+                    onChange={(v) => set("comissao", v)}
                   />
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">R$</span>
                 </div>
@@ -530,13 +523,10 @@ function NovoLancamentoModal({ onClose, onSalvar, ordensServico = [] }: NovoLanc
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-600">Custo (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
+              <CampoMoeda
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
-                value={form.custo ?? form.custosReais ?? ""}
-                onChange={(e) => set("custo", parseFloat(e.target.value) || 0)}
+                value={form.custo ?? form.custosReais}
+                onChange={(v) => set("custo", v)}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -686,11 +676,42 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
     pago: row.fat.pago || false,
     dataPagamento: row.fat.dataPagamento,
     ordemServicoId: row.fat.ordemServicoId,
+    comprovanteId: row.fat.comprovanteId,
   });
   const [salvando, setSalvando] = useState(false);
+  const [comprovanteUploading, setComprovanteUploading] = useState(false);
+  const orcamentoIdComprovante = row.orcamento?.id;
 
   function set(field: keyof RegistroFaturamento, val: unknown) {
     setForm((p) => ({ ...p, [field]: val }));
+  }
+
+  async function enviarComprovante(file: File) {
+    if (!orcamentoIdComprovante) return;
+    setComprovanteUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("arquivo", file);
+      const res = await fetch(`/api/faturamentos/${orcamentoIdComprovante}/comprovante`, { method: "POST", body: fd });
+      if (res.ok) {
+        const d = await res.json();
+        set("comprovanteId", d.comprovanteId);
+        await onSalvar({ comprovanteId: d.comprovanteId });
+      } else {
+        const err = await res.json().catch(() => ({ error: "Erro ao enviar comprovante" }));
+        alert(err.error || "Erro ao enviar comprovante");
+      }
+    } finally {
+      setComprovanteUploading(false);
+    }
+  }
+
+  async function removerComprovante() {
+    if (!orcamentoIdComprovante) return;
+    if (!confirm("Remover o comprovante anexado?")) return;
+    await fetch(`/api/faturamentos/${orcamentoIdComprovante}/comprovante`, { method: "DELETE" });
+    set("comprovanteId", undefined);
+    await onSalvar({ comprovanteId: undefined });
   }
 
   async function handleSave() {
@@ -777,26 +798,20 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-600">Valor Aprovado (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
+              <CampoMoeda
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
-                value={form.valorAprovadoManual ?? ""}
-                onChange={(e) => set("valorAprovadoManual", parseFloat(e.target.value) || 0)}
+                value={form.valorAprovadoManual}
+                onChange={(v) => set("valorAprovadoManual", v)}
               />
             </div>
             <div className="flex flex-col gap-1 col-span-2">
               <label className="text-xs font-medium text-gray-600">Imposto</label>
               <div className="flex gap-2 items-center">
                 <div className="flex-1 relative">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <CampoMoeda
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-7"
-                    value={form.imposto ?? ""}
-                    onChange={(e) => set("imposto", parseFloat(e.target.value) || 0)}
+                    value={form.imposto}
+                    onChange={(v) => set("imposto", v)}
                   />
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">R$</span>
                 </div>
@@ -824,13 +839,10 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
               <label className="text-xs font-medium text-gray-600">Comissão</label>
               <div className="flex gap-2 items-center">
                 <div className="flex-1 relative">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <CampoMoeda
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] pr-7"
-                    value={form.comissao ?? ""}
-                    onChange={(e) => set("comissao", parseFloat(e.target.value) || 0)}
+                    value={form.comissao}
+                    onChange={(v) => set("comissao", v)}
                   />
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">R$</span>
                 </div>
@@ -856,13 +868,10 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-600">Custo (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
+              <CampoMoeda
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
-                value={form.custo ?? ""}
-                onChange={(e) => set("custo", parseFloat(e.target.value) || 0)}
+                value={form.custo}
+                onChange={(v) => set("custo", v)}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -947,6 +956,36 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
               </select>
             </div>
           </div>
+
+          {/* Comprovante — só disponível para lançamentos vinculados a um orçamento */}
+          {orcamentoIdComprovante && (
+            <div className="flex flex-col gap-1 pt-2 border-t border-gray-100">
+              <label className="text-xs font-medium text-gray-600">Comprovante</label>
+              <div className="flex items-center gap-2">
+                <label className={`flex-1 flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 text-sm cursor-pointer hover:border-[#fb4d06] transition ${comprovanteUploading ? "opacity-50 pointer-events-none" : ""}`}>
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <span className="text-gray-500 text-xs">{comprovanteUploading ? "Enviando..." : form.comprovanteId ? "Trocar arquivo" : "Selecionar arquivo"}</span>
+                  <input type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" className="hidden"
+                    disabled={comprovanteUploading}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarComprovante(f); }} />
+                </label>
+                {form.comprovanteId && (
+                  <button type="button" onClick={removerComprovante} className="text-xs text-red-500 hover:text-red-700 font-medium">Remover</button>
+                )}
+              </div>
+              {form.comprovanteId && (
+                <a href={`/api/faturamentos/${orcamentoIdComprovante}/comprovante`} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-[#fb4d06] hover:underline mt-1">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  Ver comprovante anexado
+                </a>
+              )}
+            </div>
+          )}
 
           {/* Pago toggle */}
           <div className="flex items-center gap-3 pt-2">

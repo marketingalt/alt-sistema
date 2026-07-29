@@ -16,6 +16,7 @@ import CampoData from "@/app/components/CampoData";
 import CalculadoraFrete from "@/app/components/CalculadoraFrete";
 import CampoPrazoEntrega from "@/app/components/CampoPrazoEntrega";
 import CampoPrazoPagamento from "@/app/components/CampoPrazoPagamento";
+import CampoMoeda from "@/app/components/CampoMoeda";
 import type { DocumentoFornecedor } from "@/app/types";
 import DocumentoPreview from "./DocumentoPreview";
 import TagSelector from "@/app/components/TagSelector";
@@ -152,6 +153,14 @@ export default function VisualizarOrcamento() {
       });
   }, [id]);
 
+  // Carrega os anexos do orçamento (Supabase Storage/Postgres)
+  useEffect(() => {
+    fetch(`/api/orcamentos/${id}/documentos`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((docs) => setOrcamento((prev) => (prev ? { ...prev, documentos: docs } : prev)))
+      .catch(() => {});
+  }, [id]);
+
   // Carrega produtos cadastrados para autocomplete na edição de itens
   useEffect(() => {
     fetch("/api/produtos").then((r) => r.json()).then(setProdutos).catch(() => {});
@@ -231,6 +240,17 @@ export default function VisualizarOrcamento() {
     setOrcamento((prev) => prev ? { ...prev, [campo]: valor } : prev);
   }
 
+  // Ao desmarcar "Manuseio", zera custoManuseio na mesma atualização — evita que um valor
+  // antigo fique "preso" e seja lido de forma divergente em Contas a Receber/Painel/Faturamentos.
+  function toggleManuseio() {
+    setSalvo(false);
+    setOrcamento((prev) => {
+      if (!prev) return prev;
+      const novoValor = !prev.manuseio;
+      return { ...prev, manuseio: novoValor, custoManuseio: novoValor ? prev.custoManuseio : 0 };
+    });
+  }
+
   function margemExtraAtual(prev: Orcamento) {
     return (prev.percHonorarios || 0) + (prev.percImpostos || 0) + (prev.percComissao || 0);
   }
@@ -278,7 +298,8 @@ export default function VisualizarOrcamento() {
         itens: prev.itens.map((item) => {
           if (item.id !== itemId) return item;
           const atualizado = { ...item, [campo]: valor };
-          if (campo === "valorUnitario") {
+          // Com variantes, o total vem da soma das variantes — o valor unitário do item é só a média e não pode ser sobrescrito aqui
+          if (campo === "valorUnitario" && !(item.variantes && item.variantes.length > 0)) {
             atualizado.valorAjustado = true;
             atualizado.valorUnitario = Math.round(Number(valor) * 100) / 100;
             atualizado.total = Math.round(atualizado.valorUnitario * (atualizado.quantidade || 0) * 100) / 100;
@@ -1135,11 +1156,10 @@ export default function VisualizarOrcamento() {
                     </button>
                   </div>
                   <div className="flex gap-2">
-                    <input
-                      type="number" min={0} step="0.01"
+                    <CampoMoeda
                       className="w-full sm:w-36 border border-gray-200 rounded-lg px-3 py-2.5 text-base font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
-                      value={orcamento.freteValor && orcamento.freteValor > 0 ? orcamento.freteValor : ""}
-                      onChange={(e) => atualizarCampo("freteValor", e.target.value ? parseFloat(e.target.value) : 0)}
+                      value={orcamento.freteValor}
+                      onChange={(v) => atualizarCampo("freteValor", v)}
                       placeholder="Valor (R$)"
                     />
                     <input
@@ -1161,7 +1181,7 @@ export default function VisualizarOrcamento() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => atualizarCampo("manuseio", !orcamento.manuseio)}
+                    onClick={toggleManuseio}
                     className={`relative w-11 h-6 rounded-full transition-colors ${orcamento.manuseio ? "bg-[#fb4d06]" : "bg-gray-200"}`}
                   >
                     <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${orcamento.manuseio ? "translate-x-5" : "translate-x-0"}`} />
@@ -1171,11 +1191,10 @@ export default function VisualizarOrcamento() {
                   <div className="mt-3 flex items-center gap-4">
                     <div className="flex-1">
                       <label className="block text-sm font-medium text-gray-600 mb-1.5">Custo do manuseio (R$)</label>
-                      <input
-                        type="number" min={0} step="0.01"
+                      <CampoMoeda
                         className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
-                        value={orcamento.custoManuseio || ""}
-                        onChange={(e) => atualizarCampo("custoManuseio", parseFloat(e.target.value) || 0)}
+                        value={orcamento.custoManuseio}
+                        onChange={(v) => atualizarCampo("custoManuseio", v)}
                         placeholder="0,00"
                       />
                     </div>
@@ -1306,10 +1325,10 @@ export default function VisualizarOrcamento() {
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                                 <div>
                                   <label className="block text-sm font-medium text-purple-600 mb-1.5">Custo Unitário (R$)</label>
-                                  <input type="number" min={0} step="0.01"
+                                  <CampoMoeda
                                     className="w-full border border-purple-200 rounded-lg px-3 py-2.5 text-base text-purple-700 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
-                                    value={item.custoUnitario || ""}
-                                    onChange={(e) => atualizarItem(item.id, "custoUnitario", Number(e.target.value))}
+                                    value={item.custoUnitario}
+                                    onChange={(v) => atualizarItem(item.id, "custoUnitario", v)}
                                     placeholder="0,00"
                                   />
                                 </div>
@@ -1323,10 +1342,10 @@ export default function VisualizarOrcamento() {
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-purple-600 mb-1.5">Valor Unit. Sugerido (R$)</label>
-                                  <input type="number" min={0} step="0.01"
+                                  <CampoMoeda
                                     className="w-full border border-purple-200 rounded-lg px-3 py-2.5 text-base text-purple-700 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
-                                    value={item.valorUnitario || ""}
-                                    onChange={(e) => atualizarItem(item.id, "valorUnitario", Number(e.target.value))}
+                                    value={item.valorUnitario}
+                                    onChange={(v) => atualizarItem(item.id, "valorUnitario", v)}
                                     placeholder="0,00"
                                   />
                                   {!item.valorAjustado && item.valorUnitario > 0 && (
@@ -1471,20 +1490,18 @@ export default function VisualizarOrcamento() {
                                           />
                                         </td>
                                         <td className="py-1 px-2">
-                                          <input
-                                            type="number" min={0} step="0.01"
+                                          <CampoMoeda
                                             className="w-20 bg-white border border-emerald-200 rounded px-2 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-emerald-300"
-                                            value={v.custoUnitario || ""}
-                                            onChange={(e) => atualizarVariante(item.id, v.id, "custoUnitario", parseFloat(e.target.value) || 0)}
+                                            value={v.custoUnitario}
+                                            onChange={(valor) => atualizarVariante(item.id, v.id, "custoUnitario", valor)}
                                             placeholder="0,00"
                                           />
                                         </td>
                                         <td className="py-1 px-2">
-                                          <input
-                                            type="number" min={0} step="0.01"
+                                          <CampoMoeda
                                             className="w-20 bg-white border border-emerald-200 rounded px-2 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-emerald-300"
-                                            value={v.valorUnitario || ""}
-                                            onChange={(e) => atualizarVariante(item.id, v.id, "valorUnitario", parseFloat(e.target.value) || 0)}
+                                            value={v.valorUnitario}
+                                            onChange={(valor) => atualizarVariante(item.id, v.id, "valorUnitario", valor)}
                                             placeholder="0,00"
                                           />
                                         </td>
@@ -1540,16 +1557,15 @@ export default function VisualizarOrcamento() {
                                 {item.variantes && item.variantes.length > 0 ? "Custo unit. médio (R$)" : "Custo unit. fornecedor (R$)"}
                                 {temSurchargeQtdMinima(item) && <span className="ml-1 font-bold">+5%</span>}
                               </label>
-                              <input
-                                type="number" min={0} step="0.01"
+                              <CampoMoeda
                                 disabled={!!(item.variantes && item.variantes.length > 0)}
                                 className={`w-full border rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 ${item.variantes && item.variantes.length > 0
                                   ? "border-emerald-200 bg-emerald-50 text-emerald-700 cursor-default"
                                   : temSurchargeQtdMinima(item)
                                     ? "border-amber-300 text-amber-700 focus:ring-amber-300 bg-white"
                                     : "border-gray-200 text-gray-700 focus:ring-[#fb4d06]/30 bg-white"}`}
-                                value={item.custoUnitario || ""}
-                                onChange={(e) => atualizarItem(item.id, "custoUnitario", parseFloat(e.target.value) || 0)}
+                                value={item.custoUnitario}
+                                onChange={(v) => atualizarItem(item.id, "custoUnitario", v)}
                                 placeholder="0,00"
                               />
                             </div>
@@ -1574,18 +1590,18 @@ export default function VisualizarOrcamento() {
                                   Calcular
                                 </button>
                               </div>
-                              <input type="number" min={0} step="0.01"
+                              <CampoMoeda
                                 className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
-                                value={item.freteProducao || ""}
-                                onChange={(e) => atualizarItem(item.id, "freteProducao", parseFloat(e.target.value) || 0)}
+                                value={item.freteProducao}
+                                onChange={(v) => atualizarItem(item.id, "freteProducao", v)}
                                 placeholder="0,00" />
                             </div>
                             <div>
                               <label className="block text-sm font-medium text-gray-600 mb-1.5">Custo de personalização total (R$)</label>
-                              <input type="number" min={0} step="0.01"
+                              <CampoMoeda
                                 className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
-                                value={item.custoPersonalizacao || ""}
-                                onChange={(e) => atualizarItem(item.id, "custoPersonalizacao", parseFloat(e.target.value) || 0)}
+                                value={item.custoPersonalizacao}
+                                onChange={(v) => atualizarItem(item.id, "custoPersonalizacao", v)}
                                 placeholder="0,00" />
                               <p className="text-sm text-gray-400 mt-0.5">Total ÷ quantidade</p>
                             </div>
@@ -1641,10 +1657,10 @@ export default function VisualizarOrcamento() {
                               {item.custoEmbalagemIndividual !== undefined && (
                                 <div>
                                   <label className="block text-sm font-medium text-indigo-600 mb-1">Embalagem individual (R$ / item)</label>
-                                  <input type="number" min={0} step="0.01"
+                                  <CampoMoeda
                                     className="w-full border border-indigo-200 rounded-lg px-3 py-2.5 text-base text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
-                                    value={item.custoEmbalagemIndividual || ""}
-                                    onChange={(e) => atualizarItem(item.id, "custoEmbalagemIndividual", parseFloat(e.target.value) || 0)}
+                                    value={item.custoEmbalagemIndividual}
+                                    onChange={(v) => atualizarItem(item.id, "custoEmbalagemIndividual", v)}
                                     placeholder="0,00" />
                                   <p className="text-sm text-indigo-400 mt-0.5">Custo por unidade, não dividido</p>
                                 </div>
@@ -1652,10 +1668,10 @@ export default function VisualizarOrcamento() {
                               {item.custoEmbalagemTransporte !== undefined && (
                                 <div>
                                   <label className="block text-sm font-medium text-purple-600 mb-1.5">Embalagem transporte total (R$)</label>
-                                  <input type="number" min={0} step="0.01"
+                                  <CampoMoeda
                                     className="w-full border border-purple-200 rounded-lg px-3 py-2.5 text-base text-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white"
-                                    value={item.custoEmbalagemTransporte || ""}
-                                    onChange={(e) => atualizarItem(item.id, "custoEmbalagemTransporte", parseFloat(e.target.value) || 0)}
+                                    value={item.custoEmbalagemTransporte}
+                                    onChange={(v) => atualizarItem(item.id, "custoEmbalagemTransporte", v)}
                                     placeholder="0,00" />
                                   <p className="text-sm text-purple-400 mt-0.5">Total dividido pela quantidade</p>
                                 </div>
@@ -1698,16 +1714,15 @@ export default function VisualizarOrcamento() {
                                   </button>
                                 )}
                               </div>
-                              <input
-                                type="number"
+                              <CampoMoeda
                                 disabled={!!(item.variantes && item.variantes.length > 0)}
                                 className={`w-full border-2 rounded-lg px-3 py-2.5 text-base font-bold focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/40 ${item.variantes && item.variantes.length > 0
                                   ? "border-emerald-200 bg-emerald-50 text-emerald-700 cursor-default"
                                   : item.valorAjustado
                                     ? "border-orange-300 text-orange-700"
                                     : "border-[#fb4d06]/30 text-[#fb4d06]"}`}
-                                value={item.valorUnitario || ""}
-                                onChange={(e) => atualizarItem(item.id, "valorUnitario", Number(e.target.value))}
+                                value={item.valorUnitario}
+                                onChange={(v) => atualizarItem(item.id, "valorUnitario", v)}
                                 placeholder={valorSugerido > 0 ? valorSugerido.toFixed(2) : "0,00"}
                               />
                               {item.valorAjustado && item.valorUnitario > 0 && custoTotal > 0 && (

@@ -6,6 +6,7 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
 import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import { downloadCSV } from "@/lib/export-csv";
+import { parseBrl } from "@/lib/parseBrl";
 
 interface Conta {
   id: string;
@@ -444,7 +445,7 @@ export default function ContasAPagarPage() {
       : 0;
     const payload: any = {
       ...form,
-      valor: valorLote || parseFloat(String(form.valor).replace(",", ".")) || 0,
+      valor: valorLote || parseBrl(String(form.valor)),
       boletoUrl: boletoUrl || undefined,
       intervaloValor: form.recorrentePersonalizado ? form.intervaloValor : undefined,
       intervaloUnidade: form.recorrentePersonalizado ? form.intervaloUnidade : undefined,
@@ -583,7 +584,7 @@ export default function ContasAPagarPage() {
   async function duplicar() {
     if (!editando) return;
     setSalvando(true);
-    const payload = { ...form, valor: parseFloat(String(form.valor).replace(",", ".")) || 0 };
+    const payload = { ...form, valor: parseBrl(String(form.valor)) };
     try {
       const res = await fetch("/api/contas-a-pagar", {
         method: "POST",
@@ -1333,7 +1334,7 @@ export default function ContasAPagarPage() {
                 </div>
                 {boletoUrl && (() => {
                   const contaId = editando?.id;
-                  const boletoUrlFull = contaId ? `/api/uploads/contas-a-pagar/${contaId}/${boletoUrl}` : null;
+                  const boletoUrlFull = contaId ? `/api/contas-a-pagar/${contaId}/boleto` : null;
                   if (!boletoUrlFull) return null;
                   return (
                     <a href={boletoUrlFull} target="_blank" rel="noopener noreferrer"
@@ -1778,7 +1779,7 @@ export default function ContasAPagarPage() {
                       <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Boleto</p>
                     </div>
-                    <a href={`/api/uploads/contas-a-pagar/${detalhe.id}/${detalhe.boletoUrl}`} target="_blank" rel="noopener noreferrer"
+                    <a href={`/api/contas-a-pagar/${detalhe.id}/boleto`} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl p-3 hover:bg-orange-100 transition group">
                       <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1798,7 +1799,7 @@ export default function ContasAPagarPage() {
                       <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Comprovante de Pagamento</p>
                     </div>
-                    <a href={`/api/uploads/fluxo-caixa/${detalhe.fluxoCaixaId}/${detalhe.fluxoComprovanteUrl}`} target="_blank" rel="noopener noreferrer"
+                    <a href={`/api/fluxo-caixa/${detalhe.fluxoCaixaId}/comprovante`} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl p-3 hover:bg-green-100 transition group">
                       <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

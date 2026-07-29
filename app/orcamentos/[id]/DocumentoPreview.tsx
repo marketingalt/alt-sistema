@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import type { Orcamento, ItemOrcamento } from "@/app/types";
+import CampoMoeda from "@/app/components/CampoMoeda";
 
 const ALT_EMPRESA = "ALT. MARKETING E PUBLICIDADE";
 const ALT_CNPJ = "45.025.544/0001-92";
@@ -432,17 +433,16 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                     UN
                   </span>
 
-                  {/* Valor unitário */}
+                  {/* Valor unitário — com variantes, é a média calculada e não pode ser sobrescrito aqui (o total vem da soma das variantes) */}
                   <div className="relative" style={{ width: COL_W.vun }}>
                     <span className="absolute left-0.5 top-1/2 -translate-y-1/2 text-gray-400 text-[7px] pointer-events-none">R$</span>
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      className={`${INPUT_CLS} text-gray-700 text-right pl-4 w-full`}
+                    <CampoMoeda
+                      disabled={!!(item.variantes && item.variantes.length > 0)}
+                      className={`${INPUT_CLS} text-right pl-4 w-full ${item.variantes && item.variantes.length > 0 ? "text-emerald-700 cursor-default" : "text-gray-700"}`}
                       style={{ fontSize: 8 }}
-                      value={item.valorUnitario || ""}
-                      onChange={(e) => onUpdateItem(item.id, "valorUnitario", Number(e.target.value))}
+                      value={item.valorUnitario}
+                      onChange={(v) => onUpdateItem(item.id, "valorUnitario", v)}
+                      title={item.variantes && item.variantes.length > 0 ? "Média calculada a partir das variantes — edite os valores nas linhas abaixo" : undefined}
                     />
                   </div>
 
@@ -528,13 +528,10 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                   <span className="text-right text-gray-700" style={{ width: 40 }}>1</span>
                   <span className="text-right text-gray-500" style={{ width: 45 }}>R$</span>
                   <span className="text-right text-gray-700" style={{ width: 95 }}>
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.01"
+                    <CampoMoeda
                       className={`${INPUT_CLS} text-right w-full`}
-                      value={orcamento.custoManuseio || ""}
-                      onChange={(e) => onUpdateCampo("custoManuseio", parseFloat(e.target.value) || 0)}
+                      value={orcamento.custoManuseio}
+                      onChange={(v) => onUpdateCampo("custoManuseio", v)}
                     />
                   </span>
                   <span
