@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
       { hostname: "img.clerk.com" },
       { hostname: "images.clerk.dev" },
       { hostname: "cdn.xbzbrindes.com.br" },
+      { hostname: "**.public.blob.vercel-storage.com" },
     ],
   },
   serverExternalPackages: [
