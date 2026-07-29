@@ -26,10 +26,17 @@ async function salvarFC(d: FluxoCaixaDB) {
   await dbSet("fluxo-caixa", d);
 }
 
-function calcularValor(registro: any): number {
-  // Prioridade: valorAprovadoManual > orçamento vinculado
+async function calcularValor(registro: any): Promise<number> {
   if (registro.valorAprovadoManual) {
     return Math.abs(registro.valorAprovadoManual);
+  }
+  // Fallback: orçamento vinculado
+  if (registro.orcamentoId) {
+    const orc = await buscarOrcamento(registro.orcamentoId);
+    if (orc?.itens) {
+      const subtotal = orc.itens.reduce((s: number, it: any) => s + (it.total || 0), 0);
+      return subtotal + (orc.freteValor || 0) + (orc.custoManuseio || 0);
+    }
   }
   return 0;
 }
@@ -60,7 +67,7 @@ export async function PUT(
 
     // ── Marcar como pago → criar lançamento no fluxo de caixa ──
     if (body.pago === true && !antes.pago) {
-      const valor = calcularValor(registro);
+      const valor = await calcularValor(registro);
       if (valor > 0) {
         const dadosFC = await lerFC();
         const novoLancamento = {
