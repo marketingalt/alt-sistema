@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
+import AnexosTarefaPlanejamento from "@/app/components/AnexosTarefaPlanejamento";
 import {
   DndContext,
   DragOverlay,
@@ -1296,6 +1297,8 @@ function TaskDrawer({
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 focus:border-[#fb4d06] resize-none"
                 />
               </div>
+
+              <AnexosTarefaPlanejamento tarefaId={tarefa.id} />
 
               {/* Subtarefas */}
               <div className="mb-6">

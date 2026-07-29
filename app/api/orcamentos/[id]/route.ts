@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { buscarOrcamento, salvarOrcamento, deletarOrcamento, listarOrcamentos, sincronizarTarefasOrcamento, gerarOSdeOrcamento, criarTarefaFinanceira, moverTarefaPlanejamentoParaConcluido } from "@/lib/storage";
+import { limparAnexosVinculados } from "@/lib/supabaseStorage";
 import type { HistoricoAlteracao } from "@/app/types";
 
 function gerarId() {
@@ -195,6 +196,23 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     }
 
     await deletarOrcamento(id);
+
+    // Limpa anexos vinculados (Supabase): documentos do orçamento + comprovante de Contas a Receber (chave = orcamento_id).
+    // Nunca deve bloquear a exclusão acima, que já aconteceu — rodam em paralelo (cada uma já trata sua
+    // própria falha sem lançar) para que uma eventual indisponibilidade do Supabase não some os tempos
+    // de espera de rede das duas tabelas na resposta.
+    await Promise.allSettled([
+      limparAnexosVinculados("orcamento_anexos", "orcamento-anexos", { orcamento_id: id }).catch((err) =>
+        console.error(`[DELETE /api/orcamentos/${id}] falha ao limpar anexos (orcamento_anexos):`, err)
+      ),
+      limparAnexosVinculados("financeiro_comprovantes", "financeiro-comprovantes", {
+        tipo_lancamento: "contas_a_receber",
+        lancamento_id: id,
+      }).catch((err) =>
+        console.error(`[DELETE /api/orcamentos/${id}] falha ao limpar anexos (financeiro_comprovantes):`, err)
+      ),
+    ]);
+
     console.log(`[DELETE /api/orcamentos/${id}] deletado com sucesso`);
 
     return NextResponse.json({ ok: true }, { headers: NO_CACHE_HEADERS });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { dbGet, dbSet } from "@/lib/storage-adapter";
+import { limparAnexosVinculados } from "@/lib/supabaseStorage";
 
 interface FluxoCaixaDB {
   lancamentos: any[];
@@ -125,5 +126,12 @@ export async function DELETE(
     (l: { id: string }) => l.id !== id
   );
   await salvar(dados);
+
+  // Limpa comprovante vinculado (Supabase) — nunca deve bloquear a exclusão acima, que já aconteceu.
+  await limparAnexosVinculados("financeiro_comprovantes", "financeiro-comprovantes", {
+    tipo_lancamento: "fluxo_caixa",
+    lancamento_id: id,
+  }).catch((err) => console.error(`[DELETE /api/fluxo-caixa/${id}] falha ao limpar comprovante:`, err));
+
   return NextResponse.json({ ok: true });
 }

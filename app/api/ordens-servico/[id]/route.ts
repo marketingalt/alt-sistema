@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { buscarOrdemServico, salvarOrdemServico, deletarOrdemServico } from "@/lib/storage";
+import { limparAnexosVinculados } from "@/lib/supabaseStorage";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const os = await buscarOrdemServico(id);
     if (!os) return NextResponse.json({ error: "OS não encontrada" }, { status: 404 });
     await deletarOrdemServico(id);
+
+    // Limpa anexos vinculados (Supabase) desta OS — nunca deve bloquear a exclusão acima, que já aconteceu.
+    await limparAnexosVinculados("orcamento_anexos", "orcamento-anexos", { ordem_servico_id: id }).catch((err) =>
+      console.error(`[DELETE /api/ordens-servico/${id}] falha ao limpar anexos:`, err)
+    );
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

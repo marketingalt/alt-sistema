@@ -347,6 +347,15 @@ export default function DetalheOSPage() {
       setOs(data);
       orcamentoIdRef.current = data.orcamentoId;
 
+      // Anexos da OS (Supabase Storage/Postgres)
+      try {
+        const resDocs = await fetch(`/api/ordens-servico/${osId}/documentos`);
+        if (resDocs.ok) {
+          const docs = await resDocs.json();
+          setOs((prev) => (prev ? { ...prev, documentos: docs } : prev));
+        }
+      } catch {}
+
       // Campos dinâmicos
       try {
         const resC = await fetch("/api/admin/configuracoes");
@@ -456,13 +465,8 @@ export default function DetalheOSPage() {
     setModalModulo(modulo);
     setCarregandoDocs(true);
     try {
-      const res = await fetch(`/api/orcamentos/${orcamentoIdRef.current}`);
-      if (res.ok) {
-        const orcamento = await res.json();
-        setDocumentosOrcamento(orcamento.documentos || []);
-      } else {
-        setDocumentosOrcamento([]);
-      }
+      const res = await fetch(`/api/orcamentos/${orcamentoIdRef.current}/documentos`);
+      setDocumentosOrcamento(res.ok ? await res.json() : []);
     } catch {
       setDocumentosOrcamento([]);
     } finally {

@@ -1,44 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buscarOrcamento, salvarOrcamento } from "@/lib/storage";
-import { readFile, deleteFile } from "@/lib/storage-file-adapter";
+import { auth } from "@clerk/nextjs/server";
+import { getSupabaseAdmin, removerArquivo } from "@/lib/supabaseStorage";
+
+const BUCKET = "orcamento-anexos" as const;
 
 type Params = { params: Promise<{ id: string; docId: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
   const { id, docId } = await params;
-  const orcamento = await buscarOrcamento(id);
-  if (!orcamento) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
+  const supabase = getSupabaseAdmin();
+  const { data: doc, error } = await supabase
+    .from("orcamento_anexos")
+    .select("caminho_storage, nome_original")
+    .eq("id", docId)
+    .eq("orcamento_id", id)
+    .single();
 
-  const doc = orcamento.documentos?.find((d) => d.id === docId);
-  if (!doc) return NextResponse.json({ error: "Documento não encontrado" }, { status: 404 });
+  if (error || !doc) return NextResponse.json({ error: "Documento não encontrado" }, { status: 404 });
 
-  try {
-    const buffer = await readFile("orcamentos", id, doc.caminho);
-    const inline = req.nextUrl.searchParams.get("inline") === "1";
-    return new Response(new Blob([buffer], { type: doc.tipo || "application/octet-stream" }), {
-      headers: {
-        "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${encodeURIComponent(doc.nome)}"`,
-      },
-    });
-  } catch {
-    return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
+  const inline = req.nextUrl.searchParams.get("inline") === "1";
+  const { data: signed, error: signError } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(doc.caminho_storage, 120, inline ? undefined : { download: doc.nome_original });
+
+  if (signError || !signed) {
+    return NextResponse.json({ error: "Erro ao gerar URL do arquivo" }, { status: 500 });
   }
+
+  return NextResponse.redirect(signed.signedUrl);
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const { id, docId } = await params;
-  const orcamento = await buscarOrcamento(id);
-  if (!orcamento) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
-  const doc = orcamento.documentos?.find((d) => d.id === docId);
+  const { id, docId } = await params;
+  const supabase = getSupabaseAdmin();
+  const { data: doc } = await supabase
+    .from("orcamento_anexos")
+    .select("caminho_storage")
+    .eq("id", docId)
+    .eq("orcamento_id", id)
+    .single();
+
   if (doc) {
-    await deleteFile("orcamentos", id, doc.caminho);
+    await removerArquivo(BUCKET, doc.caminho_storage);
   }
 
-  await salvarOrcamento({
-    ...orcamento,
-    documentos: (orcamento.documentos || []).filter((d) => d.id !== docId),
-  });
+  const { error } = await supabase.from("orcamento_anexos").delete().eq("id", docId).eq("orcamento_id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

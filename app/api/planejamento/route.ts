@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { dbGet, dbSet } from "@/lib/storage-adapter";
+import { limparAnexosVinculados } from "@/lib/supabaseStorage";
 import type { Projeto, Tarefa } from "@/app/types";
 
 export const dynamic = "force-dynamic";
@@ -157,8 +158,17 @@ export async function DELETE(req: NextRequest) {
 
   // Remove tarefas do projeto
   const tarefas = await dbGet<Tarefa[]>("planejamento-tarefas", []);
+  const tarefasDoProjeto = tarefas.filter((t) => t.projectId === id);
   const tarefasRestantes = tarefas.filter((t) => t.projectId !== id);
   await dbSet("planejamento-tarefas", tarefasRestantes);
+
+  // Limpa anexos vinculados (Supabase) de todas as tarefas do projeto excluído — nunca deve bloquear
+  // a exclusão acima, que já aconteceu; cada iteração é protegida para uma falha não impedir as demais.
+  for (const t of tarefasDoProjeto) {
+    await limparAnexosVinculados("planejamento_anexos", "planejamento-anexos", { tarefa_id: t.id }).catch((err) =>
+      console.error(`[DELETE /api/planejamento] falha ao limpar anexos da tarefa ${t.id}:`, err)
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }
