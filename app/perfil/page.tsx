@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import type { FeedbackSessao, FeedbackStatus } from "@/app/types";
 
 interface DocumentoRH {
   id: string;
@@ -38,6 +39,29 @@ export default function PerfilPage() {
   const [erro, setErro] = useState("");
   const [documentos, setDocumentos] = useState<DocumentoRH[]>([]);
   const [carregandoDocs, setCarregandoDocs] = useState(true);
+  const [feedbacks, setFeedbacks] = useState<FeedbackSessao[]>([]);
+  const [carregandoFeedbacks, setCarregandoFeedbacks] = useState(true);
+
+  const STATUS_CORES: Record<FeedbackStatus, string> = {
+    "Pendente": "bg-yellow-100 text-yellow-700 border-yellow-200",
+    "Em Andamento": "bg-blue-100 text-blue-700 border-blue-200",
+    "Concluído": "bg-green-100 text-green-700 border-green-200",
+  };
+
+  function iconeTarefa(tarefa: string) {
+    const lower = tarefa.toLowerCase();
+    if (lower.includes("financeiro") || lower.includes("mapeamento") || lower.includes("despesa")) return "💰";
+    if (lower.includes("meta") || lower.includes("planejamento") || lower.includes("visão")) return "🎯";
+    if (lower.includes("perfil") || lower.includes("personalidade")) return "🧠";
+    if (lower.includes("email")) return "📧";
+    if (lower.includes("tempo") || lower.includes("prazo")) return "⏰";
+    return "📌";
+  }
+
+  function formatPrazo(prazo: string) {
+    if (!prazo) return <span className="text-sm text-gray-300 italic">A definir</span>;
+    return <span className="text-sm text-gray-600 whitespace-nowrap">{new Date(prazo + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>;
+  }
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -48,6 +72,7 @@ export default function PerfilPage() {
     const nomeAtual = (user.publicMetadata?.nomeExibicao as string) || user.fullName || user.firstName || "";
     setNome(nomeAtual);
     carregarDocumentos();
+    carregarFeedbacks();
   }, [isLoaded, user]);
 
   async function carregarDocumentos() {
@@ -62,6 +87,22 @@ export default function PerfilPage() {
       // silencioso
     } finally {
       setCarregandoDocs(false);
+    }
+  }
+
+  async function carregarFeedbacks() {
+    if (!user?.id) { setCarregandoFeedbacks(false); return; }
+    setCarregandoFeedbacks(true);
+    try {
+      const res = await fetch(`/api/rh/feedbacks?colaboradorId=${encodeURIComponent(user.id)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setFeedbacks(data);
+      }
+    } catch {
+      // silencioso
+    } finally {
+      setCarregandoFeedbacks(false);
     }
   }
 
@@ -235,6 +276,91 @@ export default function PerfilPage() {
                   >
                     Baixar
                   </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── Feedbacks / One-a-One ── */}
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">Feedbacks</h2>
+          <p className="text-xs text-gray-400 mb-4">
+            Acompanhamento de One-a-One e planos de ação definidos pelo RH.
+          </p>
+
+          {carregandoFeedbacks ? (
+            <p className="text-sm text-gray-400">Carregando feedbacks...</p>
+          ) : feedbacks.length === 0 ? (
+            <div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+              <svg className="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p className="text-sm text-gray-400">Nenhum feedback vinculado ainda.</p>
+              <p className="text-xs text-gray-300 mt-1">O RH pode criar feedbacks associados ao seu perfil.</p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {feedbacks.map((sessao) => (
+                <div key={sessao.id} className="border border-gray-100 rounded-xl overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-b border-gray-100">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-sm font-bold text-gray-700">{sessao.topicoPrincipal}</span>
+                      <span className="text-xs text-gray-400">
+                        {new Date(sessao.data + "T12:00:00").toLocaleDateString("pt-BR")}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-50 bg-gray-50/30">
+                          <th className="text-left py-2.5 px-4 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Etapa</th>
+                          <th className="text-left py-2.5 px-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Tarefa</th>
+                          <th className="text-left py-2.5 px-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Prazo</th>
+                          <th className="text-left py-2.5 px-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const grupos: { etapa: string; itens: typeof sessao.itens }[] = [];
+                          for (const item of sessao.itens) {
+                            const g = grupos.find((x) => x.etapa === item.etapa);
+                            if (g) g.itens.push(item);
+                            else grupos.push({ etapa: item.etapa, itens: [item] });
+                          }
+                          return grupos.map((grupo, gi) => (
+                            <Fragment key={gi}>
+                              {grupo.itens.map((item, ii) => (
+                                <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50/30">
+                                  {ii === 0 && (
+                                    <td rowSpan={grupo.itens.length} className="py-3 px-4 align-top">
+                                      <span className="text-xs font-semibold text-gray-500">{grupo.etapa}</span>
+                                    </td>
+                                  )}
+                                  <td className="py-3 px-3">
+                                    <div className="flex items-start gap-1.5">
+                                      <span className="text-sm shrink-0">{iconeTarefa(item.tarefa)}</span>
+                                      <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{item.tarefa}</p>
+                                    </div>
+                                    {item.notas && (
+                                      <p className="text-xs text-gray-400 mt-1 italic">{item.notas}</p>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-3">{formatPrazo(item.prazo)}</td>
+                                  <td className="py-3 px-3">
+                                    <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${STATUS_CORES[item.status]}`}>
+                                      {item.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </Fragment>
+                          ));
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ))}
             </div>

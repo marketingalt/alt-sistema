@@ -3,8 +3,13 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { dbGet, dbSet } from "@/lib/storage-adapter";
 import type { FeedbackSessao } from "@/app/types";
 
-export async function GET() {
-  const sessoes = await dbGet<FeedbackSessao[]>("rh-feedbacks", []);
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const colaboradorId = url.searchParams.get("colaboradorId");
+  let sessoes = await dbGet<FeedbackSessao[]>("rh-feedbacks", []);
+  if (colaboradorId) {
+    sessoes = sessoes.filter((s) => s.colaboradorId === colaboradorId);
+  }
   // Mais recentes primeiro
   sessoes.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return NextResponse.json(sessoes);
