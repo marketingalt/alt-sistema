@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 
 interface ClerkUser {
@@ -38,6 +39,7 @@ function formatBytes(bytes: number) {
 export default function RhPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const pathname = usePathname();
   const [usuarios, setUsuarios] = useState<ClerkUser[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [usuarioSelecionado, setUsuarioSelecionado] = useState<ClerkUser | null>(null);
@@ -142,7 +144,29 @@ export default function RhPage() {
       <main className="px-8 py-8 max-w-6xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Recursos Humanos</h1>
-          <p className="text-gray-500 text-sm mt-1">Gerencie os documentos dos colaboradores.</p>
+          <div className="flex items-center gap-1 mt-3 bg-gray-100 rounded-xl p-1 w-fit">
+            <Link
+              href="/rh"
+              className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition ${
+                pathname === "/rh"
+                  ? "bg-white text-[#fb4d06] shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Documentos
+            </Link>
+            <Link
+              href="/rh/feedbacks"
+              className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition ${
+                pathname.startsWith("/rh/feedbacks")
+                  ? "bg-white text-[#fb4d06] shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Feedbacks
+            </Link>
+          </div>
+          <p className="text-gray-500 text-sm mt-3">Gerencie os documentos dos colaboradores.</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

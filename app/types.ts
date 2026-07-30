@@ -416,3 +416,29 @@ export interface RecorrenciaConfig {
     ocorrencias?: number; // quando tipo = "apos"
   };
 }
+
+// ── Feedback / One-a-One ──────────────────────
+
+export type FeedbackStatus = "Pendente" | "Em Andamento" | "Concluído";
+
+export interface FeedbackItem {
+  id: string;
+  etapa: string;
+  tarefa: string;
+  prazo: string;
+  status: FeedbackStatus;
+  notas: string;
+}
+
+export interface FeedbackSessao {
+  id: string;
+  colaboradorId: string;
+  colaboradorNome: string;
+  data: string;
+  topicoPrincipal: string;
+  itens: FeedbackItem[];
+  createdAt: string;
+  updatedAt?: string;
+  userId?: string;
+  userName?: string;
+}

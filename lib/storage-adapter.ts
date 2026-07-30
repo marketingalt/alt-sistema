@@ -51,7 +51,8 @@ export type DbKey =
   | "financeiro-vendas"
   | "financeiro-comissoes-nf"
   | "financeiro-relatorio-presets"
-  | "reembolsos-despesas";
+  | "reembolsos-despesas"
+  | "rh-feedbacks";
 
 // ── Detecta ambiente ──
 
