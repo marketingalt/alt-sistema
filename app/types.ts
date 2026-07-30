@@ -68,6 +68,7 @@ export type StatusOrcamento =
   | "Em andamento"
   | "Enviado"
   | "Aprovado"
+  | "Em produção"
   | "Recusado"
   | "Cancelado";
 
@@ -75,6 +76,7 @@ export const STATUS_CONFIG: Record<StatusOrcamento, { cor: string; bg: string; d
   "Em andamento": { cor: "text-blue-700",  bg: "bg-blue-50 border-blue-200",   dot: "bg-blue-500" },
   "Enviado":      { cor: "text-yellow-700", bg: "bg-yellow-50 border-yellow-200", dot: "bg-yellow-500" },
   "Aprovado":     { cor: "text-green-700",  bg: "bg-green-50 border-green-200",  dot: "bg-green-500" },
+  "Em produção":  { cor: "text-purple-700", bg: "bg-purple-50 border-purple-200", dot: "bg-purple-500" },
   "Recusado":     { cor: "text-red-700",    bg: "bg-red-50 border-red-200",      dot: "bg-red-500" },
   "Cancelado":    { cor: "text-gray-500",   bg: "bg-gray-50 border-gray-200",    dot: "bg-gray-400" },
 };
@@ -246,6 +248,7 @@ export interface Orcamento {
   status: StatusOrcamento;
   itens: ItemOrcamento[];
   tags?: string[]; // IDs dos projetos de Planejamento
+  logoOrcamento?: string; // Logo específica do orçamento (independente da logo global)
   documentos?: DocumentoFornecedor[];
   createdAt: string;
   versoes?: VersaoOrcamento[];
@@ -396,4 +399,20 @@ export interface MaterialOS {
   nome: string;
   quantidade: number;
   separado: boolean;
+}
+
+// ── Recorrência Personalizada ─────────────────────
+
+export type UnidadeRecorrencia = "dia" | "semana" | "mes" | "ano";
+export type DiaSemana = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0=Domingo
+
+export interface RecorrenciaConfig {
+  intervalo: number;
+  unidade: UnidadeRecorrencia;
+  diasSemana?: DiaSemana[];
+  termino: {
+    tipo: "nunca" | "em" | "apos";
+    data?: string;     // DD/MM/AAAA quando tipo = "em"
+    ocorrencias?: number; // quando tipo = "apos"
+  };
 }

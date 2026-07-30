@@ -16,7 +16,7 @@ const INPUT_CLS =
   "bg-transparent border-none outline-none focus:outline-dashed focus:outline-1 focus:outline-[#fb4d06]/40 hover:outline-dashed hover:outline-1 hover:outline-gray-200 px-0.5 -mx-0.5 rounded transition-all cursor-text";
 
 // ─── Botão de export ───
-const COL_W = { img: 36, acab: 58, kit: 52, qtd: 30, und: 26, vun: 74, vtot: 82 };
+const COL_W = { img: 36, qtd: 30, und: 26, vun: 74, vtot: 82 };
 
 type Props = {
   orcamento: Orcamento;
@@ -24,58 +24,44 @@ type Props = {
   onUpdateItem: (itemId: string, campo: keyof ItemOrcamento, valor: string | number | boolean | undefined) => void;
   onDownloadPdf: () => void;
   gerandoPdf: boolean;
-  logoBase64?: string | null;
-  onLogoChange?: (b64: string | null) => void;
 };
 
-export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateItem, onDownloadPdf, gerandoPdf, logoBase64: externalLogo, onLogoChange }: Props) {
+export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateItem, onDownloadPdf, gerandoPdf }: Props) {
   const imgRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [hoveredImg, setHoveredImg] = useState<string | null>(null);
-  const [logoBase64, setLogoBase64] = useState<string | null>(null);
+  const [logoOrcamento, setLogoOrcamento] = useState<string | null | undefined>(orcamento.logoOrcamento);
+  const [logoPadrao, setLogoPadrao] = useState<string | null>(null);
   const [hoverLogo, setHoverLogo] = useState(false);
   const logoSelRef = useRef<HTMLInputElement | null>(null);
 
-  // Sincroniza com a prop externa (vinda da página pai)
-  const logo = externalLogo ?? logoBase64;
-
-  // Carrega a logo salva (apenas se não veio do pai)
+  // Carrega a logo padrão de orçamentos (fallback quando o orçamento não tem a sua)
   useEffect(() => {
-    if (externalLogo !== undefined) return;
-    fetch("/api/admin/logo")
+    if (orcamento.logoOrcamento) return;
+    fetch("/api/admin/logo-orcamento")
       .then((r) => r.json())
       .then((data) => {
-        if (data.logoBase64) setLogoBase64(data.logoBase64);
+        if (data.logoBase64) setLogoPadrao(data.logoBase64);
       })
       .catch(() => {});
-  }, [externalLogo]);
+  }, [orcamento.logoOrcamento]);
+
+  const logo = logoOrcamento || logoPadrao;
 
   // Upload de logo
   const uploadLogo = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
       const b64 = reader.result as string;
-      setLogoBase64(b64);
-      onLogoChange?.(b64);
-      fetch("/api/admin/logo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logoBase64: b64 }),
-      }).then((res) => {
-        if (!res.ok) {
-          console.warn("[Logo] Falha ao salvar no servidor, status:", res.status);
-        }
-      }).catch(() => {
-        console.warn("[Logo] Erro de rede ao salvar logo");
-      });
+      setLogoOrcamento(b64);
+      onUpdateCampo("logoOrcamento", b64);
     };
     reader.readAsDataURL(file);
-  }, [onLogoChange]);
+  }, [onUpdateCampo]);
 
   const removerLogo = useCallback(() => {
-    setLogoBase64(null);
-    onLogoChange?.(null);
-    fetch("/api/admin/logo", { method: "DELETE" }).catch(() => {});
-  }, [onLogoChange]);
+    setLogoOrcamento(null);
+    onUpdateCampo("logoOrcamento", "");
+  }, [onUpdateCampo]);
 
   const totalProdutos = orcamento.itens.reduce((a, i) => a + (i.total || 0), 0);
   const totalServicos = orcamento.manuseio && orcamento.custoManuseio ? orcamento.custoManuseio : 0;
@@ -183,7 +169,7 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
               </div>
               {/* Logo */}
               <div
-                className="relative w-16 flex flex-col items-end justify-center ml-4 cursor-pointer"
+                className="relative flex flex-col items-end justify-center ml-4 cursor-pointer"
                 onMouseEnter={() => setHoverLogo(true)}
                 onMouseLeave={() => setHoverLogo(false)}
                 onClick={() => logoSelRef.current?.click()}
@@ -191,7 +177,7 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                 {logo ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={logo} className="max-h-14 max-w-full object-contain" alt="Logo" />
+                    <img src={logo} className="w-auto object-contain" style={{ height: 55 }} alt="Logo" />
                     {hoverLogo && (
                       <button
                         onClick={(e) => { e.stopPropagation(); removerLogo(); }}
@@ -282,8 +268,6 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
             <div className="flex bg-gray-700 py-1 px-1.5 rounded-t" style={{ fontSize: 7 }}>
               <span className="font-bold text-gray-100" style={{ width: COL_W.img }}> </span>
               <span className="font-bold text-gray-100 flex-1">MATERIAL / OPERACIONAL</span>
-              <span className="font-bold text-gray-100 text-right" style={{ width: COL_W.acab }}>ACABAMENTO</span>
-              <span className="font-bold text-gray-100 text-right" style={{ width: COL_W.kit }}>KIT</span>
               <span className="font-bold text-gray-100 text-right" style={{ width: COL_W.qtd }}>QTD</span>
               <span className="font-bold text-gray-100 text-right" style={{ width: COL_W.und }}>UN.</span>
               <span className="font-bold text-gray-100 text-right" style={{ width: COL_W.vun }}>R$ UNIT.</span>
@@ -355,23 +339,25 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                       onChange={(e) => onUpdateItem(item.id, "item", e.target.value)}
                       placeholder="Nome do item"
                     />
-                    {/* Cor do item */}
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <input
-                        type="color"
-                        className="w-3 h-3 p-0 border-0 cursor-pointer rounded"
-                        value={item.cor || "#000000"}
-                        onChange={(e) => onUpdateItem(item.id, "cor", e.target.value)}
-                        title="Cor do item"
-                      />
-                      <input
-                        className={`${INPUT_CLS} text-gray-400 w-16`}
-                        style={{ fontSize: 6.5 }}
-                        value={item.cor || ""}
-                        onChange={(e) => onUpdateItem(item.id, "cor", e.target.value)}
-                        placeholder="Cor"
-                      />
-                    </div>
+                    {/* Cor do item (só para brindes/produtos) */}
+                    {item.categoria !== "servico" && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <input
+                          type="color"
+                          className="w-3 h-3 p-0 border-0 cursor-pointer rounded"
+                          value={item.cor || "#000000"}
+                          onChange={(e) => onUpdateItem(item.id, "cor", e.target.value)}
+                          title="Cor do item"
+                        />
+                        <input
+                          className={`${INPUT_CLS} text-gray-400 w-16`}
+                          style={{ fontSize: 6.5 }}
+                          value={item.cor || ""}
+                          onChange={(e) => onUpdateItem(item.id, "cor", e.target.value)}
+                          placeholder="Cor"
+                        />
+                      </div>
+                    )}
                     {item.ncm && (
                       <span className="text-[6px] text-gray-400 font-mono mt-0.5 block">
                         NCM: {item.ncm}
@@ -396,27 +382,27 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                         + descrição
                       </button>
                     )}
+                    {item.categoria !== "servico" && (
+                      <span className="inline-flex items-center gap-2 mt-0.5 text-[6.5px] text-gray-400 font-medium flex-wrap">
+                        {item.acabamento && item.acabamento !== "—" && (
+                          <>
+                            <svg className="w-2.5 h-2.5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4z" />
+                            </svg>
+                            {item.acabamento}
+                          </>
+                        )}
+                        {item.kit && item.kit !== "—" && (
+                          <>
+                            <svg className="w-2.5 h-2.5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                            {item.kit}
+                          </>
+                        )}
+                      </span>
+                    )}
                   </div>
-
-                  {/* Acabamento */}
-                  <select
-                    className={`${INPUT_CLS} text-gray-700`}
-                    style={{ width: COL_W.acab, fontSize: 8 }}
-                    value={item.acabamento}
-                    onChange={(e) => onUpdateItem(item.id, "acabamento", e.target.value)}
-                  >
-                    {["Silk", "DTF", "Bordado", "Laser", "Verniz UV", "Tampografia", "Sublimação", "Gravação em relevo", "Outro"].map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
-
-                  {/* Kit */}
-                  <input
-                    className={`${INPUT_CLS} text-gray-700`}
-                    style={{ width: COL_W.kit, fontSize: 8 }}
-                    value={item.kit || "—"}
-                    onChange={(e) => onUpdateItem(item.id, "kit", e.target.value === "—" ? "" : e.target.value)}
-                  />
 
                   {/* Qtd */}
                   <input
@@ -469,8 +455,6 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
                       <span className="flex-1 text-emerald-700">
                         {v.descricao || item.item}
                       </span>
-                      <span className="text-emerald-600 text-right" style={{ width: COL_W.acab, fontSize: 7.5 }}>—</span>
-                      <span className="text-emerald-600 text-right" style={{ width: COL_W.kit, fontSize: 7.5 }}>—</span>
                       <span className="text-emerald-700 text-right font-medium" style={{ width: COL_W.qtd, fontSize: 7.5 }}>
                         {v.quantidade}
                       </span>
@@ -490,13 +474,11 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
               );
             })}
 
-            {/* Linha de frete/logística */}
-            {freteVal && (
+            {/* Linha de frete/logística — só aparece se há valor de frete */}
+            {freteVal && valorFrete > 0 && (
               <div className="flex py-1 px-1.5 items-center border-b border-gray-100 text-[8px] bg-blue-50" style={{ minHeight: 32 }}>
                 <div className="text-gray-400 text-center" style={{ width: COL_W.img }}> </div>
                 <span className="flex-1 font-bold text-blue-800 text-[8px]">LOGÍSTICA DE ENTREGA</span>
-                <span className="text-gray-500" style={{ width: COL_W.acab, fontSize: 8 }}>Frete</span>
-                <span className="text-gray-500" style={{ width: COL_W.kit, fontSize: 8 }}>—</span>
                 <span className="text-gray-700 text-right" style={{ width: COL_W.qtd, fontSize: 8 }}>1</span>
                 <span className="text-gray-500 text-right" style={{ width: COL_W.und, fontSize: 8 }}>—</span>
                 <span className="text-gray-500 text-right" style={{ width: COL_W.vun, fontSize: 8 }}>—</span>

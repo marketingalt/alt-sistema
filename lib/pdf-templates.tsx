@@ -201,7 +201,7 @@ function HeaderCliente({ orcamento, logoBase64 }: { orcamento: Orcamento; logoBa
       <View style={base.header}>
         <View style={base.headerLeft}>
           {logoBase64 ? (
-            <Image src={toImgSrc(logoBase64)} style={{ maxWidth: 100, maxHeight: 32 }} />
+            <Image src={toImgSrc(logoBase64)} style={{ height: 55, objectFit: "contain" }} />
           ) : (
             <>
               <Text style={base.logoText}>alt.</Text>
@@ -251,20 +251,21 @@ export function PdfEspecificacoes({ orcamento, logoBase64 }: { orcamento: Orcame
         <HeaderCliente orcamento={orcamento} logoBase64={logoBase64} />
         <View style={base.table}>
           <View style={base.tableHeader}>
-            <Text style={base.thKit}>KIT</Text>
             <Text style={base.thItem}>ITEM</Text>
-            <Text style={base.thAcab}>ACABAMENTO</Text>
             <Text style={base.thDesc}>DESCRIÇÃO</Text>
             <Text style={base.thQtd}>QTD.</Text>
           </View>
           {orcamento.itens.map((item, idx) => (
             <View key={item.id} style={[base.row, idx % 2 !== 0 ? base.rowAlt : {}]} wrap={false}>
-              <Text style={base.tdKit}>{item.kit}</Text>
               <View style={base.tdItem}>
                 <Text>{item.item}</Text>
                 {item.ncm ? <Text style={{ fontSize: 6.5, color: "#9ca3af", marginTop: 1 }}>NCM: {item.ncm}</Text> : null}
+                {item.categoria !== "servico" && (item.acabamento && item.acabamento !== "—" || item.kit && item.kit !== "—") ? (
+                  <Text style={{ fontSize: 6.5, color: "#9ca3af", marginTop: 1 }}>
+                    {[item.acabamento, item.kit].filter(Boolean).filter(v => v !== "—").join(" · ")}
+                  </Text>
+                ) : null}
               </View>
-              <Text style={base.tdAcab}>{item.acabamento}</Text>
               <Text style={base.tdDesc}>{item.descricao}</Text>
               <Text style={base.tdQtd}>{item.quantidade}</Text>
             </View>
@@ -286,7 +287,7 @@ const v = StyleSheet.create({
   headerRow: { flexDirection: "row", marginBottom: 4 },
   hLabel: { fontSize: 6.5, color: "#9ca3af", width: 95 },
   hValue: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#ffffff", flex: 1 },
-  headerLogo: { width: 64, alignItems: "flex-end", justifyContent: "center" },
+  headerLogo: { height: 55, alignItems: "flex-end", justifyContent: "center" },
   vLogoText: { fontSize: 28, fontFamily: "Helvetica-Bold", color: "#D4AF37" },
   vLogoSub: { fontSize: 6.5, color: "#9ca3af" },
   strip: {
@@ -431,7 +432,7 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
   const mostrarTotalItem = orcamento.mostrarValorTotalItem === true;
 
   // Colunas fixas
-  const W = { img: 36, acab: 58, kit: 52, qtd: 30, und: 26, vun: 74, vtot: 82 };
+  const W = { img: 36, qtd: 30, und: 26, vun: 74, vtot: 82 };
 
   return (
     <Document>
@@ -482,7 +483,7 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
             </View>
             <View style={v.headerLogo}>
               {logoBase64 ? (
-                <Image src={toImgSrc(logoBase64)} style={{ maxWidth: 64, maxHeight: 48 }} />
+                <Image src={toImgSrc(logoBase64)} style={{ height: 55, objectFit: "contain" }} />
               ) : (
                 <>
                   <Text style={v.vLogoText}>alt.</Text>
@@ -523,8 +524,6 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
           <View style={v.tableHeader}>
             <Text style={[v.th, { width: W.img }]}> </Text>
             <Text style={[v.th, { flex: 1 }]}>MATERIAL / OPERACIONAL</Text>
-            <Text style={[v.th, { width: W.acab }]}>ACABAMENTO</Text>
-            <Text style={[v.th, { width: W.kit }]}>KIT</Text>
             <Text style={[v.th, { width: W.qtd, textAlign: "right" }]}>QTD</Text>
             <Text style={[v.th, { width: W.und, textAlign: "right" }]}>UN.</Text>
             <Text style={[v.th, { width: W.vun, textAlign: "right" }]}>R$ UNIT.</Text>
@@ -546,9 +545,12 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
                   {item.descricao ? (
                     <Text style={{ fontSize: 7, color: "#6b7280", marginTop: 2, lineHeight: 1.3 }}>{item.descricao}</Text>
                   ) : null}
+                  {item.categoria !== "servico" && (item.acabamento && item.acabamento !== "—" || item.kit && item.kit !== "—") ? (
+                    <Text style={{ fontSize: 6.5, color: "#9ca3af", marginTop: 1 }}>
+                      {[item.acabamento, item.kit].filter(Boolean).filter(v => v !== "—").join(" · ")}
+                    </Text>
+                  ) : null}
                 </View>
-                <Text style={[v.td, { width: W.acab }]}>{item.acabamento}</Text>
-                <Text style={[v.td, { width: W.kit }]}>{item.kit || "—"}</Text>
                 <Text style={[v.td, { width: W.qtd, textAlign: "right" }]}>{item.quantidade}</Text>
                 <Text style={[v.td, { width: W.und, textAlign: "right" }]}>UN</Text>
                 <Text style={[v.td, { width: W.vun, textAlign: "right" }]}>{fmt(item.valorUnitario)}</Text>
@@ -562,14 +564,12 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
           })}
 
           {/* Logística */}
-          {freteVal && (
+          {freteVal && valorFrete > 0 && (
             <View style={[v.row, v.rowFrete]} wrap={false}>
               <View style={v.imgBox} />
               <Text style={[v.td, { flex: 1, fontFamily: "Helvetica-Bold", color: "#1e40af" }]}>
                 LOGÍSTICA DE ENTREGA
               </Text>
-              <Text style={[v.td, { width: W.acab, color: "#6b7280" }]}>Frete</Text>
-              <Text style={[v.td, { width: W.kit }]}>—</Text>
               <Text style={[v.td, { width: W.qtd, textAlign: "right" }]}>1</Text>
               <Text style={[v.td, { width: W.und, textAlign: "right" }]}>—</Text>
               <Text style={[v.td, { width: W.vun, textAlign: "right" }]}>—</Text>
@@ -678,7 +678,7 @@ export function PdfOrdemServico({ orcamento, logoBase64 }: { orcamento: Orcament
         <View style={os.header}>
           <View>
             {logoBase64 ? (
-              <Image src={toImgSrc(logoBase64)} style={{ maxWidth: 100, maxHeight: 28 }} />
+              <Image src={toImgSrc(logoBase64)} style={{ height: 55, objectFit: "contain" }} />
             ) : (
               <>
                 <Text style={os.logoText}>alt.</Text>
@@ -756,19 +756,20 @@ export function PdfOrdemServico({ orcamento, logoBase64 }: { orcamento: Orcament
         {/* Tabela de itens — COM referência (uso interno) */}
         <View style={os.table}>
           <View style={os.tableHeader}>
-            <Text style={os.thKit}>KIT</Text>
             <Text style={os.thRef}>REFERÊNCIA</Text>
             <Text style={os.thItem}>ITEM</Text>
-            <Text style={os.thAcab}>ACABAMENTO</Text>
             <Text style={os.thDesc}>DESCRIÇÃO TÉCNICA</Text>
             <Text style={os.thQtd}>QTD.</Text>
           </View>
           {orcamento.itens.map((item, idx) => (
             <View key={item.id} style={[os.row, idx % 2 !== 0 ? os.rowAlt : {}]} wrap={false}>
-              <Text style={os.tdKit}>{item.kit}</Text>
               <Text style={os.tdRef}>{item.referencia}{item.ncm ? ` · NCM ${item.ncm}` : ""}</Text>
               <Text style={os.tdItem}>{item.item}</Text>
-              <Text style={os.tdAcab}>{item.acabamento}</Text>
+              {item.categoria !== "servico" && (item.acabamento && item.acabamento !== "—" || item.kit && item.kit !== "—") ? (
+                <Text style={{ fontSize: 6.5, color: "#9ca3af", marginTop: 1 }}>
+                  {[item.acabamento, item.kit].filter(Boolean).filter(v => v !== "—").join(" · ")}
+                </Text>
+              ) : null}
               <Text style={os.tdDesc}>{item.descricao}</Text>
               <Text style={os.tdQtd}>{item.quantidade}</Text>
             </View>

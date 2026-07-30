@@ -48,12 +48,18 @@ export default function ProdutoForm({ dados, onChange, produtoId, onImagemAtuali
       const form = new FormData();
       form.append("imagem", arquivo);
       const res = await fetch(`/api/produtos/${produtoId}/imagem`, { method: "POST", body: form });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "sem resposta");
+        console.error("Erro no upload:", res.status, errText);
+        throw new Error(`HTTP ${res.status}`);
+      }
       const { imagemUrl } = await res.json();
       onChange("imagemUrl", imagemUrl);
       onImagemAtualizada?.(imagemUrl);
-    } catch {
-      alert("Erro ao enviar imagem.");
+    } catch (e) {
+      console.error("Erro ao enviar imagem:", e);
+      const msg = e instanceof Error ? e.message : "Erro desconhecido";
+      alert(`Erro ao enviar imagem: ${msg}`);
     } finally {
       setEnviandoImagem(false);
       if (inputImgRef.current) inputImgRef.current.value = "";

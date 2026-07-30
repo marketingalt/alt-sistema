@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
 
     // ── Atualizar permissões ──
     if (permissoes) {
-      const VALIDAS = ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "planejamento", "rh"];
+      const VALIDAS = ["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "planejamento", "rh", "faturamento"];
       const invalidas = permissoes.filter((p: string) => !VALIDAS.includes(p));
       if (invalidas.length > 0) {
         return NextResponse.json(

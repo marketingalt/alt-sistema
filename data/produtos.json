@@ -1,5 +1,9 @@
 [
   {
+    "id": "test987",
+    "imagemUrl": "/uploads/produtos/test987.png"
+  },
+  {
     "nome": "Relógio Masculino Social",
     "sku": "https://www.rbmrelogios.com.br/relogio-masculino-champion-casual-couro-marrom-cn21452u?utm_source=Site&utm_medium=GoogleMerchant&utm_campaign=GoogleMerchant&srsltid=AfmBOopcTD2luRX3Oz6ujKIr_AXk5VuThinYziJPx5MSL4jEpeHO1x8VSis",
     "marca": "RBM",

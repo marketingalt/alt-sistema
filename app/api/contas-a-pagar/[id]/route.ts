@@ -31,6 +31,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const { userId } = await auth();
   const user = await currentUser();
 
+  // Extrai e remove campos de edição recorrente — não devem ser persistidos nos dados
+  const _updateMode = body._updateMode;
+  const _updateModeRef = body._updateModeRef;
+  delete body._updateMode;
+  delete body._updateModeRef;
+
   // Injeta metadados de alteração no body para persistir em todos os fluxos
   body.updatedAt = new Date().toISOString();
   body.updatedById = userId || undefined;
@@ -176,6 +182,22 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   );
   await salvarCP(dadosCP);
 
+  // ── Propagação de edição em contas recorrentes ──
+  const contasAtualizadas: any[] = [];
+  if (_updateMode && _updateMode !== "this" && _updateModeRef) {
+    const dataRef = conta.dataVencimento;
+    dadosCP.contas = dadosCP.contas.map((c: any) => {
+      // Encontra irmãs: mesma origem (pela _parcelaDe) ou a conta "mãe" que gerou as parcelas
+      const isSibling = c._parcelaDe === _updateModeRef;
+      const isParent = c.recorrente && c.id === _updateModeRef;
+      if (!isSibling && !isParent) return c;
+      if (_updateMode === "thisAndFuture" && c.dataVencimento < dataRef) return c;
+      const updated = { ...c, ...body, updatedAt: new Date().toISOString() };
+      contasAtualizadas.push({ id: updated.id, ...body });
+      return updated;
+    });
+  }
+
   // ── Se for lote de reembolsos, propaga alterações para a origem ──
   if (conta.isLote && body.loteItens && Array.isArray(body.loteItens)) {
     try {
@@ -202,7 +224,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, contasAtualizadas: contasAtualizadas.length > 0 ? contasAtualizadas : undefined });
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {

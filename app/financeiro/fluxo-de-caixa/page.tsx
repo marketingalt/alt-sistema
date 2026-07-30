@@ -204,6 +204,18 @@ export default function FluxoDeCaixaPage() {
   const [usuarios, setUsuarios] = useState<{ id: string; name?: string }[]>([]);
   const [filtroUsuario, setFiltroUsuario] = useState("");
 
+  const usuarioMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const u of usuarios) {
+      if (u.id && u.name) map[u.id] = u.name;
+    }
+    return map;
+  }, [usuarios]);
+
+  function nomeCriadoPor(l: Lancamento): string {
+    return l.userName || (l.userId && usuarioMap[l.userId]) || "Financeiro";
+  }
+
   useEffect(() => {
     fetch("/api/config")
       .then((r) => r.json())
@@ -944,8 +956,8 @@ export default function FluxoDeCaixaPage() {
                         </td>
                         <td className="px-3 py-2.5">
                           <div className="flex items-center gap-1.5">
-                            <AvatarIniciais nome={l.userName || "?"} size="sm" />
-                            <span className="text-xs text-gray-500">{l.userName || "—"}</span>
+                            <AvatarIniciais nome={nomeCriadoPor(l)} size="sm" />
+                            <span className="text-xs text-gray-500">{nomeCriadoPor(l)}</span>
                             {l.userId === user?.id && (
                               <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Eu</span>
                             )}
@@ -977,8 +989,8 @@ export default function FluxoDeCaixaPage() {
                         <td colSpan={11} className="px-4 py-1.5">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                              <AvatarIniciais nome={l.userName || "?"} size="sm" />
-                              <span>{l.userName || "—"}</span>
+                              <AvatarIniciais nome={nomeCriadoPor(l)} size="sm" />
+                              <span>{nomeCriadoPor(l)}</span>
                               {l.userId === user?.id && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Eu</span>}
                             </div>
                             <ParticipantesAvatar participantes={l.participantes || []} />

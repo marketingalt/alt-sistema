@@ -230,6 +230,7 @@ const MODULOS_INFO = [
   { key: "produtos" as const, label: "Produtos", cor: "text-amber-600 bg-amber-50 border-amber-200" },
   { key: "planejamento" as const, label: "Planejamento", cor: "text-indigo-600 bg-indigo-50 border-indigo-200" },
   { key: "financeiro" as const, label: "Financeiro", cor: "text-emerald-600 bg-emerald-50 border-emerald-200" },
+  { key: "faturamento" as const, label: "Faturamentos", cor: "text-rose-600 bg-rose-50 border-rose-200" },
   { key: "logistica" as const, label: "Logística", cor: "text-orange-600 bg-orange-50 border-orange-200" },
   { key: "rh" as const, label: "RH", cor: "text-pink-600 bg-pink-50 border-pink-200" },
 ];
@@ -540,10 +541,14 @@ function AbaConfiguracoes() {
     setSalvo(false);
     setErro("");
     try {
+      // Preserva logos salvas por componentes independentes (LogoUpload, LogoOrcamentoUpload)
+      const currentRes = await fetch("/api/admin/configuracoes");
+      const currentSettings: SystemSettings = await currentRes.json();
+      const merged = { ...currentSettings, ...settings, logoBase64: currentSettings.logoBase64, logoOrcamentoPadrao: currentSettings.logoOrcamentoPadrao };
       const res = await fetch("/api/admin/configuracoes", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(merged),
       });
       if (!res.ok) throw new Error("Erro ao salvar");
       setSalvo(true);
@@ -685,6 +690,15 @@ function AbaConfiguracoes() {
         <LogoUpload />
       </section>
 
+      {/* Logo Padrão de Orçamentos */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mt-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4">Logo Padrão de Orçamentos</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Logo que aparece por padrão nos orçamentos. Cada orçamento pode ter a sua própria independente.
+        </p>
+        <LogoOrcamentoUpload />
+      </section>
+
       {/* Ações */}
       <div className="flex items-center gap-4">
         <button
@@ -765,6 +779,93 @@ function LogoUpload() {
         <div className="relative group">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logo} alt="Logo" className="h-20 w-auto rounded-lg border border-gray-200 p-2 bg-white" />
+          <button
+            onClick={removerLogo}
+            disabled={enviando}
+            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-md hover:bg-red-600 transition disabled:opacity-50"
+          >
+            ×
+          </button>
+        </div>
+      ) : (
+        <div className="h-20 w-40 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center text-gray-400 text-xs">
+          Nenhuma logo
+        </div>
+      )}
+      <label className="cursor-pointer bg-white border border-gray-200 text-sm font-semibold text-gray-700 px-4 py-2 rounded-xl hover:border-[#fb4d06]/30 hover:text-[#fb4d06] transition">
+        {enviando ? "Enviando..." : logo ? "Trocar Logo" : "Selecionar Imagem"}
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          disabled={enviando}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) uploadLogo(file);
+          }}
+        />
+      </label>
+    </div>
+  );
+}
+
+function LogoOrcamentoUpload() {
+  const [logo, setLogo] = useState<string | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/logo-orcamento")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.logoBase64) setLogo(data.logoBase64);
+      })
+      .catch(() => {})
+      .finally(() => setCarregando(false));
+  }, []);
+
+  async function uploadLogo(file: File) {
+    const reader = new FileReader();
+    setEnviando(true);
+    reader.onload = async () => {
+      const b64 = reader.result as string;
+      try {
+        const res = await fetch("/api/admin/logo-orcamento", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ logoBase64: b64 }),
+        });
+        if (res.ok) setLogo(b64);
+        else alert("Erro ao salvar logo");
+      } catch {
+        alert("Erro ao salvar logo");
+      } finally {
+        setEnviando(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function removerLogo() {
+    setEnviando(true);
+    try {
+      const res = await fetch("/api/admin/logo-orcamento", { method: "DELETE" });
+      if (res.ok) setLogo(null);
+    } catch {
+      alert("Erro ao remover logo");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  if (carregando) return <p className="text-sm text-gray-400">Carregando...</p>;
+
+  return (
+    <div className="flex items-center gap-6">
+      {logo ? (
+        <div className="relative group">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logo} alt="Logo orçamentos" className="h-20 w-auto rounded-lg border border-gray-200 p-2 bg-white" />
           <button
             onClick={removerLogo}
             disabled={enviando}

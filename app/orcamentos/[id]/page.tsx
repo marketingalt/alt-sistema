@@ -124,7 +124,7 @@ export default function VisualizarOrcamento() {
   const [carregandoVersoes, setCarregandoVersoes] = useState(false);
 
   // ── Logo ──
-  const [logoBase64, setLogoBase64] = useState<string | null>(null);
+  const logoBase64 = orcamento?.logoOrcamento || null;
 
   // ── Efeitos (existente) ──
   useEffect(() => {
@@ -175,13 +175,7 @@ export default function VisualizarOrcamento() {
     }).catch(() => {});
   }, []);
 
-  // Carrega a logo salva (para usar no PDF)
-  useEffect(() => {
-    fetch("/api/admin/logo")
-      .then((r) => r.json())
-      .then((data) => { if (data.logoBase64) setLogoBase64(data.logoBase64); })
-      .catch(() => {});
-  }, []);
+  // Logo vem do próprio orçamento (orcamento.logoOrcamento)
 
   // Busca OS vinculada
   useEffect(() => {
@@ -823,8 +817,6 @@ export default function VisualizarOrcamento() {
               onUpdateItem={atualizarItem}
               onDownloadPdf={() => gerarPdf("valores")}
               gerandoPdf={gerandoPdf}
-              logoBase64={logoBase64}
-              onLogoChange={(b64) => setLogoBase64(b64)}
             />
           </div>
         ) : (

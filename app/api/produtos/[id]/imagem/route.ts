@@ -3,41 +3,58 @@ import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { buscarProduto, salvarProduto } from "@/lib/storage";
-import { uploadFile, deleteFile } from "@/lib/storage-file-adapter";
+import { uploadFile, deleteFile, getPublicUrl } from "@/lib/storage-file-adapter";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "produtos");
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+  try {
+    const { id } = await params;
 
-  const form = await req.formData();
-  const arquivo = form.get("imagem") as File | null;
-  if (!arquivo) return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 });
+    const form = await req.formData();
+    const arquivo = form.get("imagem") as File | null;
+    if (!arquivo) return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 });
 
-  const ext = arquivo.name.split(".").pop() || "jpg";
-  const nomeArquivo = `${id}.${ext}`;
-  const buffer = Buffer.from(await arquivo.arrayBuffer());
+    const ext = arquivo.name.split(".").pop() || "jpg";
+    const nomeArquivo = `${id}.${ext}`;
+    const buffer = Buffer.from(await arquivo.arrayBuffer());
 
-  // Upload via adapter: retorna a URL pública completa do Blob quando configurado,
-  // ou o nome do arquivo quando cai no filesystem local (sem BLOB_READ_WRITE_TOKEN).
-  const caminhoRetornado = await uploadFile("produtos", id, nomeArquivo, buffer);
-  const usaBlob = process.env.BLOB_READ_WRITE_TOKEN !== undefined;
+    // Upload via adapter: retorna a URL pública completa do Blob quando configurado,
+    // ou o caminho local (gravado em /tmp/ no Vercel sem Blob, já que /var/task/ é
+    // read-only lá) quando cai no filesystem.
+    const caminhoRetornado = await uploadFile("produtos", id, nomeArquivo, buffer);
+    const usaBlob = process.env.BLOB_READ_WRITE_TOKEN !== undefined;
 
-  let imagemUrl: string;
-  if (usaBlob) {
-    imagemUrl = caminhoRetornado;
-  } else {
-    // Sem Blob configurado: também grava uma cópia em public/ para servir como <img> estático
-    if (!existsSync(UPLOAD_DIR)) await mkdir(UPLOAD_DIR, { recursive: true });
-    await writeFile(path.join(UPLOAD_DIR, nomeArquivo), buffer);
-    imagemUrl = `/uploads/produtos/${nomeArquivo}`;
+    let imagemUrl: string;
+    if (usaBlob) {
+      imagemUrl = caminhoRetornado;
+    } else if (process.env.VERCEL !== "1") {
+      // Dev local: também grava uma cópia em public/ para servir como <img> estático
+      if (!existsSync(UPLOAD_DIR)) await mkdir(UPLOAD_DIR, { recursive: true });
+      await writeFile(path.join(UPLOAD_DIR, nomeArquivo), buffer);
+      imagemUrl = `/uploads/produtos/${nomeArquivo}`;
+    } else {
+      // Vercel sem Blob: public/ é read-only — o adapter já gravou em /tmp/,
+      // getPublicUrl aponta para a rota /api/uploads que sabe ler de lá.
+      imagemUrl = getPublicUrl("produtos", id, caminhoRetornado);
+    }
+
+    // Salva a imagem no registro do produto (cria entrada mínima se for novo)
+    const produto = await buscarProduto(id);
+    if (produto) {
+      await salvarProduto({ ...produto, imagemUrl });
+    } else {
+      await salvarProduto({ id, imagemUrl } as any);
+    }
+
+    return NextResponse.json({ imagemUrl });
+  } catch (error) {
+    console.error("[IMAGEM POST ERROR]", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Erro interno ao salvar imagem" },
+      { status: 500 }
+    );
   }
-
-  // Atualiza no storage só se o produto já existir (no caso de edição)
-  const produto = await buscarProduto(id);
-  if (produto) await salvarProduto({ ...produto, imagemUrl });
-
-  return NextResponse.json({ imagemUrl });
 }
 
 /** É uma URL do nosso próprio bucket Vercel Blob (não uma URL externa qualquer, como o CDN da XBZ). */

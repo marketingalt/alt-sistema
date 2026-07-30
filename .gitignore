@@ -53,3 +53,4 @@ next-env.d.ts
 # Contém contexto de desenvolvimento, instruções personalizadas
 # e registros de conversas anteriores.
 /.claude/
+.env*

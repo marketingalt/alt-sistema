@@ -8,28 +8,44 @@ function isProduction(): boolean {
 
 // ---- Local filesystem helpers ----
 const DATA_DIR = path.join(process.cwd(), "data", "uploads");
+const TMP_DIR = "/tmp/data/uploads";
+
+/** No Vercel sem Blob configurado, /var/task/ é read-only — usa /tmp/ */
+function resolveDir(): string {
+  if (process.env.VERCEL === "1" && !process.env.BLOB_READ_WRITE_TOKEN) {
+    return TMP_DIR;
+  }
+  return DATA_DIR;
+}
 
 function fileWrite(subdir: string, id: string, fileName: string, buffer: Buffer): string {
-  const dir = path.join(DATA_DIR, subdir, id);
+  const base = resolveDir();
+  const dir = path.join(base, subdir, id);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, fileName), buffer);
   return fileName; // local: store just the filename
 }
 
 function fileRead(subdir: string, id: string, fileName: string): Buffer {
-  return fs.readFileSync(path.join(DATA_DIR, subdir, id, fileName));
+  return fs.readFileSync(path.join(resolveDir(), subdir, id, fileName));
 }
 
 function fileDelete(subdir: string, id: string, fileName: string): void {
-  const filePath = path.join(DATA_DIR, subdir, id, fileName);
+  const base = resolveDir();
+  const filePath = path.join(base, subdir, id, fileName);
   if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 }
 
 function fileExists(subdir: string, id: string, fileName: string): boolean {
-  return fs.existsSync(path.join(DATA_DIR, subdir, id, fileName));
+  return fs.existsSync(path.join(resolveDir(), subdir, id, fileName));
 }
 
 function localUrl(subdir: string, id: string, fileName: string): string {
+  // No Vercel sem Blob, o arquivo está em /tmp/ e não em data/
+  // Usa a rota /api/uploads que também verifica /tmp/
+  if (process.env.VERCEL === "1" && !process.env.BLOB_READ_WRITE_TOKEN) {
+    return `/api/uploads/${subdir}/${id}/${fileName}`;
+  }
   return `/uploads/${subdir}/${id}/${fileName}`;
 }
 
@@ -93,7 +109,7 @@ export async function readFile(
 
 // Internal: read as ArrayBuffer for Response/Blob compatibility
 function fileReadBuffer(subdir: string, id: string, fileName: string): ArrayBuffer {
-  return fs.readFileSync(path.join(DATA_DIR, subdir, id, fileName)).buffer.slice(0);
+  return fs.readFileSync(path.join(resolveDir(), subdir, id, fileName)).buffer.slice(0);
 }
 
 /**

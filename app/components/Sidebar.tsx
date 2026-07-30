@@ -6,7 +6,7 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import Image from "next/image";
 import { useState, useEffect, useMemo, useRef } from "react";
 
-type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "planejamento" | "rh";
+type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "planejamento" | "rh" | "faturamento";
 
 interface NavItem {
   label: string;
@@ -42,6 +42,16 @@ const NAV: NavItem[] = [
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+      </svg>
+    ),
+  },
+  {
+    label: "Faturamentos",
+    href: "/financeiro/faturamentos",
+    permKey: "faturamento",
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
     ),
   },
@@ -171,7 +181,7 @@ export default function Sidebar() {
   }
 
   // Ordem dos itens do sidebar (carregada do localStorage)
-  const ORDEM_PADRAO: string[] = ["visao-geral", "clientes", "logistica", "rh", "orcamentos", "planejamento", "administracao", "financeiro", "novo-orcamento"];
+  const ORDEM_PADRAO: string[] = ["visao-geral", "clientes", "logistica", "faturamentos", "rh", "orcamentos", "planejamento", "administracao", "financeiro", "novo-orcamento"];
   const [sidebarOrdem, setSidebarOrdem] = useState<string[]>(ORDEM_PADRAO);
 
   useEffect(() => {
@@ -190,7 +200,7 @@ export default function Sidebar() {
 
   // Permissões do usuário (admins têm todas)
   const permissoes = useMemo<Set<Permissao>>(() => {
-    if (isAdmin) return new Set(["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "planejamento", "rh"]);
+    if (isAdmin) return new Set(["orcamentos", "clientes", "fornecedores", "produtos", "financeiro", "logistica", "planejamento", "rh", "faturamento"]);
     const raw = user?.publicMetadata?.permissoes;
     if (Array.isArray(raw)) return new Set(raw as Permissao[]);
     return new Set();
@@ -412,6 +422,7 @@ export default function Sidebar() {
             "visao-geral": () => renderNavItem(navItemMap.get("visao-geral")!),
             "clientes": () => renderNavItem(navItemMap.get("clientes")!),
             "logistica": () => renderNavItem(navItemMap.get("logistica")!),
+            "faturamentos": () => renderNavItem(navItemMap.get("faturamentos")!),
             "rh": () => renderNavItem(navItemMap.get("rh")!),
             "orcamentos": () => (
               orcamentosPermitido ? (

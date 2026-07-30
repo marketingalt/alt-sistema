@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 
 // ── Itens do sidebar que podem ser reorganizados ──
@@ -38,6 +38,9 @@ export default function Configuracoes() {
   const [ordem, setOrdem] = useState<string[]>([]);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [salvo, setSalvo] = useState(false);
+  const [logoOrcamentoPadrao, setLogoOrcamentoPadrao] = useState<string | null>(null);
+  const [logoSalvo, setLogoSalvo] = useState(false);
+  const logoSelRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     // Carregar tema
@@ -64,12 +67,47 @@ export default function Configuracoes() {
     }
   }, []);
 
+  // Carrega a logo padrão de orçamentos
+  useEffect(() => {
+    fetch("/api/admin/logo-orcamento")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.logoBase64) setLogoOrcamentoPadrao(data.logoBase64);
+      })
+      .catch(() => {});
+  }, []);
+
   const toggleTema = useCallback(() => {
     const novo = tema === "light" ? "dark" : "light";
     setTema(novo);
     localStorage.setItem("alt_theme", novo);
     document.documentElement.classList.toggle("dark", novo === "dark");
   }, [tema]);
+
+  const handleLogoUpload = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = reader.result as string;
+      setLogoOrcamentoPadrao(b64);
+      setLogoSalvo(false);
+      fetch("/api/admin/logo-orcamento", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoBase64: b64 }),
+      }).then((res) => {
+        if (res.ok) {
+          setLogoSalvo(true);
+          setTimeout(() => setLogoSalvo(false), 2000);
+        }
+      }).catch(() => {});
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const handleLogoRemover = useCallback(() => {
+    setLogoOrcamentoPadrao(null);
+    fetch("/api/admin/logo-orcamento", { method: "DELETE" }).catch(() => {});
+  }, []);
 
   function salvarOrdem(novaOrdem: string[]) {
     setOrdem(novaOrdem);
@@ -147,6 +185,55 @@ export default function Configuracoes() {
           <span className="ml-3 text-sm text-gray-600 align-middle">
             {tema === "dark" ? "Modo escuro" : "Modo claro"}
           </span>
+        </section>
+
+        {/* ── Logo Padrão para Orçamentos ── */}
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-bold text-gray-800 mb-1">Logo de Orçamentos</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Logo que aparece por padrão nos orçamentos. Cada orçamento pode ter a sua própria.
+          </p>
+          <div className="flex items-center gap-4">
+            <div className="relative w-[90px] h-[60px] bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden">
+              {logoOrcamentoPadrao ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoOrcamentoPadrao} className="max-h-12 max-w-[80px] object-contain" alt="Logo orçamentos" />
+              ) : (
+                <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={logoSelRef}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleLogoUpload(file);
+                }}
+              />
+              <button
+                onClick={() => logoSelRef.current?.click()}
+                className="text-sm font-medium text-white bg-[#fb4d06] px-4 py-1.5 rounded-lg hover:bg-[#e04405] transition"
+              >
+                {logoOrcamentoPadrao ? "Trocar imagem" : "Adicionar imagem"}
+              </button>
+              {logoOrcamentoPadrao && (
+                <button
+                  onClick={handleLogoRemover}
+                  className="text-sm font-medium text-red-500 hover:text-red-600 transition"
+                >
+                  Remover
+                </button>
+              )}
+            </div>
+          </div>
+          {logoSalvo && (
+            <p className="text-xs text-green-600 mt-3 font-medium">Logo salva com sucesso!</p>
+          )}
         </section>
 
         {/* ── Organizar Sidebar ── */}
