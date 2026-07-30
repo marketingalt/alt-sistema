@@ -100,6 +100,7 @@ export default function VisualizarOrcamento() {
   const [cienteAlteracao, setCienteAlteracao] = useState(false);
   const [modalFrete, setModalFrete] = useState(false);
   const [modalFreteProducao, setModalFreteProducao] = useState<string | null>(null);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [enderecoFornecedorModal, setEnderecoFornecedorModal] = useState("");
   const [duplicando, setDuplicando] = useState(false);
   const restoredRef = useRef(false);
@@ -311,16 +312,15 @@ export default function VisualizarOrcamento() {
     setOrcamento((prev) => prev ? { ...prev, itens: prev.itens.filter((i) => i.id !== itemId) } : prev);
   }
 
-  function moverItem(itemId: string, dir: -1 | 1) {
+  function moverItemPara(fromIdx: number, toIdx: number) {
+    if (!orcamento) return;
+    if (toIdx < 0 || toIdx >= orcamento.itens.length || fromIdx === toIdx) return;
     setSalvo(false);
     setOrcamento((prev) => {
       if (!prev) return prev;
-      const idx = prev.itens.findIndex((i) => i.id === itemId);
-      if (idx < 0) return prev;
-      const to = idx + dir;
-      if (to < 0 || to >= prev.itens.length) return prev;
       const itens = [...prev.itens];
-      [itens[idx], itens[to]] = [itens[to], itens[idx]];
+      const [item] = itens.splice(fromIdx, 1);
+      itens.splice(toIdx, 0, item);
       return { ...prev, itens };
     });
   }
@@ -1267,31 +1267,20 @@ export default function VisualizarOrcamento() {
 
                   return (
                     <div key={item.id} className="border border-gray-100 rounded-xl overflow-hidden">
-                      <div className="bg-gray-50 px-3 sm:px-4 py-2 flex items-center justify-between border-b border-gray-100">
+                      <div
+                        className={`bg-gray-50 px-3 sm:px-4 py-2 flex items-center justify-between border-b cursor-grab active:cursor-grabbing transition-colors ${
+                          dragIdx === idx ? "border-[#fb4d06] bg-[#fb4d06]/5" : "border-gray-100"
+                        }`}
+                        draggable
+                        onDragStart={(e) => { setDragIdx(idx); e.dataTransfer.effectAllowed = "move"; }}
+                        onDragOver={(e) => { e.preventDefault(); if (dragIdx !== null && dragIdx !== idx) moverItemPara(dragIdx, idx); setDragIdx(idx); }}
+                        onDragEnd={() => setDragIdx(null)}
+                      >
                         <div className="flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5 shrink-0 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 6h2v2H8V6zm6 0h2v2h-2V6zM8 11h2v2H8v-2zm6 0h2v2h-2v-2zm-6 5h2v2H8v-2zm6 0h2v2h-2v-2z" />
+                          </svg>
                           <span className="text-sm font-bold text-[#fb4d06] uppercase">Item {idx + 1}</span>
-                          <button
-                            type="button"
-                            onClick={() => moverItem(item.id, -1)}
-                            disabled={idx === 0}
-                            className="p-1 rounded-md text-gray-300 hover:text-gray-600 hover:bg-gray-200 disabled:opacity-0 disabled:pointer-events-none transition"
-                            title="Mover para cima"
-                          >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moverItem(item.id, 1)}
-                            disabled={idx === orcamento.itens.length - 1}
-                            className="p-1 rounded-md text-gray-300 hover:text-gray-600 hover:bg-gray-200 disabled:opacity-0 disabled:pointer-events-none transition"
-                            title="Mover para baixo"
-                          >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
                           <span className="text-sm font-semibold text-gray-400 mx-1">·</span>
                           <button
                             type="button"
