@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Orcamento, ItemOrcamento, StatusOrcamento, Fornecedor, VersaoOrcamento, Produto, HistoricoAlteracao } from "@/app/types";
@@ -9,8 +9,10 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
 import ComboboxFornecedor from "@/app/components/ComboboxFornecedor";
 import BuscaProdutoInput from "@/app/components/BuscaProdutoInput";
+import CampoQuantidadeEstoque from "@/app/components/CampoQuantidadeEstoque";
 import ImagemReferencia from "@/app/components/ImagemReferencia";
 import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima } from "@/lib/calculos";
+import { excedeEstoque } from "@/lib/estoque";
 import PedidoComprasAnexo from "@/app/components/PedidoComprasAnexo";
 import CampoData from "@/app/components/CampoData";
 import CalculadoraFrete from "@/app/components/CalculadoraFrete";
@@ -20,7 +22,7 @@ import type { DocumentoFornecedor } from "@/app/types";
 import DocumentoPreview from "./DocumentoPreview";
 import TagSelector from "@/app/components/TagSelector";
 import MultiUserSelect from "@/app/components/MultiUserSelect";
-import { validarOrcamento } from "@/lib/validacao";
+import { validarOrcamento, validarEstoque } from "@/lib/validacao";
 import type { ErroValidacao } from "@/lib/validacao";
 import { useAutoSave, getDraft, clearDraft } from "@/hooks/useAutoSave";
 import HistoricoAtividades from "@/app/components/HistoricoAtividades";
@@ -82,6 +84,11 @@ function migrarItem(i: Partial<ItemOrcamento>, margemPadrao: number): ItemOrcame
     valorAjustado: i.valorAjustado || false,
     total: Number(i.total) || 0,
     categoria: (i.categoria as "brindes" | "servico") || "brindes",
+    // Referência ao produto de origem (XBZ) para controle de estoque
+    produtoId: i.produtoId,
+    xbzId: i.xbzId,
+    estoqueDisponivel: i.estoqueDisponivel !== undefined ? Number(i.estoqueDisponivel) : undefined,
+    origemXbz: i.origemXbz || false,
   };
 }
 
@@ -98,6 +105,7 @@ export default function VisualizarOrcamento() {
   const [errosValidacao, setErrosValidacao] = useState<ErroValidacao[]>([]);
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [cienteAlteracao, setCienteAlteracao] = useState(false);
+  const [cienteEstoque, setCienteEstoque] = useState(false);
   const [modalFrete, setModalFrete] = useState(false);
   const [modalFreteProducao, setModalFreteProducao] = useState<string | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -349,6 +357,11 @@ export default function VisualizarOrcamento() {
             valorUnitario: p.precoFinal ?? item.valorUnitario,
             valorAjustado: p.precoFinal ? true : item.valorAjustado,
             descricao: p.informacaoTecnica || "",
+            // Referência ao produto de origem para controle de estoque
+            produtoId: p.id,
+            xbzId: p.xbzId,
+            estoqueDisponivel: p.estoque,
+            origemXbz: p.origemXbz || false,
           }, me);
         }),
       };
@@ -440,6 +453,14 @@ export default function VisualizarOrcamento() {
 
     if (percentuaisAlterados && !cienteAlteracao) {
       alert("Confirme a caixa 'Estou ciente da alteração nas porcentagens' na seção de Margens antes de salvar.");
+      return;
+    }
+
+    // Valida estoque XBZ (bloqueio suave — confirmação por checkbox)
+    const errosEstoque = validarEstoque(orcamento, produtos);
+    if (errosEstoque.length > 0 && !cienteEstoque) {
+      setErrosValidacao(errosEstoque);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     setSalvando(true);
@@ -648,6 +669,10 @@ export default function VisualizarOrcamento() {
   const totalServicos = orcamento.manuseio && orcamento.custoManuseio ? orcamento.custoManuseio : 0;
   const freteValorNum = (orcamento.freteValor ?? 0) > 0 ? (orcamento.freteValor ?? 0) : 0;
   const totalGeral = totalProdutos + totalServicos + freteValorNum;
+  const itensExcedemEstoque = useMemo(
+    () => orcamento.itens.some((item) => excedeEstoque(item, produtos)),
+    [orcamento.itens, produtos]
+  );
 
   return (
     <WorkspaceLayout>
@@ -1253,6 +1278,19 @@ export default function VisualizarOrcamento() {
                   </span>
                 </label>
               )}
+              {itensExcedemEstoque && (
+                <label className="flex items-start gap-2.5 mt-3 pt-3 border-t border-red-200 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={cienteEstoque}
+                    onChange={(e) => setCienteEstoque(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-[#fb4d06] cursor-pointer shrink-0"
+                  />
+                  <span className={`text-sm font-semibold ${cienteEstoque ? "text-red-500/70" : "text-red-700"}`}>
+                    Estou ciente que há itens com quantidade acima do estoque disponível.
+                  </span>
+                </label>
+              )}
             </div>
 
             {/* Itens */}
@@ -1415,14 +1453,20 @@ export default function VisualizarOrcamento() {
                                 </select>
                               </div>
                               {item.variantes && item.variantes.length > 0 ? (
-                                <div className="flex flex-col gap-1">
-                                  <label className="block text-sm font-medium text-gray-500">Quantidade total (calculada)</label>
-                                  <div className="w-full border border-emerald-200 bg-emerald-50 rounded-lg px-3 py-2.5 text-base text-emerald-700 font-semibold cursor-default">
-                                    {item.quantidade}
-                                  </div>
-                                </div>
+                                <CampoQuantidadeEstoque
+                                  item={item}
+                                  produtos={produtos}
+                                  readOnly
+                                  onChangeQtd={() => {}}
+                                  onSelecionarSugestao={(p) => selecionarProduto(item.id, p)}
+                                />
                               ) : (
-                                <CampoNumero label="Quantidade" value={item.quantidade} onChange={(v) => atualizarItem(item.id, "quantidade", v)} />
+                                <CampoQuantidadeEstoque
+                                  item={item}
+                                  produtos={produtos}
+                                  onChangeQtd={(v) => atualizarItem(item.id, "quantidade", v)}
+                                  onSelecionarSugestao={(p) => selecionarProduto(item.id, p)}
+                                />
                               )}
                               <CampoNumero label="Prazo prod. (dias úteis)" value={item.diasProducao || 0} onChange={(v) => atualizarItem(item.id, "diasProducao", v)} />
                             </div>

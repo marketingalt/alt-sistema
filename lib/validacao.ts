@@ -1,3 +1,6 @@
+import type { ItemOrcamento, Produto } from "@/app/types";
+import { estoqueVivo } from "@/lib/estoque";
+
 export interface ErroValidacao {
   campo: string;
   label: string;
@@ -10,7 +13,13 @@ export interface OrcamentoInput {
   responsavel?: string;
   dataOrcamento?: string;
   dataSolicitacao?: string;
-  itens?: Array<{ item?: string; quantidade?: number }>;
+  itens?: Array<{
+    item?: string;
+    quantidade?: number;
+    produtoId?: string;
+    estoqueDisponivel?: number;
+    origemXbz?: boolean;
+  }>;
 }
 
 export function validarOrcamento(orcamento: OrcamentoInput): ErroValidacao[] {
@@ -80,6 +89,33 @@ export function validarOrcamento(orcamento: OrcamentoInput): ErroValidacao[] {
       }
     });
   }
+
+  return erros;
+}
+
+/**
+ * Valida itens de origem XBZ cuja quantidade ultrapassa o estoque disponível.
+ * Usa o estoque mais atual (`produtos` pós-sync), com fallback para o snapshot
+ * salvo no item. Usado para exibir avisos em tempo real e bloquear o
+ * salvamento de forma "suave" (o usuário pode confirmar que está ciente e
+ * salvar mesmo assim).
+ */
+export function validarEstoque(orcamento: OrcamentoInput, produtos: Produto[] = []): ErroValidacao[] {
+  const erros: ErroValidacao[] = [];
+  if (!orcamento.itens) return erros;
+
+  orcamento.itens.forEach((item, idx) => {
+    if (!item.origemXbz) return;
+    const qtd = item.quantidade || 0;
+    const estoque = estoqueVivo(item as ItemOrcamento, produtos);
+    if (estoque !== undefined && qtd > estoque) {
+      erros.push({
+        campo: `itens[${idx}].quantidade`,
+        label: `Item #${idx + 1}`,
+        mensagem: `"${item.item}" excede o estoque (disponível: ${estoque} un.).`,
+      });
+    }
+  });
 
   return erros;
 }

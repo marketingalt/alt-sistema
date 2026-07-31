@@ -45,6 +45,11 @@ export interface ItemOrcamento {
   descricao: string;
   quantidade: number;
   imagemReferencia?: string;   // base64 da imagem de referência do item
+  // Referência ao produto de origem (ex: XBZ) para controle de estoque
+  produtoId?: string;          // id local do produto cadastrado
+  xbzId?: string;              // id do produto na plataforma XBZ
+  estoqueDisponivel?: number;  // snapshot do estoque no momento da seleção
+  origemXbz?: boolean;         // true = produto sincronizado da XBZ
   // Precificação
   custoUnitario: number;       // custo do fornecedor por unidade
   quantidadeMinima?: number;   // qtd mínima do fornecedor; se quantidade < mínimo, +5% no custo

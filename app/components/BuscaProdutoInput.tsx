@@ -13,6 +13,15 @@ interface Props {
   onNovoProduto: (p: Produto) => void;
 }
 
+function BadgeEstoque({ estoque }: { estoque?: number }) {
+  if (estoque === undefined) return null;
+  if (estoque <= 0)
+    return <span className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600">Sem estoque</span>;
+  if (estoque < 50)
+    return <span className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">{estoque} un.</span>;
+  return <span className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{estoque} un.</span>;
+}
+
 function Thumbnail({ p }: { p: Produto }) {
   return (
     <div className="w-9 h-9 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
@@ -126,6 +135,9 @@ export default function BuscaProdutoInput({ value, onChange, produtos, onSelect,
                                 {grupo[0].precoFinal?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                               </p>
                             ) : null}
+                            <div className="mt-1">
+                              <BadgeEstoque estoque={grupo[0].estoque} />
+                            </div>
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-1.5 ml-11">
@@ -168,6 +180,9 @@ export default function BuscaProdutoInput({ value, onChange, produtos, onSelect,
                             {p.precoFinal?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                           </p>
                         ) : null}
+                        <div className="mt-1">
+                          <BadgeEstoque estoque={p.estoque} />
+                        </div>
                       </div>
                     </li>
                   ));
