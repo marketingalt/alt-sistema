@@ -41,12 +41,25 @@ export default function PerfilPage() {
   const [carregandoDocs, setCarregandoDocs] = useState(true);
   const [feedbacks, setFeedbacks] = useState<FeedbackSessao[]>([]);
   const [carregandoFeedbacks, setCarregandoFeedbacks] = useState(true);
+  const [feedbackExpandido, setFeedbackExpandido] = useState<FeedbackSessao | null>(null);
 
   const STATUS_CORES: Record<FeedbackStatus, string> = {
     "Pendente": "bg-yellow-100 text-yellow-700 border-yellow-200",
     "Em Andamento": "bg-blue-100 text-blue-700 border-blue-200",
     "Concluído": "bg-green-100 text-green-700 border-green-200",
   };
+
+  const CORES_ETAPA: Record<string, { bg: string; border: string; badge: string }> = {
+    "1ª Etapa": { bg: "bg-blue-50/60", border: "border-blue-200", badge: "bg-blue-100 text-blue-700" },
+    "2ª Etapa": { bg: "bg-purple-50/60", border: "border-purple-200", badge: "bg-purple-100 text-purple-700" },
+    "3ª Etapa": { bg: "bg-emerald-50/60", border: "border-emerald-200", badge: "bg-emerald-100 text-emerald-700" },
+    "4ª Etapa": { bg: "bg-amber-50/60", border: "border-amber-200", badge: "bg-amber-100 text-amber-700" },
+  };
+
+  function corEtapa(etapa: string) {
+    const chave = Object.keys(CORES_ETAPA).find((k) => etapa.startsWith(k));
+    return chave ? CORES_ETAPA[chave] : { bg: "bg-gray-50/60", border: "border-gray-200", badge: "bg-gray-100 text-gray-700" };
+  }
 
   function iconeTarefa(tarefa: string) {
     const lower = tarefa.toLowerCase();
@@ -303,14 +316,23 @@ export default function PerfilPage() {
             <div className="space-y-5">
               {feedbacks.map((sessao) => (
                 <div key={sessao.id} className="border border-gray-100 rounded-xl overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-b border-gray-100">
+                  <button
+                    onClick={() => setFeedbackExpandido(sessao)}
+                    className="w-full bg-gray-50 px-4 py-3 flex items-center justify-between border-b border-gray-100 hover:bg-gray-100 transition text-left"
+                  >
                     <div className="flex items-center gap-3 flex-wrap">
                       <span className="text-sm font-bold text-gray-700">{sessao.topicoPrincipal}</span>
                       <span className="text-xs text-gray-400">
                         {new Date(sessao.data + "T12:00:00").toLocaleDateString("pt-BR")}
                       </span>
                     </div>
-                  </div>
+                    <span className="text-gray-400 shrink-0 ml-3 flex items-center gap-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide">Ver detalhes</span>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </span>
+                  </button>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
@@ -367,6 +389,110 @@ export default function PerfilPage() {
           )}
         </section>
       </div>
+
+      {/* ── Modal de feedback expandido (somente leitura) ── */}
+      {feedbackExpandido && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={() => setFeedbackExpandido(null)}
+        >
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header do modal */}
+            <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-gray-100 bg-gray-50">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Feedback / One-a-One</p>
+                <h2 className="text-lg font-bold text-gray-800 leading-snug">{feedbackExpandido.topicoPrincipal}</h2>
+                <div className="flex items-center gap-3 mt-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[#fb4d06]">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    {feedbackExpandido.colaboradorNome}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-sm text-gray-500">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    {new Date(feedbackExpandido.data + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setFeedbackExpandido(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Corpo do modal */}
+            <div className="overflow-y-auto flex-1 px-6 py-5">
+              {feedbackExpandido.itens.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-10">Nenhum item cadastrado nesta sessão.</p>
+              ) : (
+                <div className="space-y-5">
+                  {(() => {
+                    const grupos: { etapa: string; itens: typeof feedbackExpandido.itens }[] = [];
+                    for (const item of feedbackExpandido.itens) {
+                      const g = grupos.find((x) => x.etapa === item.etapa);
+                      if (g) g.itens.push(item);
+                      else grupos.push({ etapa: item.etapa, itens: [item] });
+                    }
+                    return grupos.map((grupo, gi) => {
+                      const cores = corEtapa(grupo.etapa);
+                      return (
+                        <div key={gi} className={`rounded-xl border ${cores.border} overflow-hidden`}>
+                          <div className={`px-4 py-2.5 border-b ${cores.border} ${cores.bg}`}>
+                            <span className={`inline-block text-xs font-bold px-2.5 py-1 rounded-full ${cores.badge}`}>
+                              {grupo.etapa}
+                            </span>
+                          </div>
+                          <div className="divide-y divide-gray-50">
+                            {grupo.itens.map((item) => (
+                              <div key={item.id} className="px-4 py-3.5">
+                                <div className="flex items-start gap-2.5">
+                                  <span className="text-base shrink-0 mt-0.5">{iconeTarefa(item.tarefa)}</span>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{item.tarefa}</p>
+                                    {item.notas && (
+                                      <p className="text-xs text-gray-400 mt-1.5 italic flex items-start gap-1">
+                                        <svg className="w-3 h-3 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                        </svg>
+                                        {item.notas}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1.5 shrink-0 ml-3">
+                                    <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${STATUS_CORES[item.status]}`}>
+                                      {item.status}
+                                    </span>
+                                    <span className="text-xs text-gray-400 whitespace-nowrap">
+                                      {item.prazo
+                                        ? `Prazo: ${new Date(item.prazo + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`
+                                        : "Prazo: a definir"}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
     </WorkspaceLayout>
   );
