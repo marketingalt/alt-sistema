@@ -62,6 +62,8 @@ interface RegistroFaturamento {
   vencimento?: string;
   pago?: boolean;
   dataPagamento?: string;
+  banco?: string;
+  modalidade?: string;
   ordemServicoId?: string;
   userId?: string;
   userName?: string;
@@ -105,6 +107,8 @@ function extrairDiasPrazo(prazo?: string): number | undefined {
 }
 
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+const MODALIDADES = ["PIX", "TED", "DÉBITO", "BOLETO", "FATURA", "INVESTIMENTO", "TRANSFERENCIA"];
 
 function fmt(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -654,11 +658,12 @@ function NovoLancamentoModal({ onClose, onSalvar, ordensServico = [] }: NovoLanc
 interface DrawerDetalheProps {
   row: RowUnificada;
   ordensServico: OrdemServico[];
+  bancos: string[];
   onClose: () => void;
   onSalvar: (dados: Partial<RegistroFaturamento>) => Promise<void>;
 }
 
-function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheProps) {
+function DrawerDetalhe({ row, ordensServico, bancos, onClose, onSalvar }: DrawerDetalheProps) {
   const diasInicial = row.fat.diasPagamento ?? extrairDiasPrazo(row.orcamento?.prazoPagamento);
   const [form, setForm] = useState<Partial<RegistroFaturamento>>({
     cliente: row.fat.cliente || row.cliente,
@@ -685,6 +690,8 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
       : undefined),
     pago: row.fat.pago || false,
     dataPagamento: row.fat.dataPagamento,
+    banco: row.fat.banco,
+    modalidade: row.fat.modalidade,
     ordemServicoId: row.fat.ordemServicoId,
   });
   const [salvando, setSalvando] = useState(false);
@@ -694,6 +701,10 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
   }
 
   async function handleSave() {
+    if (form.pago && (!form.banco || !form.modalidade)) {
+      alert("Selecione banco e forma de pagamento antes de marcar como pago.");
+      return;
+    }
     setSalvando(true);
     await onSalvar(form);
     setSalvando(false);
@@ -959,12 +970,30 @@ function DrawerDetalhe({ row, ordensServico, onClose, onSalvar }: DrawerDetalheP
               <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform mt-0.5 ${form.pago ? "translate-x-4" : "translate-x-0.5"}`} />
             </button>
             {form.pago && (
-              <input
-                type="date"
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
-                value={form.dataPagamento || ""}
-                onChange={(e) => set("dataPagamento", e.target.value)}
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="date"
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06]"
+                  value={form.dataPagamento || ""}
+                  onChange={(e) => set("dataPagamento", e.target.value)}
+                />
+                <select
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] bg-white text-gray-700"
+                  value={form.modalidade || ""}
+                  onChange={(e) => set("modalidade", e.target.value)}
+                >
+                  <option value="">Forma de pagamento...</option>
+                  {MODALIDADES.map((m) => <option key={m}>{m}</option>)}
+                </select>
+                <select
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#fb4d06] bg-white text-gray-700"
+                  value={form.banco || ""}
+                  onChange={(e) => set("banco", e.target.value)}
+                >
+                  <option value="">Banco...</option>
+                  {bancos.map((b) => <option key={b}>{b}</option>)}
+                </select>
+              </div>
             )}
             {row.tipo === "orcamento" && (
               <div className="ml-auto text-xs text-gray-400">
@@ -1016,6 +1045,7 @@ function ContasAReceberPage() {
   const { user } = useUser();
   const [usuarios, setUsuarios] = useState<any[]>([]);
   const [filtroUsuario, setFiltroUsuario] = useState("");
+  const [bancos, setBancos] = useState<string[]>(["C6 BANK", "Banco Itaú"]);
 
   const nomesClientes = useMemo(() =>
     clientes.map((c) => c.nomeEmpresa || c.razaoSocial || "").filter(Boolean),
@@ -1051,6 +1081,13 @@ function ContasAReceberPage() {
     fetch("/api/usuarios")
       .then((r) => r.json())
       .then((data) => setUsuarios(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((d) => { if (d.bancos?.length) setBancos(d.bancos); })
       .catch(() => {});
   }, []);
 
@@ -1194,7 +1231,14 @@ function ContasAReceberPage() {
     let body: Record<string, unknown> = {};
 
     if (field === "pago") {
-      body.pago = value === "true";
+      const vaiMarcarPago = value === "true";
+      // Banco e forma de pagamento são obrigatórios para marcar como pago.
+      // Se ainda não foram definidos, bloqueia o toggle e abre o drawer para escolher.
+      if (vaiMarcarPago && !(row.fat.banco && row.fat.modalidade)) {
+        setDetalheAberto(row);
+        return;
+      }
+      body.pago = vaiMarcarPago;
     } else if (field === "imposto" || field === "comissao") {
       if (value.endsWith("%")) {
         const pct = parseFloat(value) || 0;
@@ -1799,6 +1843,7 @@ function ContasAReceberPage() {
         <DrawerDetalhe
           row={detalheAberto}
           ordensServico={ordensServico}
+          bancos={bancos}
           onClose={() => setDetalheAberto(null)}
           onSalvar={salvarEdicao}
         />

@@ -96,8 +96,8 @@ export async function PUT(
       const novoLancamento = {
         id: `fc${Date.now()}`,
         data: body.dataPagamento || registro.vencimento || updatedAt,
-        modalidade: "",
-        banco: "",
+        modalidade: registro.modalidade || "",
+        banco: registro.banco || "",
         valor,
         area: "PROJETOS",
         categoria: "RECEITA OPERACIONAL BRUTA",
@@ -120,6 +120,17 @@ export async function PUT(
     );
     await salvarFC(dadosFC);
     registro.fluxoCaixaId = undefined;
+  }
+
+  // ── Já pago: sincroniza banco/forma no lançamento existente do fluxo de caixa ──
+  if (antes?.fluxoCaixaId && body.pago !== false && (body.banco !== undefined || body.modalidade !== undefined)) {
+    const dadosFC = await lerFC();
+    const lanc = dadosFC.lancamentos.find((l: any) => l.id === antes.fluxoCaixaId);
+    if (lanc) {
+      if (body.banco !== undefined) lanc.banco = body.banco;
+      if (body.modalidade !== undefined) lanc.modalidade = body.modalidade;
+      await salvarFC(dadosFC);
+    }
   }
 
   if (idx >= 0) {
