@@ -11,6 +11,7 @@ import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcul
 import { excedeEstoque } from "@/lib/estoque";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
+import ComboboxFornecedor from "@/app/components/ComboboxFornecedor";
 import BuscaProdutoInput from "@/app/components/BuscaProdutoInput";
 import CampoQuantidadeEstoque from "@/app/components/CampoQuantidadeEstoque";
 import CampoData from "@/app/components/CampoData";
@@ -891,7 +892,15 @@ export default function RevisarOrcamento() {
                     <div className="grid grid-cols-2 sm:grid-cols-7 gap-3">
                       <Campo label="Referência / SKU" value={item.referencia} onChange={(v) => atualizarItem(item.id, "referencia", v)} />
                       <Campo label="NCM" value={item.ncm || ""} onChange={(v) => atualizarItem(item.id, "ncm", v)} placeholder="Ex: 6505.00.00" />
-                      <Campo label="Fornecedor" value={item.fornecedorNome || ""} onChange={(v) => atualizarItem(item.id, "fornecedorNome", v)} placeholder="Nome do fornecedor" />
+                      <ComboboxFornecedor
+                        value={item.fornecedorNome || ""}
+                        onChange={(v) => atualizarItem(item.id, "fornecedorNome", v)}
+                        onSelect={(f) => {
+                          atualizarItem(item.id, "fornecedorId", f.id);
+                          atualizarItem(item.id, "fornecedorNome", f.nomeFantasia || f.razaoSocial);
+                        }}
+                        placeholder="Buscar fornecedor cadastrado..."
+                      />
                       <CampoCor
                         value={item.cor || ""}
                         onChange={(v) => atualizarItem(item.id, "cor", v)}
