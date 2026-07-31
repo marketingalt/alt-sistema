@@ -655,6 +655,12 @@ export default function VisualizarOrcamento() {
   }
 
   // ── Variáveis derivadas ──
+  // Hook ANTES do early return (regra dos hooks): não pode vir depois de `if (!orcamento) return`.
+  const itensExcedemEstoque = useMemo(
+    () => orcamento?.itens?.some((item) => excedeEstoque(item, produtos)) ?? false,
+    [orcamento?.itens, produtos]
+  );
+
   if (!orcamento) return (
     <div className="min-h-screen flex items-center justify-center text-gray-400">Carregando...</div>
   );
@@ -669,10 +675,6 @@ export default function VisualizarOrcamento() {
   const totalServicos = orcamento.manuseio && orcamento.custoManuseio ? orcamento.custoManuseio : 0;
   const freteValorNum = (orcamento.freteValor ?? 0) > 0 ? (orcamento.freteValor ?? 0) : 0;
   const totalGeral = totalProdutos + totalServicos + freteValorNum;
-  const itensExcedemEstoque = useMemo(
-    () => orcamento.itens.some((item) => excedeEstoque(item, produtos)),
-    [orcamento.itens, produtos]
-  );
 
   return (
     <WorkspaceLayout>
