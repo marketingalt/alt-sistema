@@ -862,7 +862,7 @@ export default function RevisarOrcamento() {
                       <CampoCor
                         value={item.cor || ""}
                         onChange={(v) => atualizarItem(item.id, "cor", v)}
-                        variantes={item.item ? produtos.filter((p) => p.nome.trim().toUpperCase() === item.item.trim().toUpperCase() && p.cor) : []}
+                        variantes={item.item ? produtos.filter((p) => (p.nome ?? "").trim().toUpperCase() === item.item.trim().toUpperCase() && p.cor) : []}
                         onSelectVariante={(p) => selecionarProduto(item.id, p)}
                       />
                       <div>

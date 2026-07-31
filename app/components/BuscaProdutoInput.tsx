@@ -18,8 +18,8 @@ function Thumbnail({ p }: { p: Produto }) {
     <div className="w-9 h-9 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
       {p.imagemUrl ? (
         <Image
-          src={p.imagemUrl.trim()}
-          alt={p.nome}
+          src={p.imagemUrl?.trim()}
+          alt={p.nome || "produto"}
           width={36} height={36}
           className="object-cover w-full h-full"
           unoptimized={p.origemXbz || p.imagemUrl.startsWith("data:")}
@@ -63,7 +63,7 @@ export default function BuscaProdutoInput({ value, onChange, produtos, onSelect,
   const grupos = useMemo(() => {
     const map = new Map<string, Produto[]>();
     filtrados.forEach((p) => {
-      const key = p.nome.trim().toUpperCase();
+      const key = (p.nome ?? "").trim().toUpperCase();
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(p);
     });

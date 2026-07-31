@@ -86,7 +86,7 @@ export default function SeletorProduto({ produtos, onSelect }: Props) {
               >
                 <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
                   {p.imagemUrl ? (
-                    <Image src={p.imagemUrl.trim()} alt={p.nome} width={40} height={40} className="object-cover w-full h-full" unoptimized={p.origemXbz} />
+                    <Image src={p.imagemUrl.trim()} alt={p.nome || "produto"} width={40} height={40} className="object-cover w-full h-full" unoptimized={p.origemXbz} />
                   ) : (
                     <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />

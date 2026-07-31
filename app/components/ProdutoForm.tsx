@@ -107,7 +107,7 @@ export default function ProdutoForm({ dados, onChange, produtoId, onImagemAtuali
             {dados.imagemUrl ? (
               <div className="relative">
                 <div className="w-full h-52 rounded-2xl overflow-hidden">
-                  <Image src={dados.imagemUrl.trim()} alt={dados.nome || "Produto"} width={600} height={208} className="object-contain w-full h-full" />
+                  <Image src={dados.imagemUrl?.trim() || ""} alt={dados.nome || "Produto"} width={600} height={208} className="object-contain w-full h-full" />
                 </div>
                 <div className="absolute inset-0 rounded-2xl bg-black/0 hover:bg-black/20 transition flex items-center justify-center opacity-0 hover:opacity-100">
                   <span className="text-white text-sm font-medium bg-black/50 px-3 py-1.5 rounded-lg">

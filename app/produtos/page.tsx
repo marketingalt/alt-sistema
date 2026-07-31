@@ -357,7 +357,7 @@ export default function ListaProdutos() {
                   <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-[#fb4d06]/20 transition cursor-pointer overflow-hidden">
                     <div className="w-full h-40 bg-gray-50 flex items-center justify-center overflow-hidden relative">
                       {p.imagemUrl ? (
-                        <Image src={p.imagemUrl.trim()} alt={p.nome} width={160} height={160} className="object-cover w-full h-full" unoptimized={p.origemXbz} />
+                        <Image src={p.imagemUrl.trim()} alt={p.nome || "produto"} width={160} height={160} className="object-cover w-full h-full" unoptimized={p.origemXbz} />
                       ) : (
                         <svg className="w-10 h-10 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
