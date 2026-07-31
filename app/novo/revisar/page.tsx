@@ -390,7 +390,7 @@ export default function RevisarOrcamento() {
 
       router.refresh();
       clearDraft(DRAFT_KEY_NOVO);
-      setTimeout(() => router.push(`/orcamentos/${salvo.id}`), 50);
+      setTimeout(() => router.push(`/orcamentos/${salvo.id}?enviar=1`), 50);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao salvar. Tente novamente.";
       setErrosValidacao([{ campo: "geral", label: "Erro", mensagem: msg }]);

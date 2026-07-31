@@ -26,6 +26,7 @@ import { validarOrcamento, validarEstoque } from "@/lib/validacao";
 import type { ErroValidacao } from "@/lib/validacao";
 import { useAutoSave, getDraft, clearDraft } from "@/hooks/useAutoSave";
 import HistoricoAtividades from "@/app/components/HistoricoAtividades";
+import ModalEnviarOrcamento from "@/app/components/ModalEnviarOrcamento";
 
 const TODOS_STATUS = Object.keys(STATUS_CONFIG) as StatusOrcamento[];
 
@@ -131,6 +132,7 @@ export default function VisualizarOrcamento() {
   const [novaVersaoNome, setNovaVersaoNome] = useState("");
   const [salvandoVersao, setSalvandoVersao] = useState(false);
   const [carregandoVersoes, setCarregandoVersoes] = useState(false);
+  const [mostrarEnviar, setMostrarEnviar] = useState(false);
 
   // ── Logo ──
   const logoBase64 = orcamento?.logoOrcamento || null;
@@ -161,6 +163,19 @@ export default function VisualizarOrcamento() {
         setCienteAlteracao(jaDifere);
       });
   }, [id]);
+
+  // Auto-abre a tela de envio quando vem de "?enviar=1" (após salvar um novo orçamento)
+  const abrirEnviarAposCarregar = useRef(
+    typeof window !== "undefined" && window.location.search.includes("enviar=1")
+  );
+  useEffect(() => {
+    if (abrirEnviarAposCarregar.current && orcamento) {
+      abrirEnviarAposCarregar.current = false;
+      setMostrarEnviar(true);
+      // remove o query param para não reabrir ao navegar/atualizar
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [orcamento]);
 
   // Carrega produtos cadastrados para autocomplete na edição de itens
   useEffect(() => {
@@ -694,6 +709,9 @@ export default function VisualizarOrcamento() {
               <span className={`w-1.5 h-1.5 rounded-full ${STATUS_CONFIG[orcamento.status || "Em andamento"].dot}`} />
               {orcamento.status || "Em andamento"}
             </span>
+            <button onClick={() => setMostrarEnviar(true)} className="bg-[#fb4d06] text-white text-sm font-semibold py-1.5 px-3 rounded-lg hover:opacity-90 transition">
+              ✉️ Enviar
+            </button>
             <button onClick={() => gerarPdf("valores")} disabled={gerandoPdf} className="bg-gray-800 text-white text-sm font-semibold py-1.5 px-3 rounded-lg hover:bg-gray-700 transition disabled:opacity-50">
               ⬇ Download PDF
             </button>
@@ -2036,6 +2054,17 @@ export default function VisualizarOrcamento() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Tela de envio (PDF + e-mail pronto) */}
+      {mostrarEnviar && orcamento && (
+        <ModalEnviarOrcamento
+          orcamento={orcamento}
+          aberto
+          gerandoPdf={gerandoPdf}
+          onDownloadPdf={gerarPdf}
+          onFechar={() => setMostrarEnviar(false)}
+        />
       )}
     </WorkspaceLayout>
   );
