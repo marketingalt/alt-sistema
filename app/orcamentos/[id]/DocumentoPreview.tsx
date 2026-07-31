@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import type { Orcamento, ItemOrcamento } from "@/app/types";
+import { FORMA_LINK_CARTAO } from "@/lib/calculos";
 
 const ALT_EMPRESA = "ALT. MARKETING E PUBLICIDADE";
 const ALT_CNPJ = "45.025.544/0001-92";
@@ -66,6 +67,8 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
   const totalServicos = orcamento.manuseio && orcamento.custoManuseio ? orcamento.custoManuseio : 0;
   const valorFrete = orcamento.freteValor || 0;
   const totalGeral = totalProdutos + totalServicos + valorFrete;
+  const taxaCartao = orcamento.formaPagamento === FORMA_LINK_CARTAO ? (orcamento.taxaCartao || 0) : 0;
+  const totalFinal = totalGeral + taxaCartao;
   const aprovado = orcamento.status === "Aprovado";
   const mostrarTotalItem = orcamento.mostrarValorTotalItem === true;
 
@@ -533,17 +536,18 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
           {/* ═══ TOTAL ═══ */}
           {!mostrarTotalItem && (
           <div className="px-4 mt-2.5 pt-2 border-t-2 border-[#fb4d06] flex justify-end items-center">
-            {(orcamento.manuseio && orcamento.custoManuseio) || valorFrete > 0 ? (
+            {(orcamento.manuseio && orcamento.custoManuseio) || valorFrete > 0 || taxaCartao > 0 ? (
               <div className="text-right mr-3.5 text-[7.5px] text-gray-400 space-y-0.5">
                 <div>Produtos: {fmt(totalProdutos)}</div>
                 {orcamento.manuseio && orcamento.custoManuseio ? (
                   <div>Serviços: {fmt(totalServicos)}</div>
                 ) : null}
                 {valorFrete > 0 ? <div>Frete: {fmt(valorFrete)}</div> : null}
+                {taxaCartao > 0 ? <div>Taxa cartão: {fmt(taxaCartao)}</div> : null}
               </div>
             ) : null}
             <span className="text-[11px] font-bold text-gray-700 mr-3.5">TOTAL</span>
-            <span className="text-[18px] font-bold text-[#fb4d06]">{fmt(totalGeral)}</span>
+            <span className="text-[18px] font-bold text-[#fb4d06]">{fmt(totalFinal)}</span>
           </div>
           )}
 

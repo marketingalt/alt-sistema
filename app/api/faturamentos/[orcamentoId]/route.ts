@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { dbGet, dbSet } from "@/lib/storage-adapter";
 import { buscarOrcamento } from "@/lib/storage";
+import { ehCartao, FORMA_LINK_CARTAO, modalidadeDeFormaPagamento } from "@/lib/calculos";
 
 interface FaturamentosDB {
   registros: any[];
@@ -35,7 +36,10 @@ async function calcularValor(registro: any): Promise<number> {
     const orc = await buscarOrcamento(registro.orcamentoId);
     if (orc?.itens) {
       const subtotal = orc.itens.reduce((s: number, it: any) => s + (it.total || 0), 0);
-      return subtotal + (orc.freteValor || 0) + (orc.custoManuseio || 0);
+      const taxaOrc = orc.formaPagamento === FORMA_LINK_CARTAO ? (orc.taxaCartao || 0) : 0;
+      const base = subtotal + (orc.freteValor || 0) + (orc.custoManuseio || 0) + taxaOrc;
+      // Cartão de crédito: o banco recebe o líquido (bruto − taxa) — bate com o extrato
+      return base - (ehCartao(registro.modalidade) ? taxaOrc : 0);
     }
   }
   return 0;
@@ -75,10 +79,12 @@ export async function PUT(
       registro.responsavel ??= orc.responsavel || (orc as any).userName;
       registro.statusJob ??= orc.status;
       registro.dataEmissao ??= orc.dataOrcamento;
+      registro.modalidade ??= modalidadeDeFormaPagamento(orc.formaPagamento);
       registro.imposto ??= orc.percImpostos ? valorAprovado * (orc.percImpostos / 100) : 0;
       registro.comissao ??= orc.percComissao ? valorAprovado * (orc.percComissao / 100) : 0;
       registro.vencimento ??= (() => {
-        const dias = orc.prazoPagamento ? parseInt(orc.prazoPagamento, 10) || 0 : 0;
+        // Dias do cartão têm prioridade; senão tenta extrair do prazo de pagamento
+        const dias = orc.diasPagamento ?? (orc.prazoPagamento ? parseInt(orc.prazoPagamento, 10) || 0 : 0);
         if (!dias || !orc.dataOrcamento) return undefined;
         const base = new Date(orc.dataOrcamento + "T12:00:00");
         if (isNaN(base.getTime())) return undefined;
@@ -93,6 +99,13 @@ export async function PUT(
     const valor = await calcularValor(registro);
     if (valor > 0) {
       const dadosFC = await lerFC();
+      let obsTaxa = "";
+      if (ehCartao(registro.modalidade) && registro.orcamentoId) {
+        const orc = await buscarOrcamento(registro.orcamentoId);
+        if (orc?.formaPagamento === FORMA_LINK_CARTAO && (orc.taxaCartao || 0) > 0) {
+          obsTaxa = ` — líquido (taxa cartão ${(orc.taxaCartao || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })})`;
+        }
+      }
       const novoLancamento = {
         id: `fc${Date.now()}`,
         data: body.dataPagamento || registro.vencimento || updatedAt,
@@ -101,7 +114,7 @@ export async function PUT(
         valor,
         area: "PROJETOS",
         categoria: "RECEITA OPERACIONAL BRUTA",
-        obs: `${registro.cliente || ""}${registro.job ? " — " + registro.job : ""}`,
+        obs: `${registro.cliente || ""}${registro.job ? " — " + registro.job : ""}${obsTaxa}`,
         createdAt: body.dataPagamento || updatedAt,
         ordemServicoId: registro.ordemServicoId || "",
         cliente: registro.cliente || "",

@@ -7,6 +7,7 @@ import {
   Image,
 } from "@react-pdf/renderer";
 import type { Orcamento } from "@/app/types";
+import { FORMA_LINK_CARTAO } from "@/lib/calculos";
 
 const ALT_EMPRESA = "ALT. MARKETING E PUBLICIDADE";
 const ALT_CNPJ = "45.025.544/0001-92";
@@ -417,6 +418,8 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
   const totalServicos = orcamento.manuseio && orcamento.custoManuseio ? orcamento.custoManuseio : 0;
   const valorFrete = orcamento.freteValor || 0;
   const totalGeral = totalProdutos + totalServicos + valorFrete;
+  const taxaCartao = orcamento.formaPagamento === FORMA_LINK_CARTAO ? (orcamento.taxaCartao || 0) : 0;
+  const totalFinal = totalGeral + taxaCartao;
   const aprovado = orcamento.status === "Aprovado";
   const tiposNota = (orcamento.tiposNota || []).join(" + ") || "—";
 
@@ -612,7 +615,7 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
         {/* ── Total ── */}
         {!mostrarTotalItem && (
         <View style={v.totalRow}>
-          {(orcamento.manuseio && orcamento.custoManuseio) || valorFrete > 0 ? (
+          {(orcamento.manuseio && orcamento.custoManuseio) || valorFrete > 0 || taxaCartao > 0 ? (
             <View style={v.totalMeta}>
               <Text style={v.totalMetaLine}>Produtos: {fmt(totalProdutos)}</Text>
               {orcamento.manuseio && orcamento.custoManuseio ? (
@@ -621,10 +624,13 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
               {valorFrete > 0 ? (
                 <Text style={v.totalMetaLine}>Frete: {fmt(valorFrete)}</Text>
               ) : null}
+              {taxaCartao > 0 ? (
+                <Text style={v.totalMetaLine}>Taxa cartão: {fmt(taxaCartao)}</Text>
+              ) : null}
             </View>
           ) : null}
           <Text style={v.totalLabel}>TOTAL</Text>
-          <Text style={v.totalValue}>{fmt(totalGeral)}</Text>
+          <Text style={v.totalValue}>{fmt(totalFinal)}</Text>
         </View>
         )}
 

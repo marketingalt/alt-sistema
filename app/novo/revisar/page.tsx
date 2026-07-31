@@ -7,7 +7,7 @@ import { useUser } from "@clerk/nextjs";
 import MultiUserSelect from "@/app/components/MultiUserSelect";
 import type { ItemOrcamento, Orcamento, Cliente, Produto, Fornecedor } from "@/app/types";
 import TagSelector from "@/app/components/TagSelector";
-import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima } from "@/lib/calculos";
+import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima, FORMA_LINK_CARTAO, calcularPercTaxaCartao, calcularDataVencimento } from "@/lib/calculos";
 import { excedeEstoque } from "@/lib/estoque";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
@@ -24,6 +24,7 @@ import { validarOrcamento, validarEstoque } from "@/lib/validacao";
 import type { ErroValidacao } from "@/lib/validacao";
 
 const TIPOS = ["Silk", "DTF", "Bordado", "Laser", "Verniz UV", "Tampografia", "Sublimação", "Gravação em relevo", "Outro"];
+const FORMAS_PAGAMENTO = ["PIX", "TED", "DÉBITO", "BOLETO", "FATURA", FORMA_LINK_CARTAO];
 const MARGEM_PADRAO = 30;
 const PERC_HONORARIOS_PADRAO = 10;
 const PERC_IMPOSTOS_PADRAO = 19;
@@ -327,6 +328,10 @@ export default function RevisarOrcamento() {
   const freteInfo = orcamento.frete && !orcamento.frete.startsWith("CUSTO ADICIONAL") ? orcamento.frete : null;
   const freteValorNum = (freteInfo && (orcamento.freteValor ?? 0) > 0) ? (orcamento.freteValor ?? 0) : 0;
   const totalComFrete = freteValorNum > 0 ? totalGeral + freteValorNum : 0;
+  const ehFormaCartao = orcamento.formaPagamento === FORMA_LINK_CARTAO;
+  const baseTotal = totalComFrete > 0 ? totalComFrete : totalGeral;
+  const taxaCartao = ehFormaCartao ? (orcamento.taxaCartao || 0) : 0;
+  const totalFinal = baseTotal + taxaCartao;
   const itensExcedemEstoque = useMemo(
     () => orcamento.itens.some((item) => excedeEstoque(item, produtos)),
     [orcamento.itens, produtos]
@@ -628,6 +633,60 @@ export default function RevisarOrcamento() {
                 return vals.length ? Math.max(...vals) : null;
               })()}
             />
+          </div>
+
+          {/* Linha 3.5: Forma de pagamento + (taxa/dias quando link de cartão) */}
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-gray-500 mb-1">Forma de Pagamento</label>
+            <select
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+              value={orcamento.formaPagamento || ""}
+              onChange={(e) => atualizarCampo("formaPagamento", e.target.value)}
+            >
+              <option value="">Selecione a forma de pagamento</option>
+              {FORMAS_PAGAMENTO.map((f) => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+
+            {orcamento.formaPagamento === FORMA_LINK_CARTAO && (
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Taxa do cartão (R$)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number" min={0} step="0.01"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
+                      value={orcamento.taxaCartao ?? ""}
+                      onChange={(e) => atualizarCampo("taxaCartao", parseFloat(e.target.value) || 0)}
+                      placeholder="0,00"
+                    />
+                    <span className="text-xs text-gray-400 whitespace-nowrap">
+                      {(orcamento.taxaCartao ?? 0) > 0
+                        ? `= ${calcularPercTaxaCartao(baseTotal, orcamento.taxaCartao || 0).toFixed(2).replace(".", ",")}% sobre o total`
+                        : "—"}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Vencimento em (dias)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number" min={0}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
+                      value={orcamento.diasPagamento ?? ""}
+                      onChange={(e) => atualizarCampo("diasPagamento", parseInt(e.target.value, 10) || 0)}
+                      placeholder="Ex: 4"
+                    />
+                    <span className="text-xs text-gray-400 whitespace-nowrap">
+                      {(orcamento.diasPagamento ?? 0) > 0
+                        ? `cai no banco em ${calcularDataVencimento(orcamento.dataOrcamento, orcamento.diasPagamento || 0)}`
+                        : "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Linha 4: Observações + Frete */}
@@ -1123,11 +1182,11 @@ export default function RevisarOrcamento() {
                 </div>
               </>
             )}
-            <div className={`flex justify-between items-center ${(orcamento.manuseio && !!orcamento.custoManuseio) || totalComFrete > 0 ? "border-t border-gray-100 pt-2" : ""}`}>
-              <span className={totalComFrete > 0 ? "text-sm text-gray-500" : "font-semibold text-gray-700"}>
-                {totalComFrete > 0 ? "Subtotal (sem frete)" : "Total Geral"}
+            <div className={`flex justify-between items-center ${(orcamento.manuseio && !!orcamento.custoManuseio) || totalComFrete > 0 || taxaCartao > 0 ? "border-t border-gray-100 pt-2" : ""}`}>
+              <span className={totalComFrete > 0 || taxaCartao > 0 ? "text-sm text-gray-500" : "font-semibold text-gray-700"}>
+                {totalComFrete > 0 || taxaCartao > 0 ? (taxaCartao > 0 ? "Subtotal (sem frete e taxa)" : "Subtotal (sem frete)") : "Total Geral"}
               </span>
-              <span className={totalComFrete > 0 ? "font-semibold text-gray-700 text-sm" : "text-2xl font-bold text-[#fb4d06]"}>
+              <span className={totalComFrete > 0 || taxaCartao > 0 ? "font-semibold text-gray-700 text-sm" : "text-2xl font-bold text-[#fb4d06]"}>
                 R$ {totalGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
               </span>
             </div>
@@ -1137,10 +1196,22 @@ export default function RevisarOrcamento() {
                 <span className="font-semibold text-blue-700">R$ {freteValorNum.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
               </div>
             )}
+            {taxaCartao > 0 && (
+              <div className="flex justify-between items-center text-sm text-gray-500">
+                <span>Taxa do cartão <span className="text-gray-400">({calcularPercTaxaCartao(baseTotal, taxaCartao).toFixed(2).replace(".", ",")}%)</span></span>
+                <span className="font-semibold text-amber-700">R$ {taxaCartao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+              </div>
+            )}
             {totalComFrete > 0 && (
               <div className="border-t border-gray-100 pt-2 flex justify-between items-center">
-                <span className="font-semibold text-gray-700">Total com Frete</span>
-                <span className="text-2xl font-bold text-[#fb4d06]">R$ {totalComFrete.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                <span className="font-semibold text-gray-700">{taxaCartao > 0 ? "Total com Frete e Taxa" : "Total com Frete"}</span>
+                <span className="text-2xl font-bold text-[#fb4d06]">R$ {totalFinal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+              </div>
+            )}
+            {taxaCartao > 0 && totalComFrete === 0 && (
+              <div className="border-t border-gray-100 pt-2 flex justify-between items-center">
+                <span className="font-semibold text-gray-700">Total Geral</span>
+                <span className="text-2xl font-bold text-[#fb4d06]">R$ {totalFinal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
               </div>
             )}
             {freteInfo && freteValorNum === 0 && (

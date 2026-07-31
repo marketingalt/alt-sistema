@@ -13,7 +13,8 @@ function totalOrcamento(o: Orcamento) {
   const itens = o.itens.reduce((a, i) => a + (i.total || 0), 0);
   const servicos = o.manuseio && o.custoManuseio ? o.custoManuseio : 0;
   const frete = o.freteValor ?? 0;
-  return itens + servicos + frete;
+  const taxa = o.formaPagamento === "Link de cartão de crédito" ? (o.taxaCartao || 0) : 0;
+  return itens + servicos + frete + taxa;
 }
 
 function custoTotalOrcamento(o: Orcamento) {

@@ -62,6 +62,38 @@ function mediaPonderadaCusto(variantes: ItemVariante[]): number {
   return Math.round(variantes.reduce((s, v) => s + (v.custoUnitario || 0) * (v.quantidade || 0), 0) / qtdTotal * 100) / 100;
 }
 
+// ── Forma de pagamento / taxa de cartão ─────────────────────────
+
+export const FORMA_LINK_CARTAO = "Link de cartão de crédito";
+
+/** true quando a modalidade é de cartão (crédito ou débito) */
+export function ehCartao(modalidade?: string): boolean {
+  const m = (modalidade || "").toUpperCase().trim();
+  return m === "CRÉDITO" || m === "DÉBITO";
+}
+
+/** Converte a forma de pagamento do orçamento para a modalidade usada no fluxo de caixa */
+export function modalidadeDeFormaPagamento(forma?: string): string | undefined {
+  if (!forma) return undefined;
+  if (forma === FORMA_LINK_CARTAO) return "CRÉDITO";
+  return forma;
+}
+
+/** Porcentagem que a taxa representa sobre o total base (para exibição) */
+export function calcularPercTaxaCartao(base: number, taxa: number): number {
+  if (!base || !taxa) return 0;
+  return (taxa / base) * 100;
+}
+
+/** Data de vencimento = dataBase + dias. Retorna "DD/MM/AAAA" ou null se inválido. */
+export function calcularDataVencimento(dataBase?: string, dias?: number): string | null {
+  if (!dataBase || !dias) return null;
+  const d = new Date(dataBase + "T12:00:00");
+  if (isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() + dias);
+  return d.toLocaleDateString("pt-BR");
+}
+
 export function recalcularItem(item: ItemOrcamento, margemExtra = 0): ItemOrcamento {
   // Se tem variantes, recalcula cada uma e depois soma
   if (item.variantes && item.variantes.length > 0) {

@@ -3,7 +3,7 @@
 import { Component, useEffect, useState, useMemo, useRef } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
-import { calcularCustoTotal } from "@/lib/calculos";
+import { calcularCustoTotal, ehCartao, FORMA_LINK_CARTAO, calcularPercTaxaCartao } from "@/lib/calculos";
 import { downloadCSV } from "@/lib/export-csv";
 import { useUser } from "@clerk/nextjs";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
@@ -94,9 +94,16 @@ function calcCustosOrcamento(orc: Orcamento): number {
   }, 0);
 }
 
-function valorAprovadoOrcamento(orc: Orcamento): number {
+/** Base do orçamento: subtotal + frete + manuseio (sem taxa de cartão) */
+function valorLiquidoOrcamento(orc: Orcamento): number {
   const subtotal = (orc.itens || []).reduce((s: number, it: ItemOrcamento) => s + (it.total || 0), 0);
   return subtotal + (orc.freteValor || 0) + (orc.custoManuseio || 0);
+}
+
+/** Valor aprovado (bruto, igual à NF): base + taxa de cartão quando forma é link de crédito */
+function valorAprovadoOrcamento(orc: Orcamento): number {
+  const taxa = orc.formaPagamento === FORMA_LINK_CARTAO ? (orc.taxaCartao || 0) : 0;
+  return valorLiquidoOrcamento(orc) + taxa;
 }
 
 /** Tenta extrair número de dias de uma string tipo "20 dias", "30 dias à vista". Retorna undefined se não achar número. */
@@ -108,7 +115,7 @@ function extrairDiasPrazo(prazo?: string): number | undefined {
 
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-const MODALIDADES = ["PIX", "TED", "DÉBITO", "BOLETO", "FATURA", "INVESTIMENTO", "TRANSFERENCIA"];
+const MODALIDADES = ["PIX", "TED", "DÉBITO", "BOLETO", "FATURA", "INVESTIMENTO", "TRANSFERENCIA", "CRÉDITO"];
 
 function fmt(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -993,6 +1000,20 @@ function DrawerDetalhe({ row, ordensServico, bancos, onClose, onSalvar }: Drawer
                   <option value="">Banco...</option>
                   {bancos.map((b) => <option key={b}>{b}</option>)}
                 </select>
+                {row.tipo === "orcamento" && row.orcamento && ehCartao(form.modalidade) && (row.orcamento?.taxaCartao || 0) > 0 && (
+                  <div className="w-full mt-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs">
+                    <div className="flex justify-between text-gray-600">
+                      <span>Taxa do cartão</span>
+                      <span className="font-semibold text-amber-700">
+                        {fmt(row.orcamento?.taxaCartao || 0)} ({calcularPercTaxaCartao(valorLiquidoOrcamento(row.orcamento), row.orcamento?.taxaCartao || 0).toFixed(2).replace(".", ",")}%)
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-gray-600 mt-1">
+                      <span>Valor líquido que cai no banco</span>
+                      <span className="font-semibold text-gray-800">{fmt(valorLiquidoOrcamento(row.orcamento))}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {row.tipo === "orcamento" && (
@@ -1191,7 +1212,13 @@ function ContasAReceberPage() {
     const totalAprovado = rowsMes.reduce((s, r) => s + r.valorAprovado, 0);
     const totalCustos = rowsMes.reduce((s, r) => s + (r.fat.imposto ?? 0) + (r.fat.comissao ?? 0) + (r.fat.custo ?? r.fat.custosReais ?? r.custosCalculados), 0);
     const aReceber = rowsMes.filter((r) => !r.fat.pago).reduce((s, r) => s + r.valorAprovado, 0);
-    const recebido = rowsMes.filter((r) => r.fat.pago).reduce((s, r) => s + r.valorAprovado, 0);
+    const recebido = rowsMes.filter((r) => r.fat.pago).reduce((s, r) => {
+      // Cartão de crédito: o banco recebe o líquido (bruto − taxa) — KPI bate com o extrato
+      if (ehCartao(r.fat.modalidade) && r.tipo === "orcamento" && r.orcamento && (r.orcamento.taxaCartao || 0) > 0) {
+        return s + valorLiquidoOrcamento(r.orcamento);
+      }
+      return s + r.valorAprovado;
+    }, 0);
     const inadimplente = rowsMes.filter((r) => r.fat.vencimento && statusReceber(r) === "inadimplente").reduce((s, r) => s + r.valorAprovado, 0);
     const rentabilidade = totalAprovado > 0 ? ((totalAprovado - totalCustos) / totalAprovado) * 100 : 0;
     return { totalAprovado, totalCustos, aReceber, recebido, rentabilidade, inadimplente };

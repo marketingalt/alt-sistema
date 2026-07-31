@@ -239,6 +239,9 @@ export interface Orcamento {
   tiposNota?: ("DANFE" | "NFSE")[];
   prazoPagamento: string;
   prazoEntrega: string;
+  formaPagamento?: string; // Ex: PIX, TED, "Link de cartão de crédito"
+  taxaCartao?: number; // Valor da taxa do cartão em R$ (link de crédito)
+  diasPagamento?: number; // Dias até o vencimento (usado p/ calcular a data no Contas a Receber)
   observacoes: string;
   frete: string;
   freteValor?: number;

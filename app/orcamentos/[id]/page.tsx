@@ -11,7 +11,7 @@ import ComboboxFornecedor from "@/app/components/ComboboxFornecedor";
 import BuscaProdutoInput from "@/app/components/BuscaProdutoInput";
 import CampoQuantidadeEstoque from "@/app/components/CampoQuantidadeEstoque";
 import ImagemReferencia from "@/app/components/ImagemReferencia";
-import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima } from "@/lib/calculos";
+import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima, FORMA_LINK_CARTAO, calcularPercTaxaCartao, calcularDataVencimento } from "@/lib/calculos";
 import { excedeEstoque } from "@/lib/estoque";
 import PedidoComprasAnexo from "@/app/components/PedidoComprasAnexo";
 import CampoData from "@/app/components/CampoData";
@@ -30,6 +30,7 @@ import HistoricoAtividades from "@/app/components/HistoricoAtividades";
 const TODOS_STATUS = Object.keys(STATUS_CONFIG) as StatusOrcamento[];
 
 const TIPOS = ["Silk", "DTF", "Bordado", "Laser", "Verniz UV", "Tampografia", "Sublimação", "Gravação em relevo", "Outro"];
+const FORMAS_PAGAMENTO = ["PIX", "TED", "DÉBITO", "BOLETO", "FATURA", FORMA_LINK_CARTAO];
 const MARGEM_PADRAO = 30;
 const PERC_HONORARIOS_PADRAO = 10;
 const PERC_IMPOSTOS_PADRAO = 19;
@@ -675,6 +676,9 @@ export default function VisualizarOrcamento() {
   const totalServicos = orcamento.manuseio && orcamento.custoManuseio ? orcamento.custoManuseio : 0;
   const freteValorNum = (orcamento.freteValor ?? 0) > 0 ? (orcamento.freteValor ?? 0) : 0;
   const totalGeral = totalProdutos + totalServicos + freteValorNum;
+  const ehFormaCartao = orcamento.formaPagamento === FORMA_LINK_CARTAO;
+  const taxaCartao = ehFormaCartao ? (orcamento.taxaCartao || 0) : 0;
+  const totalFinal = totalGeral + taxaCartao;
 
   return (
     <WorkspaceLayout>
@@ -1220,6 +1224,65 @@ export default function VisualizarOrcamento() {
                         </p>
                       </div>
                     )}
+                  </div>
+                )}
+              </div>
+
+              {/* Forma de pagamento + taxa/dias (link de cartão) */}
+              <div className="mt-4 border border-gray-100 rounded-xl p-4 bg-gray-50">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Forma de Pagamento</p>
+                    <p className="text-sm text-gray-400 mt-0.5">Link de cartão de crédito gera taxa e vencimento no Contas a Receber</p>
+                  </div>
+                </div>
+                <select
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                  value={orcamento.formaPagamento || ""}
+                  onChange={(e) => atualizarCampo("formaPagamento", e.target.value)}
+                >
+                  <option value="">Selecione a forma de pagamento</option>
+                  {FORMAS_PAGAMENTO.map((f) => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+
+                {orcamento.formaPagamento === FORMA_LINK_CARTAO && (
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1.5">Taxa do cartão (R$)</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number" min={0} step="0.01"
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
+                          value={orcamento.taxaCartao ?? ""}
+                          onChange={(e) => atualizarCampo("taxaCartao", parseFloat(e.target.value) || 0)}
+                          placeholder="0,00"
+                        />
+                        <span className="text-xs text-gray-400 whitespace-nowrap">
+                          {(orcamento.taxaCartao ?? 0) > 0
+                            ? `= ${calcularPercTaxaCartao(totalGeral, orcamento.taxaCartao || 0).toFixed(2).replace(".", ",")}% sobre o total`
+                            : "—"}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1.5">Vencimento em (dias)</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number" min={0}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white"
+                          value={orcamento.diasPagamento ?? ""}
+                          onChange={(e) => atualizarCampo("diasPagamento", parseInt(e.target.value, 10) || 0)}
+                          placeholder="Ex: 4"
+                        />
+                        <span className="text-xs text-gray-400 whitespace-nowrap">
+                          {(orcamento.diasPagamento ?? 0) > 0
+                            ? `cai no banco em ${calcularDataVencimento(orcamento.dataOrcamento, orcamento.diasPagamento || 0)}`
+                            : "—"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1831,9 +1894,15 @@ export default function VisualizarOrcamento() {
                         <span className="font-semibold text-blue-700">{orcamento.frete}</span>
                       </div>
                     ) : null}
+                    {taxaCartao > 0 && (
+                      <div className="flex justify-between items-center text-sm text-gray-500">
+                        <span>Taxa do cartão <span className="text-gray-400">({calcularPercTaxaCartao(totalGeral, taxaCartao).toFixed(2).replace(".", ",")}%)</span></span>
+                        <span className="font-semibold text-amber-700">R$ {taxaCartao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
                     <div className="border-t-2 border-gray-200 pt-2 flex justify-between items-center">
                       <span className="font-semibold text-gray-700">Total Geral</span>
-                      <p className="text-2xl font-bold text-[#fb4d06]">R$ {totalGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+                      <p className="text-2xl font-bold text-[#fb4d06]">R$ {totalFinal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
                     </div>
                   </div>
                   )}
