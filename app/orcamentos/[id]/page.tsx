@@ -492,6 +492,8 @@ export default function VisualizarOrcamento() {
       }
       setSalvo(true);
       clearDraft(draftKey);
+      // Abre automaticamente a tela de envio ao salvar o orçamento
+      setMostrarEnviar(true);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao salvar. Tente novamente.";
       setErrosValidacao([{ campo: "geral", label: "Erro", mensagem: msg }]);
