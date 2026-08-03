@@ -384,6 +384,9 @@ export default function VendasComissoesPage() {
   const [modalVendedor, setModalVendedor] = useState<{ aberto: boolean; editar?: Vendedor | null }>({ aberto: false });
   const [modalTransacao, setModalTransacao] = useState<{ aberto: boolean; editar?: Venda | null }>({ aberto: false });
 
+  // Link público de acompanhamento do vendedor
+  const [linkFeedback, setLinkFeedback] = useState<"" | "copiado" | "regenerado">("");
+
   async function carregar() {
     const [resVend, resVendas, resOrc, resNF] = await Promise.all([
       fetch("/api/financeiro/vendas-comissoes/vendedores"),
@@ -471,6 +474,60 @@ export default function VendasComissoesPage() {
     if (!confirm("Tem certeza?")) return;
     await fetch(`/api/financeiro/vendas-comissoes/vendedores?id=${id}`, { method: "DELETE" });
     await carregar();
+  }
+
+  // ── Link público de acompanhamento ─────────────────────────
+
+  function gerarLinkToken(): string {
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    let bin = "";
+    bytes.forEach((b) => (bin += String.fromCharCode(b)));
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  function copiarTexto(texto: string) {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(texto).catch(() => {});
+      return;
+    }
+    // Fallback para navegadores sem Clipboard API
+    const el = document.createElement("textarea");
+    el.value = texto;
+    document.body.appendChild(el);
+    el.select();
+    try { document.execCommand("copy"); } catch {}
+    document.body.removeChild(el);
+  }
+
+  async function atualizarVendedor(dados: Partial<Vendedor>) {
+    if (!vendedorAtual) return;
+    await fetch("/api/financeiro/vendas-comissoes/vendedores", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...dados, id: vendedorAtual.id }),
+    });
+    await carregar();
+  }
+
+  async function copiarLinkAcompanhamento() {
+    if (!vendedorAtual) return;
+    let token = vendedorAtual.linkToken;
+    if (!token) {
+      token = gerarLinkToken();
+      await atualizarVendedor({ linkToken: token });
+    }
+    copiarTexto(`${window.location.origin}/p/vendedor/${token}`);
+    setLinkFeedback("copiado");
+    setTimeout(() => setLinkFeedback(""), 2500);
+  }
+
+  async function regenerarLink() {
+    if (!vendedorAtual) return;
+    const token = gerarLinkToken();
+    await atualizarVendedor({ linkToken: token });
+    copiarTexto(`${window.location.origin}/p/vendedor/${token}`);
+    setLinkFeedback("regenerado");
+    setTimeout(() => setLinkFeedback(""), 2500);
   }
 
   async function salvarTransacao(dados: Partial<Venda>) {
@@ -619,6 +676,33 @@ export default function VendasComissoesPage() {
                 <div><span className="text-gray-400 block">Chave Pix</span><span className="font-medium text-gray-800">{vendedorAtual.chavePix || "—"}</span></div>
                 <div><span className="text-gray-400 block">E-mail</span><span className="font-medium text-gray-800">{vendedorAtual.email || "—"}</span></div>
                 <div><span className="text-gray-400 block">Comissão Padrão</span><span className="font-medium text-gray-800">{vendedorAtual.percentualComissao}%</span></div>
+              </div>
+              {/* ── LINK DE ACOMPANHAMENTO ── */}
+              <div className="px-5 py-3 border-t border-gray-50 flex items-center gap-3 flex-wrap">
+                <button
+                  onClick={copiarLinkAcompanhamento}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#fb4d06] rounded-lg hover:bg-[#e04400] transition"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 015.656 0l2 2a4 4 0 01-5.656 5.656l-1.414-1.414M10.172 13.828a4 4 0 00-5.656 0l-2 2a4 4 0 005.656 5.656l1.414-1.414M14 10l-4 4" /></svg>
+                  🔗 Copiar link de acompanhamento
+                </button>
+                {vendedorAtual.linkToken && (
+                  <button
+                    onClick={regenerarLink}
+                    title="Invalida o link antigo"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    Regenerar
+                  </button>
+                )}
+                <p className="text-xs text-gray-400">
+                  {linkFeedback === "copiado"
+                    ? "Link copiado! Envie para o vendedor."
+                    : linkFeedback === "regenerado"
+                    ? "Novo link copiado! O anterior não funciona mais."
+                    : "Somente visualização — o vendedor não precisa criar acesso."}
+                </p>
               </div>
             </div>
 

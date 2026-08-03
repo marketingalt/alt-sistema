@@ -16,6 +16,7 @@ export interface Vendedor {
   percentualComissao: number;
   metaMensal?: number;
   ativo: boolean;
+  linkToken?: string; // token do link público de acompanhamento do vendedor
   createdAt: string;
   updatedAt: string;
 }

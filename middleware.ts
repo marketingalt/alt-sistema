@@ -7,6 +7,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/acesso-negado",
   "/boas-vindas",
+  "/p/vendedor(.*)",
   "/api/xbz/cron(.*)",
   "/api/fluxo-caixa/importar-planilha(.*)",
 ]);
