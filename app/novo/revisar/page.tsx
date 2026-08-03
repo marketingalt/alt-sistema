@@ -51,7 +51,7 @@ function itemVazio(margem: number): ItemOrcamento {
     id: gerarId(),
     kit: "", referencia: "", item: "", acabamento: "Silk", descricao: "",
     quantidade: 1, custoUnitario: 0, freteProducao: 0, custoPersonalizacao: 0,
-    margem, valorUnitario: 0, valorAjustado: false, total: 0, ncm: "",
+    margem, percentualComissao: PERC_COMISSAO_PADRAO, valorUnitario: 0, valorAjustado: false, total: 0, ncm: "",
     categoria: "brindes",
   };
 }
@@ -915,6 +915,14 @@ export default function RevisarOrcamento() {
                                 R$ {item.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                               </div>
                             </div>
+                            <div>
+                              <label className="block text-xs font-medium text-purple-600 mb-1">% Comissão</label>
+                              <input type="number" min={0} max={100} step="0.1"
+                                className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm text-purple-700 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                                value={item.percentualComissao ?? ""}
+                                onChange={(e) => atualizarItem(item.id, "percentualComissao", parseFloat(e.target.value) || 0)}
+                              />
+                            </div>
                           </div>
                         </div>
                       </>
@@ -1059,6 +1067,14 @@ export default function RevisarOrcamento() {
                               {(orcamento.percComissao || 0) > 0 && ` · Com. ${orcamento.percComissao}%`}
                             </p>
                           )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">% Comissão</label>
+                          <input type="number" min={0} max={100} step="0.1"
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                            value={item.percentualComissao ?? ""}
+                            onChange={(e) => atualizarItem(item.id, "percentualComissao", parseFloat(e.target.value) || 0)} />
+                          <p className="text-[10px] text-gray-400 mt-0.5">Comissão deste item no comercial</p>
                         </div>
                       </div>
                       {/* Embalagem */}
