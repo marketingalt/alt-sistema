@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { buscarOrcamento, salvarOrcamento, deletarOrcamento, listarOrcamentos, sincronizarTarefasOrcamento, gerarOSdeOrcamento, criarTarefaFinanceira, moverTarefaPlanejamentoParaConcluido } from "@/lib/storage";
+import { sincronizarVendaComercial } from "@/lib/vendas-orcamento";
 import type { HistoricoAlteracao } from "@/app/types";
 
 function gerarId() {
@@ -112,6 +113,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       console.error("[PLANEJAMENTO CONCLUIR ERROR]", err)
     );
 
+    // Sincronizar venda/comissão no comercial (aprovar cria, recusar/cancelar desfaz)
+    sincronizarVendaComercial(orcamentoAnterior, salvo).catch((err) =>
+      console.error("[VENDA COMERCIAL ERROR]", err)
+    );
+
     return NextResponse.json(salvo, { headers: NO_CACHE_HEADERS });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -173,6 +179,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // Mover card do Planejamento para Concluído se aprovado
     moverTarefaPlanejamentoParaConcluido(salvo).catch((err) =>
       console.error("[PLANEJAMENTO CONCLUIR ERROR]", err)
+    );
+
+    // Sincronizar venda/comissão no comercial (aprovar cria, recusar/cancelar desfaz)
+    sincronizarVendaComercial(orcamento, salvo).catch((err) =>
+      console.error("[VENDA COMERCIAL ERROR]", err)
     );
 
     return NextResponse.json(salvo, { headers: NO_CACHE_HEADERS });

@@ -92,6 +92,15 @@ export async function POST(req: NextRequest) {
   }
 
   const lista = await dbGet<Venda[]>(DB_KEY, []);
+
+  // Evita vincular o mesmo orçamento a duas vendas (o orçamento aprovado já gera a venda automática)
+  if (orcamentoId && lista.some((v) => v.orcamentoId === orcamentoId)) {
+    return NextResponse.json(
+      { error: "Já existe uma venda vinculada a este orçamento." },
+      { status: 409 }
+    );
+  }
+
   const nova: Venda = {
     id: gerarId(),
     vendedorId,

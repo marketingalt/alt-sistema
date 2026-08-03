@@ -234,6 +234,7 @@ export interface Orcamento {
   clienteId?: string;
   solicitante: string;
   responsavel?: string;
+  vendedorId?: string; // id do Vendedor responsável (comercial) — oculto do cliente
   dataOrcamento: string;
   dataSolicitacao?: string;
   tiposNota?: ("DANFE" | "NFSE")[];

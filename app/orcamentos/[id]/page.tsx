@@ -27,6 +27,7 @@ import type { ErroValidacao } from "@/lib/validacao";
 import { useAutoSave, getDraft, clearDraft } from "@/hooks/useAutoSave";
 import HistoricoAtividades from "@/app/components/HistoricoAtividades";
 import ModalEnviarOrcamento from "@/app/components/ModalEnviarOrcamento";
+import CampoVendedor from "@/app/components/CampoVendedor";
 
 const TODOS_STATUS = Object.keys(STATUS_CONFIG) as StatusOrcamento[];
 
@@ -1110,9 +1111,10 @@ export default function VisualizarOrcamento() {
                 />
               </div>
 
-              {/* Linha 2: Responsável + Data solicitação + Data elaboração + Tipo nota */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+              {/* Linha 2: Responsável + Vendedor + Data solicitação + Data elaboração + Tipo nota */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-4">
                 <Campo label="Responsável pelo orçamento" value={orcamento.responsavel || ""} onChange={(v) => atualizarCampo("responsavel", v)} />
+                <CampoVendedor value={orcamento.vendedorId} onChange={(v) => atualizarCampo("vendedorId", v)} />
                 <CampoData
                   label="Data da solicitação"
                   value={orcamento.dataSolicitacao || ""}

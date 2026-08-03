@@ -20,6 +20,7 @@ import CalculadoraFrete from "@/app/components/CalculadoraFrete";
 import CampoPrazoEntrega from "@/app/components/CampoPrazoEntrega";
 import CampoPrazoPagamento from "@/app/components/CampoPrazoPagamento";
 import DocumentoPreview from "@/app/orcamentos/[id]/DocumentoPreview";
+import CampoVendedor from "@/app/components/CampoVendedor";
 import { validarOrcamento, validarEstoque } from "@/lib/validacao";
 import type { ErroValidacao } from "@/lib/validacao";
 
@@ -586,9 +587,10 @@ export default function RevisarOrcamento() {
             />
           </div>
 
-          {/* Linha 2: Responsável + Data solicitação + Data elaboração + Tipo nota */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+          {/* Linha 2: Responsável + Vendedor + Data solicitação + Data elaboração + Tipo nota */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-4">
             <Campo label="Responsável pelo orçamento" value={orcamento.responsavel || ""} onChange={(v) => atualizarCampo("responsavel", v)} />
+            <CampoVendedor value={orcamento.vendedorId} onChange={(v) => atualizarCampo("vendedorId", v)} />
             <CampoData
               label="Data da solicitação"
               value={orcamento.dataSolicitacao || ""}

@@ -1,4 +1,4 @@
-import type { ItemOrcamento, ItemVariante } from "@/app/types";
+import type { ItemOrcamento, ItemVariante, Orcamento } from "@/app/types";
 
 export function temSurchargeQtdMinima(item: ItemOrcamento): boolean {
   return !!(
@@ -92,6 +92,29 @@ export function calcularDataVencimento(dataBase?: string, dias?: number): string
   if (isNaN(d.getTime())) return null;
   d.setDate(d.getDate() + dias);
   return d.toLocaleDateString("pt-BR");
+}
+
+/** Comissão de um orçamento: valor = subtotal + frete + manuseio (sem taxa cartão);
+ *  por item usa percentualComissao do item ou o padrão do vendedor. */
+export function calcularComissaoOrcamento(orc: Orcamento, pctPadraoVendedor: number) {
+  const subtotal = (orc.itens || []).reduce((s, it) => s + (it.total || 0), 0);
+  const valor = subtotal + (orc.freteValor || 0) + (orc.custoManuseio || 0);
+
+  const itensComissao = (orc.itens || [])
+    .filter((it) => (it.total || 0) > 0)
+    .map((it, idx) => {
+      const pct = it.percentualComissao ?? pctPadraoVendedor;
+      return {
+        item: it.item || `Item #${idx + 1}`,
+        valor: it.total || 0,
+        percentual: pct,
+        comissao: (it.total || 0) * (pct / 100),
+      };
+    });
+  const comissaoTotal = itensComissao.reduce((s, ci) => s + ci.comissao, 0);
+  const pctMedia = valor > 0 ? (comissaoTotal / valor) * 100 : 0;
+
+  return { valor, itensComissao, comissaoTotal, pctMedia };
 }
 
 export function recalcularItem(item: ItemOrcamento, margemExtra = 0): ItemOrcamento {

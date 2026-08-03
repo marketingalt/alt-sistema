@@ -7,6 +7,7 @@ import type { Vendedor } from "@/app/api/financeiro/vendas-comissoes/vendedores/
 import type { Venda, ComissaoItem } from "@/app/api/financeiro/vendas-comissoes/vendas/route";
 import type { ComissaoNF } from "@/app/api/financeiro/vendas-comissoes/comissoes-nf/route";
 import type { Orcamento } from "@/app/types";
+import { calcularComissaoOrcamento } from "@/lib/calculos";
 
 // ── Utilitários ──
 
@@ -194,23 +195,10 @@ function ModalTransacao({ vendedor, orcamentos, transacao, onClose, onSalvar }: 
   }, [orcamentos, buscaOrc]);
 
   function selecionarOrcamento(orc: Orcamento) {
-    const subtotal = (orc.itens || []).reduce((s, it) => s + (it.total || 0), 0);
-    const valor = subtotal + (orc.freteValor || 0) + (orc.custoManuseio || 0);
-
-    // Calcula comissão por item
-    const itensComissao: ComissaoItem[] = (orc.itens || [])
-      .filter((it) => (it.total || 0) > 0)
-      .map((it) => {
-        const pct = it.percentualComissao ?? (vendedor.percentualComissao ?? 0);
-        return {
-          item: it.item || `Item #${orc.itens!.indexOf(it) + 1}`,
-          valor: it.total || 0,
-          percentual: pct,
-          comissao: (it.total || 0) * (pct / 100),
-        };
-      });
-    const comissaoTotal = itensComissao.reduce((s, ci) => s + ci.comissao, 0);
-    const pctMedia = valor > 0 ? (comissaoTotal / valor) * 100 : 0;
+    const { valor, itensComissao, pctMedia } = calcularComissaoOrcamento(
+      orc,
+      vendedor.percentualComissao ?? 0
+    );
 
     setForm((p) => ({
       ...p,
@@ -486,16 +474,19 @@ export default function VendasComissoesPage() {
   }
 
   async function salvarTransacao(dados: Partial<Venda>) {
-    if (modalTransacao.editar) {
-      await fetch("/api/financeiro/vendas-comissoes/vendas", {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...dados, id: modalTransacao.editar.id, vendedorId: vendedorSelId }),
-      });
-    } else {
-      await fetch("/api/financeiro/vendas-comissoes/vendas", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...dados, vendedorId: vendedorSelId }),
-      });
+    const res = modalTransacao.editar
+      ? await fetch("/api/financeiro/vendas-comissoes/vendas", {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...dados, id: modalTransacao.editar.id, vendedorId: vendedorSelId }),
+        })
+      : await fetch("/api/financeiro/vendas-comissoes/vendas", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...dados, vendedorId: vendedorSelId }),
+        });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({ error: `Erro HTTP ${res.status}` }));
+      alert(errBody.error || "Erro ao salvar a transação.");
+      return;
     }
     setModalTransacao({ aberto: false });
     await carregar();
