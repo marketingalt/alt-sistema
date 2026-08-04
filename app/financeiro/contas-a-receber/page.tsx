@@ -1685,7 +1685,7 @@ function ContasAReceberPage() {
                           <Cell
                             value={row.fat.statusJob || row.statusJob}
                             mode="select"
-                            options={["Em andamento", "Enviado", "Aprovado"]}
+                            options={["Em andamento", "Enviado", "Aprovado", "Concluído"]}
                             onSave={(v) => salvarCelula(row.rowId, "statusJob", v)}
                           />
                         ) : (

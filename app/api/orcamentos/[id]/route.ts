@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { buscarOrcamento, salvarOrcamento, deletarOrcamento, listarOrcamentos, sincronizarTarefasOrcamento, gerarOSdeOrcamento, criarTarefaFinanceira, moverTarefaPlanejamentoParaConcluido } from "@/lib/storage";
+import { buscarOrcamento, salvarOrcamento, deletarOrcamento, listarOrcamentos, sincronizarTarefasOrcamento, gerarOSdeOrcamento, concluirOSdeOrcamento, criarTarefaFinanceira, moverTarefaPlanejamentoParaConcluido } from "@/lib/storage";
 import { sincronizarVendaComercial } from "@/lib/vendas-orcamento";
 import type { HistoricoAlteracao } from "@/app/types";
 
@@ -103,6 +103,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       console.error("[ORCAMENTO OS ERROR]", err)
     );
 
+    // Concluir a OS vinculada se o orçamento foi concluído
+    concluirOSdeOrcamento(salvo).catch((err) =>
+      console.error("[ORCAMENTO CONCLUIR OS ERROR]", err)
+    );
+
     // Criar tarefa no Financeiro Kanban se aprovado
     criarTarefaFinanceira(salvo).catch((err) =>
       console.error("[FINANCEIRO TASK ERROR]", err)
@@ -169,6 +174,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // Gerar OS automaticamente se o orçamento foi aprovado
     gerarOSdeOrcamento(salvo).catch((err) =>
       console.error("[ORCAMENTO OS ERROR]", err)
+    );
+
+    // Concluir a OS vinculada se o orçamento foi concluído
+    concluirOSdeOrcamento(salvo).catch((err) =>
+      console.error("[ORCAMENTO CONCLUIR OS ERROR]", err)
     );
 
     // Criar tarefa no Financeiro Kanban se aprovado

@@ -530,6 +530,20 @@ export async function gerarOSdeOrcamento(orcamento: Orcamento): Promise<OrdemSer
   return nova;
 }
 
+// ── Concluir OS automaticamente quando o orçamento vira "Concluído" ──
+
+export async function concluirOSdeOrcamento(orcamento: Orcamento): Promise<void> {
+  if (orcamento.status !== "Concluído") return;
+
+  const existentes = await getOrdensServico();
+  const os = existentes.find((o) => o.orcamentoId === orcamento.id);
+  if (!os) return;
+  // Nunca sobrescreve OS já entregue ou cancelada
+  if (os.status === "Entregue" || os.status === "Cancelada") return;
+
+  await salvarOrdemServico({ ...os, status: "Entregue", updatedAt: new Date().toISOString() });
+}
+
 // ── Financeiro Kanban (auto-criação ao aprovar) ────────
 
 export async function criarTarefaFinanceira(orcamento: Orcamento): Promise<void> {
