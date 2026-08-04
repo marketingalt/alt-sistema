@@ -9,11 +9,12 @@ import MeusLembretes from "./components/MeusLembretes";
 import Chart from "chart.js/auto";
 import type { Orcamento, StatusOrcamento } from "./types";
 import { STATUS_CONFIG } from "./types";
+import { valorFrete } from "@/lib/calculos";
 
 function totalOrcamento(o: Orcamento) {
   const produtos = o.itens.reduce((a, i) => a + (i.total || 0), 0);
   const servicos = o.manuseio && o.custoManuseio ? o.custoManuseio : 0;
-  const frete = o.freteValor ?? 0;
+  const frete = valorFrete(o);
   return produtos + servicos + frete;
 }
 

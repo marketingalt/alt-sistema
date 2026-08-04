@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import type { Orcamento, ItemOrcamento } from "@/app/types";
-import { FORMA_LINK_CARTAO } from "@/lib/calculos";
+import { FORMA_LINK_CARTAO, infoFrete } from "@/lib/calculos";
 
 const ALT_EMPRESA = "ALT. MARKETING E PUBLICIDADE";
 const ALT_CNPJ = "45.025.544/0001-92";
@@ -65,7 +65,7 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
 
   const totalProdutos = orcamento.itens.reduce((a, i) => a + (i.total || 0), 0);
   const totalServicos = orcamento.manuseio && orcamento.custoManuseio ? orcamento.custoManuseio : 0;
-  const valorFrete = orcamento.freteValor || 0;
+  const { valor: valorFrete, descricao: freteDesc } = infoFrete(orcamento);
   const totalGeral = totalProdutos + totalServicos + valorFrete;
   const taxaCartao = orcamento.formaPagamento === FORMA_LINK_CARTAO ? (orcamento.taxaCartao || 0) : 0;
   const totalFinal = totalGeral + taxaCartao;
@@ -76,8 +76,6 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
     orcamento.cliente?.toUpperCase(),
     orcamento.nomeProjeto ? orcamento.nomeProjeto.toUpperCase() : null,
   ].filter(Boolean).join(": ") || orcamento.cliente?.toUpperCase();
-
-  const freteVal = orcamento.frete && !orcamento.frete.startsWith("CUSTO ADICIONAL") ? orcamento.frete : null;
 
   const handleImageUpload = useCallback(
     (itemId: string, file: File) => {
@@ -477,17 +475,17 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
               );
             })}
 
-            {/* Linha de frete/logística — só aparece se há valor de frete */}
-            {freteVal && valorFrete > 0 && (
+            {/* Linha de frete/logística — aparece sempre que houver frete (valor ou descrição) */}
+            {(valorFrete > 0 || freteDesc) && (
               <div className="flex py-1 px-1.5 items-center border-b border-gray-100 text-[8px] bg-blue-50" style={{ minHeight: 32 }}>
                 <div className="text-gray-400 text-center" style={{ width: COL_W.img }}> </div>
-                <span className="flex-1 font-bold text-blue-800 text-[8px]">LOGÍSTICA DE ENTREGA</span>
+                <span className="flex-1 font-bold text-blue-800 text-[8px]">LOGÍSTICA DE ENTREGA{freteDesc ? ` — ${freteDesc}` : ""}</span>
                 <span className="text-gray-700 text-right" style={{ width: COL_W.qtd, fontSize: 8 }}>1</span>
                 <span className="text-gray-500 text-right" style={{ width: COL_W.und, fontSize: 8 }}>—</span>
                 <span className="text-gray-500 text-right" style={{ width: COL_W.vun, fontSize: 8 }}>—</span>
                 {mostrarTotalItem && (
                   <span className="font-bold text-right" style={{ width: COL_W.vtot, fontSize: 8, color: "#1e40af" }}>
-                    {valorFrete > 0 ? fmt(valorFrete) : freteVal}
+                    {valorFrete > 0 ? fmt(valorFrete) : "—"}
                   </span>
                 )}
               </div>

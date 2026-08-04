@@ -11,7 +11,7 @@ import ComboboxFornecedor from "@/app/components/ComboboxFornecedor";
 import BuscaProdutoInput from "@/app/components/BuscaProdutoInput";
 import CampoQuantidadeEstoque from "@/app/components/CampoQuantidadeEstoque";
 import ImagemReferencia from "@/app/components/ImagemReferencia";
-import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima, FORMA_LINK_CARTAO, calcularPercTaxaCartao, calcularDataVencimento } from "@/lib/calculos";
+import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima, FORMA_LINK_CARTAO, calcularPercTaxaCartao, calcularDataVencimento, valorFrete } from "@/lib/calculos";
 import { excedeEstoque } from "@/lib/estoque";
 import PedidoComprasAnexo from "@/app/components/PedidoComprasAnexo";
 import CampoData from "@/app/components/CampoData";
@@ -692,7 +692,7 @@ export default function VisualizarOrcamento() {
     orcamento.margemPadrao !== MARGEM_PADRAO;
   const totalProdutos = orcamento.itens.reduce((a, i) => a + (i.total || 0), 0);
   const totalServicos = orcamento.manuseio && orcamento.custoManuseio ? orcamento.custoManuseio : 0;
-  const freteValorNum = (orcamento.freteValor ?? 0) > 0 ? (orcamento.freteValor ?? 0) : 0;
+  const freteValorNum = valorFrete(orcamento);
   const totalGeral = totalProdutos + totalServicos + freteValorNum;
   const ehFormaCartao = orcamento.formaPagamento === FORMA_LINK_CARTAO;
   const taxaCartao = ehFormaCartao ? (orcamento.taxaCartao || 0) : 0;

@@ -1,5 +1,5 @@
 import type { Orcamento } from "@/app/types";
-import { FORMA_LINK_CARTAO } from "@/lib/calculos";
+import { FORMA_LINK_CARTAO, valorFrete } from "@/lib/calculos";
 
 const DEFAULT_FRETE = "CUSTO ADICIONAL";
 
@@ -12,7 +12,7 @@ export function fmtBRL(v: number): string {
 export function totalOrcamento(orc: Orcamento): number {
   const subtotal = (orc.itens || []).reduce((s, it) => s + (it.total || 0), 0);
   const taxa = orc.formaPagamento === FORMA_LINK_CARTAO ? (orc.taxaCartao || 0) : 0;
-  return subtotal + (orc.custoManuseio || 0) + (orc.freteValor || 0) + taxa;
+  return subtotal + (orc.custoManuseio || 0) + valorFrete(orc) + taxa;
 }
 
 /** Assunto padrão: ALT2026 | {número} | {projeto} + {cliente} */
@@ -37,9 +37,9 @@ export function detectarPendencias(orc: Orcamento): string[] {
     }
   }
 
-  // Frete: se foi preenchido um frete fora do padrão mas sem valor definido
+  // Frete: se foi preenchido um frete fora do padrão mas sem valor reconhecido
   const freteInfo = orc.frete && !orc.frete.startsWith(DEFAULT_FRETE) ? orc.frete : null;
-  if (freteInfo && !(orc.freteValor || 0)) pend.push("Frete a combinar");
+  if (freteInfo && !valorFrete(orc)) pend.push("Frete a combinar");
 
   return pend;
 }

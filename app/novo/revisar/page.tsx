@@ -7,7 +7,7 @@ import { useUser } from "@clerk/nextjs";
 import MultiUserSelect from "@/app/components/MultiUserSelect";
 import type { ItemOrcamento, Orcamento, Cliente, Produto, Fornecedor } from "@/app/types";
 import TagSelector from "@/app/components/TagSelector";
-import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima, FORMA_LINK_CARTAO, calcularPercTaxaCartao, calcularDataVencimento } from "@/lib/calculos";
+import { calcularCustoTotal, calcularValorSugerido, calcularMargemReal, recalcularItem, temSurchargeQtdMinima, FORMA_LINK_CARTAO, calcularPercTaxaCartao, calcularDataVencimento, infoFrete } from "@/lib/calculos";
 import { excedeEstoque } from "@/lib/estoque";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
@@ -326,8 +326,7 @@ export default function RevisarOrcamento() {
   const totalProdutos = orcamento.itens.reduce((acc, i) => acc + (i.total || 0), 0);
   const totalServicos = orcamento.manuseio && orcamento.custoManuseio ? orcamento.custoManuseio : 0;
   const totalGeral = totalProdutos + totalServicos;
-  const freteInfo = orcamento.frete && !orcamento.frete.startsWith("CUSTO ADICIONAL") ? orcamento.frete : null;
-  const freteValorNum = (freteInfo && (orcamento.freteValor ?? 0) > 0) ? (orcamento.freteValor ?? 0) : 0;
+  const { valor: freteValorNum, descricao: freteDesc } = infoFrete(orcamento);
   const totalComFrete = freteValorNum > 0 ? totalGeral + freteValorNum : 0;
   const ehFormaCartao = orcamento.formaPagamento === FORMA_LINK_CARTAO;
   const baseTotal = totalComFrete > 0 ? totalComFrete : totalGeral;
@@ -1208,7 +1207,7 @@ export default function RevisarOrcamento() {
                 R$ {totalGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
               </span>
             </div>
-            {freteInfo && freteValorNum > 0 && (
+            {freteValorNum > 0 && (
               <div className="flex justify-between items-center text-sm text-gray-500">
                 <span>Frete de entrega</span>
                 <span className="font-semibold text-blue-700">R$ {freteValorNum.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
@@ -1232,10 +1231,10 @@ export default function RevisarOrcamento() {
                 <span className="text-2xl font-bold text-[#fb4d06]">R$ {totalFinal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
               </div>
             )}
-            {freteInfo && freteValorNum === 0 && (
+            {freteDesc && freteValorNum === 0 && (
               <div className="mt-1 pt-3 border-t border-dashed border-gray-200 flex justify-between items-center text-sm">
                 <span className="text-gray-500">Frete de entrega</span>
-                <span className="font-semibold text-blue-700">{freteInfo}</span>
+                <span className="font-semibold text-blue-700">{freteDesc}</span>
               </div>
             )}
           </div>

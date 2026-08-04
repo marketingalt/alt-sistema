@@ -117,6 +117,33 @@ export function calcularComissaoOrcamento(orc: Orcamento, pctPadraoVendedor: num
   return { valor, itensComissao, comissaoTotal, pctMedia };
 }
 
+// ── Frete ─────────────────────────────────────────
+
+/** Extrai o valor da descrição de frete (formato "R$ 123,10 (14 km)") */
+export function extrairValorFreteDescricao(descricao: string): number {
+  const m = descricao.match(/R\$\s*([\d.,]+)/);
+  if (!m) return 0;
+  const num = parseFloat(m[1].replace(/\./g, "").replace(",", "."));
+  return isNaN(num) ? 0 : num;
+}
+
+type CamposFrete = Pick<Orcamento, "frete" | "freteValor">;
+
+/** Valor do frete a cobrar: freteValor se preenchido; senão, extrai da descrição */
+export function valorFrete(orc: CamposFrete): number {
+  const v = orc.freteValor && orc.freteValor > 0 ? orc.freteValor : 0;
+  if (v > 0) return v;
+  const frete = (orc.frete || "").trim();
+  if (!frete) return 0;
+  return extrairValorFreteDescricao(frete);
+}
+
+/** Info do frete para o documento: valor a cobrar + descrição exibida ao cliente */
+export function infoFrete(orc: CamposFrete): { valor: number; descricao: string | null } {
+  const frete = (orc.frete || "").trim();
+  return { valor: valorFrete(orc), descricao: frete || null };
+}
+
 export function recalcularItem(item: ItemOrcamento, margemExtra = 0): ItemOrcamento {
   // Se tem variantes, recalcula cada uma e depois soma
   if (item.variantes && item.variantes.length > 0) {

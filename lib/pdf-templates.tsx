@@ -7,7 +7,7 @@ import {
   Image,
 } from "@react-pdf/renderer";
 import type { Orcamento } from "@/app/types";
-import { FORMA_LINK_CARTAO } from "@/lib/calculos";
+import { FORMA_LINK_CARTAO, infoFrete } from "@/lib/calculos";
 
 const ALT_EMPRESA = "ALT. MARKETING E PUBLICIDADE";
 const ALT_CNPJ = "45.025.544/0001-92";
@@ -416,7 +416,7 @@ const v = StyleSheet.create({
 export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; logoBase64?: string }) {
   const totalProdutos = orcamento.itens.reduce((a, i) => a + (i.total || 0), 0);
   const totalServicos = orcamento.manuseio && orcamento.custoManuseio ? orcamento.custoManuseio : 0;
-  const valorFrete = orcamento.freteValor || 0;
+  const { valor: valorFrete, descricao: freteDesc } = infoFrete(orcamento);
   const totalGeral = totalProdutos + totalServicos + valorFrete;
   const taxaCartao = orcamento.formaPagamento === FORMA_LINK_CARTAO ? (orcamento.taxaCartao || 0) : 0;
   const totalFinal = totalGeral + taxaCartao;
@@ -428,10 +428,6 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
     orcamento.nomeProjeto ? orcamento.nomeProjeto.toUpperCase() : null,
   ].filter(Boolean).join(": ");
 
-  const freteVal = orcamento.frete &&
-    !orcamento.frete.startsWith("CUSTO ADICIONAL")
-      ? orcamento.frete
-      : null;
   const mostrarTotalItem = orcamento.mostrarValorTotalItem === true;
 
   // Colunas fixas
@@ -567,18 +563,18 @@ export function PdfValores({ orcamento, logoBase64 }: { orcamento: Orcamento; lo
           })}
 
           {/* Logística */}
-          {freteVal && valorFrete > 0 && (
+          {(valorFrete > 0 || freteDesc) && (
             <View style={[v.row, v.rowFrete]} wrap={false}>
               <View style={v.imgBox} />
               <Text style={[v.td, { flex: 1, fontFamily: "Helvetica-Bold", color: "#1e40af" }]}>
-                LOGÍSTICA DE ENTREGA
+                LOGÍSTICA DE ENTREGA{freteDesc ? ` — ${freteDesc}` : ""}
               </Text>
               <Text style={[v.td, { width: W.qtd, textAlign: "right" }]}>1</Text>
               <Text style={[v.td, { width: W.und, textAlign: "right" }]}>—</Text>
               <Text style={[v.td, { width: W.vun, textAlign: "right" }]}>—</Text>
               {mostrarTotalItem && (
                 <Text style={[v.td, { width: W.vtot, fontFamily: "Helvetica-Bold", color: "#1e40af", textAlign: "right" }]}>
-                  {valorFrete > 0 ? fmt(valorFrete) : freteVal}
+                  {valorFrete > 0 ? fmt(valorFrete) : "—"}
                 </Text>
               )}
             </View>

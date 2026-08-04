@@ -8,11 +8,12 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import StatusDropdown from "@/app/components/StatusDropdown";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
 import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
+import { valorFrete } from "@/lib/calculos";
 
 function totalOrcamento(o: Orcamento) {
   const itens = o.itens.reduce((a, i) => a + (i.total || 0), 0);
   const servicos = o.manuseio && o.custoManuseio ? o.custoManuseio : 0;
-  const frete = o.freteValor ?? 0;
+  const frete = valorFrete(o);
   const taxa = o.formaPagamento === "Link de cartão de crédito" ? (o.taxaCartao || 0) : 0;
   return itens + servicos + frete + taxa;
 }
