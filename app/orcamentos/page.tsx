@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import type { Orcamento, StatusOrcamento } from "@/app/types";
-import { STATUS_CONFIG } from "@/app/types";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import StatusDropdown from "@/app/components/StatusDropdown";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
@@ -36,27 +35,6 @@ function margemOrcamento(o: Orcamento): number | null {
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
-
-// Ordem do fluxo dos orçamentos ativos (o "Concluído" fica na seção própria)
-const ORDEM_STATUS = ["Em andamento", "Enviado", "Aprovado", "Em produção", "Recusado", "Cancelado"];
-
-function idxStatus(s?: string): number {
-  const i = ORDEM_STATUS.indexOf(s || "");
-  return i === -1 ? ORDEM_STATUS.length : i;
-}
-
-/** Converte dataOrcamento (dd/mm/aaaa ou YYYY-MM-DD) em número comparável para ordenar */
-function dataNum(d?: string): number {
-  if (!d) return 0;
-  let m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(d);
-  if (m) return parseInt(m[3], 10) * 10000 + parseInt(m[2], 10) * 100 + parseInt(m[1], 10);
-  m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d);
-  if (m) return parseInt(m[1], 10) * 10000 + parseInt(m[2], 10) * 100 + parseInt(m[3], 10);
-  return 0;
-}
-
-// Opções do filtro de status na ordem do fluxo (sem "Concluído", que tem seção própria)
-const STATUS_FILTRO = ORDEM_STATUS.filter((s) => STATUS_CONFIG[s as StatusOrcamento]);
 
 
 function DownloadDropdown({ orcamentoId }: { orcamentoId: string }) {
@@ -124,8 +102,6 @@ export default function ListaOrcamentos() {
   const { user } = useUser();
   const [usuarios, setUsuarios] = useState<{ id: string; nome: string; email?: string }[]>([]);
   const [filtroUsuario, setFiltroUsuario] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState("");
-  const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
 
   function carregarOrcamentos() {
     setCarregando(true);
@@ -210,9 +186,8 @@ export default function ListaOrcamentos() {
     }
   }
 
-  function passaFiltros(o: Orcamento): boolean {
+  const filtrados = orcamentos.filter((o) => {
     if (filtroUsuario && o.userId !== filtroUsuario) return false;
-    if (filtroStatus && o.status !== filtroStatus) return false;
     const q = busca.toLowerCase();
     if (!q) return true;
     // Nomes dos projetos associados via tags
@@ -224,220 +199,13 @@ export default function ListaOrcamentos() {
       o.solicitante?.toLowerCase().includes(q) ||
       projetosNomes.some((nome) => nome.toLowerCase().includes(q))
     );
-  }
+  });
 
-  // Ativos: ordenados por status do fluxo e, dentro de cada, data mais recente primeiro
-  const filtradosAtivos = orcamentos
-    .filter((o) => o.status !== "Concluído" && passaFiltros(o))
-    .sort((a, b) => idxStatus(a.status) - idxStatus(b.status) || dataNum(b.dataOrcamento) - dataNum(a.dataOrcamento));
-
-  // Concluídos: seção própria, em ordem de data (mais recente primeiro)
-  const filtradosConcluidos = orcamentos
-    .filter((o) => o.status === "Concluído" && passaFiltros(o))
-    .sort((a, b) => dataNum(b.dataOrcamento) - dataNum(a.dataOrcamento));
-
-  const totalAtivosReceita = filtradosAtivos.reduce((a, o) => a + totalOrcamento(o), 0);
-  const totalAtivosCusto = filtradosAtivos.reduce((a, o) => a + custoTotalOrcamento(o), 0);
-  const margemAtivos = totalAtivosReceita && totalAtivosCusto
-    ? ((totalAtivosReceita - totalAtivosCusto) / totalAtivosReceita) * 100
+  const totalGeralReceita = filtrados.reduce((a, o) => a + totalOrcamento(o), 0);
+  const totalGeralCusto = filtrados.reduce((a, o) => a + custoTotalOrcamento(o), 0);
+  const margemGeral = totalGeralReceita && totalGeralCusto
+    ? ((totalGeralReceita - totalGeralCusto) / totalGeralReceita) * 100
     : null;
-  const totalConcluidosReceita = filtradosConcluidos.reduce((a, o) => a + totalOrcamento(o), 0);
-  const totalConcluidosCusto = filtradosConcluidos.reduce((a, o) => a + custoTotalOrcamento(o), 0);
-  const margemConcluidos = totalConcluidosReceita && totalConcluidosCusto
-    ? ((totalConcluidosReceita - totalConcluidosCusto) / totalConcluidosReceita) * 100
-    : null;
-
-  function renderLinha(o: Orcamento, idx: number) {
-    const total = totalOrcamento(o);
-    const margem = margemOrcamento(o);
-    return (
-      <tr key={o.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-        <td className="px-4 py-3">
-          <span className="text-xs font-semibold text-[#fb4d06] bg-[#fb4d06]/5 px-2 py-0.5 rounded-full whitespace-nowrap">
-            #{o.numero}
-          </span>
-        </td>
-        <td className="px-4 py-3">
-          <div className="font-medium text-gray-800">{o.nomeProjeto || o.cliente || "—"}</div>
-          <div className="text-xs text-gray-400">{o.cliente}</div>
-        </td>
-        <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{o.dataOrcamento}</td>
-        <td className="px-4 py-3 text-center">
-          <StatusDropdown
-            orcamentoId={o.id}
-            statusAtual={o.status || "Em andamento"}
-            onChange={(novo) => atualizarStatus(o.id, novo)}
-          />
-        </td>
-        <td className="px-4 py-3 text-center">
-          {o.documentos && o.documentos.length > 0 ? (
-            <div className="flex flex-col items-center gap-0.5">
-              <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <a
-                href={`/api/orcamentos/${o.id}/documentos/${o.documentos[0].id}?inline=1`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="text-[10px] font-semibold text-blue-500 hover:text-blue-700 hover:underline transition"
-              >
-                disponível
-              </a>
-            </div>
-          ) : (
-            <span className="text-gray-300 text-xs">—</span>
-          )}
-        </td>
-        <td className="px-4 py-3 text-center">
-          <a
-            href={`/api/pdf/${o.id}?tipo=os`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-lg transition"
-            title="Baixar Ordem de Serviço"
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            OS
-          </a>
-        </td>
-        <td className="px-4 py-3 text-right font-bold text-[#fb4d06] whitespace-nowrap">
-          {fmt(total)}
-        </td>
-        <td className="px-4 py-3 text-right">
-          {margem !== null ? (
-            <span className={`text-xs font-bold ${margem >= 35 ? "text-green-600" : margem >= 20 ? "text-yellow-600" : "text-red-500"}`}>
-              {margem.toFixed(1)}%
-            </span>
-          ) : (
-            <span className="text-xs text-gray-300">—</span>
-          )}
-        </td>
-        <td className="px-4 py-3">
-          <div className="flex items-center justify-center gap-0.5">
-            <Link href={`/orcamentos/${o.id}`}>
-              <button
-                className="inline-flex items-center gap-1 text-xs font-semibold text-[#fb4d06] bg-[#fb4d06]/5 hover:bg-[#fb4d06]/10 hover:text-[#fb4d06] px-2 py-1.5 rounded-lg transition"
-                title="Visualizar orçamento"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                Visualizar
-              </button>
-            </Link>
-            <Link href={`/orcamentos/${o.id}`}>
-              <button
-                className="p-1.5 rounded-lg text-gray-400 hover:text-[#fb4d06] hover:bg-[#fb4d06]/5 transition"
-                title="Editar orçamento"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </button>
-            </Link>
-            <DownloadDropdown orcamentoId={o.id} />
-            <button
-              onClick={(e) => { e.preventDefault(); deletarOrcamento(o.id, o.numero || ""); }}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition"
-              title="Excluir orçamento"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          </div>
-        </td>
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-1.5 text-xs text-gray-400">
-            <AvatarIniciais nome={o.userName || "?"} size="sm" />
-            <span>{o.userName || "—"}</span>
-            {o.userId === user?.id && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Eu</span>}
-          </div>
-        </td>
-        <td className="px-4 py-3 text-center">
-          <ParticipantesAvatar participantes={o.participantes || []} />
-        </td>
-      </tr>
-    );
-  }
-
-  function renderTabela(
-    lista: Orcamento[],
-    totais: { receita: number; margem: number | null },
-    agrupar: boolean
-  ) {
-    // Com agrupamento, insere um cabeçalho de grupo antes de cada mudança de status
-    const linhas: (string | Orcamento)[] = [];
-    if (agrupar) {
-      let ultimo: string | null = null;
-      for (const o of lista) {
-        const s = o.status || "Em andamento";
-        if (s !== ultimo) { linhas.push(s); ultimo = s; }
-        linhas.push(o);
-      }
-    } else {
-      linhas.push(...lista);
-    }
-
-    return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-gray-800 text-white text-xs uppercase">
-              <th className="px-4 py-3 text-left">Nº</th>
-              <th className="px-4 py-3 text-left">Projeto</th>
-              <th className="px-4 py-3 text-left">Data</th>
-              <th className="px-4 py-3 text-center">Status</th>
-              <th className="px-4 py-3 text-center">PO</th>
-              <th className="px-4 py-3 text-center">OS</th>
-              <th className="px-4 py-3 text-right">Total</th>
-              <th className="px-4 py-3 text-right">Margem</th>
-              <th className="px-4 py-3 text-center">Ações</th>
-              <th className="px-4 py-3 text-left">Criado por</th>
-              <th className="px-4 py-3 text-center">Part.</th>
-            </tr>
-          </thead>
-          <tbody>
-            {linhas.map((item, idx) => {
-              if (typeof item === "string") {
-                const cfg = STATUS_CONFIG[item as StatusOrcamento];
-                const count = lista.filter((o) => (o.status || "Em andamento") === item).length;
-                return (
-                  <tr key={`grupo-${item}`} className="bg-gray-100/80">
-                    <td colSpan={11} className="px-4 py-2">
-                      <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-600">
-                        <span className={`w-2.5 h-2.5 rounded-full ${cfg?.dot || "bg-gray-400"}`} />
-                        {item}
-                        <span className="text-gray-400 font-medium normal-case">{count}</span>
-                      </span>
-                    </td>
-                  </tr>
-                );
-              }
-              return renderLinha(item, idx);
-            })}
-          </tbody>
-          {lista.length > 1 && (
-            <tfoot>
-              <tr className="bg-gray-800 text-white">
-                <td colSpan={6} className="px-4 py-3 text-xs font-semibold uppercase text-right">Total geral</td>
-                <td className="px-4 py-3 text-right font-bold text-yellow-400 whitespace-nowrap">{fmt(totais.receita)}</td>
-                <td className="px-4 py-3 text-right font-bold text-green-400">
-                  {totais.margem !== null ? `${totais.margem.toFixed(1)}%` : "—"}
-                </td>
-                <td colSpan={3} />
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
-    );
-  }
 
   return (
     <WorkspaceLayout>
@@ -456,20 +224,20 @@ export default function ListaOrcamentos() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
               <p className="text-xs text-gray-400 mb-1">Orçamentos</p>
-              <p className="text-2xl font-bold text-gray-800">{filtradosAtivos.length}</p>
+              <p className="text-2xl font-bold text-gray-800">{filtrados.length}</p>
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
               <p className="text-xs text-gray-400 mb-1">Itens</p>
-              <p className="text-2xl font-bold text-gray-800">{filtradosAtivos.reduce((a, o) => a + o.itens.length, 0)}</p>
+              <p className="text-2xl font-bold text-gray-800">{filtrados.reduce((a, o) => a + o.itens.length, 0)}</p>
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
               <p className="text-xs text-gray-400 mb-1">Valor total</p>
-              <p className="text-xl font-bold text-[#fb4d06]">{fmt(totalAtivosReceita)}</p>
+              <p className="text-xl font-bold text-[#fb4d06]">{fmt(totalGeralReceita)}</p>
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
               <p className="text-xs text-gray-400 mb-1">Margem geral</p>
               <p className="text-xl font-bold text-green-700">
-                {margemAtivos !== null ? `${margemAtivos.toFixed(1)}%` : "—"}
+                {margemGeral !== null ? `${margemGeral.toFixed(1)}%` : "—"}
               </p>
             </div>
           </div>
@@ -500,16 +268,6 @@ export default function ListaOrcamentos() {
                 <option key={u.id} value={u.id}>{u.nome}</option>
               ))}
             </select>
-            <select
-              value={filtroStatus}
-              onChange={(e) => setFiltroStatus(e.target.value)}
-              className="py-2.5 px-3 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30 bg-white min-w-[140px]"
-            >
-              <option value="">Todos os status</option>
-              {STATUS_FILTRO.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
           </div>
         )}
 
@@ -534,44 +292,149 @@ export default function ListaOrcamentos() {
             <p className="text-lg mb-2">Nenhum orçamento ainda.</p>
             <Link href="/novo" className="text-[#fb4d06] hover:underline text-sm">Criar primeiro orçamento →</Link>
           </div>
-        ) : filtradosAtivos.length === 0 && filtradosConcluidos.length === 0 ? (
+        ) : filtrados.length === 0 ? (
           <div className="text-center text-gray-400 py-10">
-            {busca ? `Nenhum resultado para "${busca}"` : filtroStatus ? "Nenhum orçamento neste status" : filtroUsuario ? "Nenhum orçamento deste usuário" : "Nenhum resultado"}
+            {busca ? `Nenhum resultado para "${busca}"` : filtroUsuario ? "Nenhum orçamento deste usuário" : "Nenhum resultado"}
           </div>
         ) : (
-          <div className="flex flex-col gap-6">
-            {/* Tabela de orçamentos ativos */}
-            {filtradosAtivos.length > 0 ? (
-              renderTabela(filtradosAtivos, { receita: totalAtivosReceita, margem: margemAtivos }, true)
-            ) : (
-              <div className="text-center text-gray-400 py-10 text-sm">
-                {busca ? `Nenhum orçamento ativo para "${busca}"` : filtroStatus ? "Nenhum orçamento neste status" : "Nenhum orçamento ativo"}
-              </div>
-            )}
-
-            {/* Concluídos — ocultos atrás do botão */}
-            {filtradosConcluidos.length > 0 && (
-              <div>
-                <button
-                  onClick={() => setMostrarConcluidos((p) => !p)}
-                  className="w-full flex items-center justify-between bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 hover:bg-gray-50 transition"
-                >
-                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <span className={`w-2.5 h-2.5 rounded-full ${STATUS_CONFIG["Concluído"].dot}`} />
-                    Concluídos
-                    <span className="text-gray-400 font-medium">{filtradosConcluidos.length}</span>
-                  </span>
-                  <svg className={`w-4 h-4 text-gray-400 transition-transform ${mostrarConcluidos ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {mostrarConcluidos && (
-                  <div className="mt-3">
-                    {renderTabela(filtradosConcluidos, { receita: totalConcluidosReceita, margem: margemConcluidos }, false)}
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-800 text-white text-xs uppercase">
+                  <th className="px-4 py-3 text-left">Nº</th>
+                  <th className="px-4 py-3 text-left">Projeto</th>
+                  <th className="px-4 py-3 text-left">Data</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3 text-center">PO</th>
+                  <th className="px-4 py-3 text-center">OS</th>
+                  <th className="px-4 py-3 text-right">Total</th>
+                  <th className="px-4 py-3 text-right">Margem</th>
+                  <th className="px-4 py-3 text-center">Ações</th>
+                  <th className="px-4 py-3 text-left">Criado por</th>
+                  <th className="px-4 py-3 text-center">Part.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtrados.map((o, idx) => {
+                  const total = totalOrcamento(o);
+                  const margem = margemOrcamento(o);
+                  return (
+                    <tr key={o.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                      <td className="px-4 py-3">
+                        <span className="text-xs font-semibold text-[#fb4d06] bg-[#fb4d06]/5 px-2 py-0.5 rounded-full whitespace-nowrap">
+                          #{o.numero}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-800">{o.nomeProjeto || o.cliente || "—"}</div>
+                        <div className="text-xs text-gray-400">{o.cliente}</div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{o.dataOrcamento}</td>
+                      <td className="px-4 py-3 text-center">
+                        <StatusDropdown
+                          orcamentoId={o.id}
+                          statusAtual={o.status || "Em andamento"}
+                          onChange={(novo) => atualizarStatus(o.id, novo)}
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {o.documentos && o.documentos.length > 0 ? (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <a
+                              href={`/api/orcamentos/${o.id}/documentos/${o.documentos[0].id}?inline=1`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-[10px] font-semibold text-blue-500 hover:text-blue-700 hover:underline transition"
+                            >
+                              disponível
+                            </a>
+                          </div>
+                        ) : (
+                          <span className="text-gray-300 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <a
+                          href={`/api/pdf/${o.id}?tipo=os`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-lg transition"
+                          title="Baixar Ordem de Serviço"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          OS
+                        </a>
+                      </td>
+                      <td className="px-4 py-3 text-right font-bold text-[#fb4d06] whitespace-nowrap">
+                        {fmt(total)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {margem !== null ? (
+                          <span className={`text-xs font-bold ${margem >= 35 ? "text-green-600" : margem >= 20 ? "text-yellow-600" : "text-red-500"}`}>
+                            {margem.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-0.5">
+                          <Link href={`/orcamentos/${o.id}`}>
+                            <button
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-[#fb4d06] hover:bg-[#fb4d06]/5 transition"
+                              title="Editar orçamento"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                          </Link>
+                          <DownloadDropdown orcamentoId={o.id} />
+                          <button
+                            onClick={(e) => { e.preventDefault(); deletarOrcamento(o.id, o.numero || ""); }}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition"
+                            title="Excluir orçamento"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                          <AvatarIniciais nome={o.userName || "?"} size="sm" />
+                          <span>{o.userName || "—"}</span>
+                          {o.userId === user?.id && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Eu</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <ParticipantesAvatar participantes={o.participantes || []} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {filtrados.length > 1 && (
+                <tfoot>
+                  <tr className="bg-gray-800 text-white">
+                    <td colSpan={6} className="px-4 py-3 text-xs font-semibold uppercase text-right">Total geral</td>
+                    <td className="px-4 py-3 text-right font-bold text-yellow-400 whitespace-nowrap">{fmt(totalGeralReceita)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-green-400">
+                      {margemGeral !== null ? `${margemGeral.toFixed(1)}%` : "—"}
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
+              )}
+            </table>
           </div>
         )}
       </main>
