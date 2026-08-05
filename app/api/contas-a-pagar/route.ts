@@ -73,6 +73,32 @@ export async function GET() {
     await salvar(dados);
   }
 
+  // ── Backfill: vincula parcelas criadas via POST (sem _parcelaDe) à conta mãe ──
+  // Parcelas de uma série compartilham o id `cp{timestamp}{idx}` — o timestamp (13 dígitos)
+  // identifica a série. A conta mãe é a de data de vencimento mais antiga.
+  let backfillou = false;
+  const grupos: Record<string, any[]> = {};
+  for (const c of dados.contas) {
+    if (c.id && typeof c.id === "string" && c.id.startsWith("cp") && c.id.length >= 15) {
+      const base = c.id.slice(2, 15);
+      (grupos[base] = grupos[base] || []).push(c);
+    }
+  }
+  for (const base of Object.keys(grupos)) {
+    const membros = grupos[base];
+    if (membros.length < 2) continue;
+    if (!membros.some((c) => c.recorrente)) continue;
+    membros.sort((a: any, b: any) => (a.dataVencimento || "").localeCompare(b.dataVencimento || ""));
+    const maeId = membros[0].id;
+    for (const c of membros) {
+      if (c.id !== maeId && !c._parcelaDe) {
+        c._parcelaDe = maeId;
+        backfillou = true;
+      }
+    }
+  }
+  if (backfillou) await salvar(dados);
+
   return NextResponse.json(dados);
 }
 
@@ -82,13 +108,16 @@ export async function POST(req: Request) {
   const dados = await ler();
   const body = await req.json();
 
+  const idBase = `cp${Date.now()}`;
   const criarConta = (dataVenc: string, idx: number) => ({
     ...body,
-    id: `cp${Date.now()}${idx}`,
+    id: `${idBase}${idx}`,
     status: "pendente" as const,
     createdAt: new Date().toISOString().split("T")[0],
     dataVencimento: dataVenc,
     _parcelasGeradas: true,
+    // Vincula as parcelas à conta "mãe" (i=0) para permitir edição em série
+    _parcelaDe: idx > 0 ? `${idBase}0` : undefined,
     userId: userId || undefined,
     userName: user?.fullName || user?.firstName || undefined,
   });

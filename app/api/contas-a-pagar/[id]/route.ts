@@ -185,16 +185,33 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const contasAtualizadas: any[] = [];
   if (_updateMode && _updateMode !== "this" && _updateModeRef) {
     const dataRef = conta.dataVencimento;
+    // Deslocamento em dias da data editada — preserva o espaçamento da série
+    const dataAntiga = new Date(conta.dataVencimento + "T12:00:00");
+    const novaData = body.dataVencimento
+      ? new Date(body.dataVencimento + "T12:00:00")
+      : dataAntiga;
+    const deltaDias = Math.round((novaData.getTime() - dataAntiga.getTime()) / 86400000);
+
     dadosCP.contas = dadosCP.contas.map((c: any) => {
       // Encontra irmãs: mesma origem (pela _parcelaDe) ou a conta "mãe" que gerou as parcelas
       const isSibling = c._parcelaDe === _updateModeRef;
       const isParent = c.recorrente && c.id === _updateModeRef;
       if (!isSibling && !isParent) return c;
       if (_updateMode === "thisAndFuture" && c.dataVencimento < dataRef) return c;
-      const updated = { ...c, ...body, updatedAt: new Date().toISOString() };
-      contasAtualizadas.push({ id: updated.id, ...body });
+      const updated = { ...c, ...body };
+      // Mantém o espaçamento: desloca a data própria da parcela em vez de colapsar todas no mesmo dia
+      if (c.id !== id && Number.isFinite(deltaDias) && deltaDias !== 0) {
+        const dt = new Date(c.dataVencimento + "T12:00:00");
+        dt.setDate(dt.getDate() + deltaDias);
+        updated.dataVencimento = dt.toISOString().split("T")[0];
+      }
+      updated.updatedAt = new Date().toISOString();
+      contasAtualizadas.push({ id: updated.id, ...updated });
       return updated;
     });
+
+    // ⚠️ Persiste as parcelas propagadas (antes NUNCA era salvo!)
+    await salvarCP(dadosCP);
   }
 
   // ── Se for lote de reembolsos, propaga alterações para a origem ──
