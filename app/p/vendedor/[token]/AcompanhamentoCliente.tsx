@@ -9,7 +9,7 @@ export interface Pedido {
   orc: Orcamento;
   os?: OrdemServico;
   pago?: boolean;
-  planejamento?: { nome: string; cor: string };
+  planejamento?: { nome: string; cor: string; dataVencimento?: string };
 }
 
 function fmtData(d?: string): string {
@@ -185,7 +185,7 @@ export default function AcompanhamentoCliente({
             </h2>
             <p className="text-gray-400 text-sm mt-1">
               {orc.cliente} · Emitido em {fmtData(orc.dataOrcamento)}
-              {orc.prazoEntrega ? <span className="text-gray-500"> · Entrega: {orc.prazoEntrega}</span> : null}
+              {planejamento?.dataVencimento ? <span className="text-gray-500"> · Entrega: {fmtData(planejamento.dataVencimento)}</span> : null}
             </p>
           </div>
           <div className="shrink-0 flex flex-col items-end gap-3">

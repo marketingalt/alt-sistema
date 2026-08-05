@@ -62,11 +62,11 @@ export default async function Page({ params }: { params: Promise<{ token: string
 
       // Coluna atual do kanban de planejamento da tarefa vinculada a este orçamento
       const tarefa = tarefas.find((t) => !t.parentTaskId && t.customFields?.orcamentoId === orc.id);
-      let planejamento: { nome: string; cor: string } | undefined;
+      let planejamento: { nome: string; cor: string; dataVencimento?: string } | undefined;
       if (tarefa) {
         const proj = projetos.find((p) => p.id === tarefa.projectId);
         const coluna = proj?.statuses.find((s) => s.id === tarefa.statusId);
-        if (coluna) planejamento = { nome: coluna.nome, cor: coluna.cor };
+        if (coluna) planejamento = { nome: coluna.nome, cor: coluna.cor, dataVencimento: tarefa.dataVencimento };
       }
 
       return { orc, os, pago: fat?.pago, planejamento };
