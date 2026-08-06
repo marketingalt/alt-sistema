@@ -423,14 +423,9 @@ export default function ContasAPagarPage() {
   }
 
   function abrirEditar(c: Conta) {
-    // Se fizer parte de uma série recorrente, pergunta como editar
-    const ehRecorrente = c.recorrente || (c as any)._parcelaDe;
-    if (ehRecorrente) {
-      setEditandoRecorrente(c);
-      setModalEditarRecorrente(true);
-      return;
-    }
-
+    // O escopo da repetição (apenas esta / esta e seguintes / todas) é
+    // escolhido na hora de salvar, não antes de editar.
+    setAcaoRecorrente(null);
     setEditando(c);
     setForm({
       dataVencimento: c.dataVencimento, fornecedor: c.fornecedor, fornecedorId: c.fornecedorId ?? "", descricao: c.descricao,
@@ -463,30 +458,25 @@ export default function ContasAPagarPage() {
   function continuarEditarRecorrente(acao: "this" | "all" | "thisAndFuture") {
     setAcaoRecorrente(acao);
     setModalEditarRecorrente(false);
-    const c = editandoRecorrente!;
-    setEditando(c);
-    setForm({
-      dataVencimento: c.dataVencimento, fornecedor: c.fornecedor, fornecedorId: c.fornecedorId ?? "", descricao: c.descricao,
-      valor: String(c.valor), modalidade: c.modalidade, banco: c.banco, area: c.area,
-      categoria: c.categoria, obs: c.obs ?? "",
-      recorrente: c.recorrente ?? false, periodicidade: c.periodicidade ?? "mensal",
-      recorrentePersonalizado: (c as any).periodicidade === "personalizado",
-      intervaloValor: (c as any).intervaloValor ?? 30,
-      intervaloUnidade: (c as any).intervaloUnidade ?? "dia",
-      qtdParcelas: (c as any).qtdParcelas ?? 12,
-      ordemServicoId: c.ordemServicoId ?? "",
-      cliente: c.cliente ?? "",
-      status: c.status,
-      dataPagamento: c.dataPagamento ?? "",
-    });
-    setBoletoUrl(c.boletoUrl ?? "");
-    setEditandoLoteItens(c.isLote ? (c.loteItens || []).map((item) => ({ ...item })) : []);
-    setModalForm(true);
+    setEditandoRecorrente(null);
+    // Salva agora com o escopo escolhido, aplicando as alterações à série
+    salvarConta(acao);
   }
 
-  async function salvarConta() {
+  async function salvarConta(acaoArg?: "this" | "all" | "thisAndFuture" | null) {
     if (!form.dataVencimento) return;
     if (!editando?.isLote && !form.descricao.trim()) return;
+
+    // Edição de conta recorrente: pergunta o escopo da repetição DEPOIS de
+    // editar, e só então salva com as alterações aplicadas à série
+    const acao = acaoArg ?? acaoRecorrente;
+    const ehRecorrente = editando && (editando.recorrente || (editando as any)._parcelaDe);
+    if (ehRecorrente && !acao) {
+      setEditandoRecorrente(editando);
+      setModalEditarRecorrente(true);
+      return;
+    }
+
     setSalvando(true);
     const valorLote = editando?.isLote
       ? editandoLoteItens.reduce((s, i) => s + (i.valor || 0), 0)
@@ -503,8 +493,8 @@ export default function ContasAPagarPage() {
       payload.loteItens = editandoLoteItens;
     }
     // Propaga o modo de edição para a API quando for conta recorrente
-    if (acaoRecorrente && editando) {
-      payload._updateMode = acaoRecorrente;
+    if (acao && editando) {
+      payload._updateMode = acao;
       payload._updateModeRef = (editando as any)._parcelaDe || editando.id;
     }
     try {
@@ -512,7 +502,7 @@ export default function ContasAPagarPage() {
         const res = await fetch(`/api/contas-a-pagar/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         const data = await res.json();
         // Se propagou para várias, atualiza todas na lista local
-        if (acaoRecorrente && data.contasAtualizadas) {
+        if (acao && data.contasAtualizadas) {
           setContas((prev) => prev.map((c) => {
             const atualizada = data.contasAtualizadas.find((a: any) => a.id === c.id);
             return atualizada ? { ...c, ...atualizada } as Conta : c;
@@ -2147,9 +2137,9 @@ export default function ContasAPagarPage() {
       {modalEditarRecorrente && editandoRecorrente && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40" onClick={() => setModalEditarRecorrente(false)}>
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold text-gray-900 mb-2">Editar conta recorrente</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Aplicar alterações</h2>
             <p className="text-sm text-gray-500 mb-6">
-              Esta conta faz parte de uma série de parcelas. Como deseja editar?
+              Esta conta faz parte de uma série de parcelas. As alterações que você fez serão aplicadas a quais parcelas?
             </p>
             <div className="flex flex-col gap-3">
               <button
