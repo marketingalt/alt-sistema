@@ -711,8 +711,21 @@ export default function RevisarOrcamento() {
                   Calculadora
                 </button>
               </div>
-              <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
-                value={orcamento.frete} onChange={(e) => atualizarCampo("frete", e.target.value)} />
+              <div className="flex gap-2">
+                <input
+                  type="number" min={0} step="0.01"
+                  className="w-full sm:w-36 border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                  value={orcamento.freteValor && orcamento.freteValor > 0 ? orcamento.freteValor : ""}
+                  onChange={(e) => atualizarCampo("freteValor", e.target.value ? parseFloat(e.target.value) : 0)}
+                  placeholder="Valor (R$)"
+                />
+                <input
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-[#fb4d06]/30"
+                  value={orcamento.frete || ""}
+                  onChange={(e) => atualizarCampo("frete", e.target.value)}
+                  placeholder="Descrição (opcional)"
+                />
+              </div>
             </div>
           </div>
 

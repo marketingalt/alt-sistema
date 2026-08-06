@@ -119,11 +119,21 @@ export function calcularComissaoOrcamento(orc: Orcamento, pctPadraoVendedor: num
 
 // ── Frete ─────────────────────────────────────────
 
-/** Extrai o valor da descrição de frete (formato "R$ 123,10 (14 km)") */
+/** Extrai o valor da descrição de frete ("R$ 123,10 (14 km)", "24,75", "23.10") */
 export function extrairValorFreteDescricao(descricao: string): number {
+  // Formato explícito com "R$" (ex.: "R$ 123,10", "R$123.10")
   const m = descricao.match(/R\$\s*([\d.,]+)/);
-  if (!m) return 0;
-  const num = parseFloat(m[1].replace(/\./g, "").replace(",", "."));
+  if (m) {
+    const num = parseFloat(m[1].replace(/\./g, "").replace(",", "."));
+    if (!isNaN(num)) return num;
+  }
+  // Sem "R$": aceita valor com centavos — "24,75", "1.234,56" ou "23.10"
+  const m2 = descricao.match(/(?:^|\s)(\d{1,3}(?:\.\d{3})*,\d{2}|\d+\.\d{2})(?:\s|$)/);
+  if (!m2) return 0;
+  const raw = m2[1];
+  const num = raw.includes(",")
+    ? parseFloat(raw.replace(/\./g, "").replace(",", "."))
+    : parseFloat(raw);
   return isNaN(num) ? 0 : num;
 }
 
