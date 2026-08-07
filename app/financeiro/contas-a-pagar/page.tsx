@@ -1584,7 +1584,7 @@ export default function ContasAPagarPage() {
                   Duplicar
                 </button>
               )}
-              <button onClick={salvarConta} disabled={salvando || !form.dataVencimento || (editando?.isLote ? false : !form.descricao.trim())}
+              <button onClick={() => salvarConta()} disabled={salvando || !form.dataVencimento || (editando?.isLote ? false : !form.descricao.trim())}
                 className="flex-1 py-2.5 rounded-xl bg-[#fb4d06] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40">
                 {salvando ? "Salvando..." : editando ? "Salvar Alterações" : "Adicionar Conta"}
               </button>
