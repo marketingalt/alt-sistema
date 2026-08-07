@@ -8,6 +8,7 @@ import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import { downloadCSV } from "@/lib/export-csv";
 import ModalRecorrenciaPersonalizada from "@/app/components/ModalRecorrenciaPersonalizada";
 import type { RecorrenciaConfig } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface Conta {
   id: string;
@@ -173,7 +174,7 @@ export default function ContasAPagarPage() {
   });
 
   useEffect(() => {
-    fetch("/api/config")
+    apiFetch("/api/config")
       .then((r) => r.json())
       .then((d) => {
         if (d.bancos?.length) setBancos(d.bancos);
@@ -184,14 +185,14 @@ export default function ContasAPagarPage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/ordens-servico")
+    apiFetch("/api/ordens-servico")
       .then((r) => r.json())
       .then((d) => setOrdensServico(Array.isArray(d) ? d : []))
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    fetch("/api/fornecedores")
+    apiFetch("/api/fornecedores")
       .then((r) => r.json())
       .then((d) => setFornecedores(Array.isArray(d) ? d : []))
       .catch(() => {});
@@ -250,14 +251,14 @@ export default function ContasAPagarPage() {
   const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
-    fetch("/api/contas-a-pagar")
+    apiFetch("/api/contas-a-pagar")
       .then((r) => r.json())
       .then((d) => setContas(d.contas ?? []))
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    fetch("/api/usuarios")
+    apiFetch("/api/usuarios")
       .then((r) => r.ok ? r.json() : [])
       .then(setUsuarios)
       .catch(() => {});
@@ -396,7 +397,7 @@ export default function ContasAPagarPage() {
     const totalPendente = contasFiltradas.filter((c) => statusEfetivo(c) === "pendente").reduce((s, c) => s + c.valor, 0);
     const totalPago = contasFiltradas.filter((c) => statusEfetivo(c) === "pago").reduce((s, c) => s + c.valor, 0);
     const totalVencido = contasFiltradas.filter((c) => statusEfetivo(c) === "vencido").reduce((s, c) => s + c.valor, 0);
-    const res = await fetch("/api/financeiro/export-pdf", {
+    const res = await apiFetch("/api/financeiro/export-pdf", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -499,7 +500,7 @@ export default function ContasAPagarPage() {
     }
     try {
       if (editando) {
-        const res = await fetch(`/api/contas-a-pagar/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const res = await apiFetch(`/api/contas-a-pagar/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         const data = await res.json();
         // Se propagou para várias, atualiza todas na lista local
         if (acao && data.contasAtualizadas) {
@@ -516,7 +517,7 @@ export default function ContasAPagarPage() {
         }
         setAcaoRecorrente(null);
       } else {
-        const res = await fetch("/api/contas-a-pagar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const res = await apiFetch("/api/contas-a-pagar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         const result = await res.json();
         const contasCriadas = Array.isArray(result.contas) ? result.contas : [result];
         setContas((prev) => [...prev, ...contasCriadas]);
@@ -580,7 +581,7 @@ export default function ContasAPagarPage() {
     if (!modalPagar || !formPagar.dataPagamento) return;
     setPagando(true);
     try {
-      const res = await fetch(`/api/contas-a-pagar/${modalPagar.id}`, {
+      const res = await apiFetch(`/api/contas-a-pagar/${modalPagar.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pagar: true, ...formPagar }),
@@ -624,7 +625,7 @@ export default function ContasAPagarPage() {
         ? { nome: dadosBancariosForm.nome, banco: dadosBancariosForm.banco, agencia: dadosBancariosForm.agencia, conta: dadosBancariosForm.conta }
         : undefined;
     try {
-      const res = await fetch(`/api/contas-a-pagar/${detalhe.id}`, {
+      const res = await apiFetch(`/api/contas-a-pagar/${detalhe.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pagar: true, ...formPagar, dadosBancarios }),
@@ -652,7 +653,7 @@ export default function ContasAPagarPage() {
       detalhe.modalidade === "PIX"
         ? { nome: dadosBancariosForm.nome, banco: dadosBancariosForm.banco, chavePix: dadosBancariosForm.chavePix }
         : { nome: dadosBancariosForm.nome, banco: dadosBancariosForm.banco, agencia: dadosBancariosForm.agencia, conta: dadosBancariosForm.conta };
-    await fetch(`/api/contas-a-pagar/${detalhe.id}`, {
+    await apiFetch(`/api/contas-a-pagar/${detalhe.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ dadosBancarios }),
@@ -666,7 +667,7 @@ export default function ContasAPagarPage() {
     if (!detalhe) return;
     setSalvandoLink(true);
     try {
-      await fetch(`/api/contas-a-pagar/${detalhe.id}`, {
+      await apiFetch(`/api/contas-a-pagar/${detalhe.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ driveLink: driveInput.trim() }),
@@ -684,7 +685,7 @@ export default function ContasAPagarPage() {
     setSalvando(true);
     const payload = { ...form, valor: parseFloat(String(form.valor).replace(",", ".")) || 0 };
     try {
-      const res = await fetch("/api/contas-a-pagar", {
+      const res = await apiFetch("/api/contas-a-pagar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -700,13 +701,13 @@ export default function ContasAPagarPage() {
 
   async function cancelar(id: string) {
     if (!confirm("Cancelar esta conta?")) return;
-    await fetch(`/api/contas-a-pagar/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "cancelado" }) });
+    await apiFetch(`/api/contas-a-pagar/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "cancelado" }) });
     setContas((prev) => prev.map((c) => c.id === id ? { ...c, status: "cancelado" } : c));
   }
 
   async function excluir(id: string) {
     if (!confirm("Excluir definitivamente esta conta?")) return;
-    await fetch(`/api/contas-a-pagar/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/contas-a-pagar/${id}`, { method: "DELETE" });
     setContas((prev) => prev.filter((c) => c.id !== id));
   }
 
@@ -1152,7 +1153,7 @@ export default function ContasAPagarPage() {
           categorias={categorias.length ? categorias : CATEGORIAS_FALLBACK}
           onClose={() => setShowModalCategorias(false)}
           onSalvar={async (novas) => {
-            await fetch("/api/config", {
+            await apiFetch("/api/config", {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ categorias: novas }),
@@ -1169,7 +1170,7 @@ export default function ContasAPagarPage() {
           titulo="Áreas"
           onClose={() => setShowModalAreas(false)}
           onSalvar={async (novas) => {
-            await fetch("/api/config", {
+            await apiFetch("/api/config", {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ areas: novas }),
@@ -1410,7 +1411,7 @@ export default function ContasAPagarPage() {
                           try {
                             const fd = new FormData();
                             fd.append("arquivo", file);
-                            const res = await fetch(`/api/contas-a-pagar/${editando.id}/boleto`, { method: "POST", body: fd });
+                            const res = await apiFetch(`/api/contas-a-pagar/${editando.id}/boleto`, { method: "POST", body: fd });
                             if (res.ok) {
                               const d = await res.json();
                               setBoletoUrl(d.boletoUrl);
@@ -1428,7 +1429,7 @@ export default function ContasAPagarPage() {
                     <button type="button" onClick={() => {
                       setBoletoUrl("");
                       if (editando) {
-                        fetch(`/api/contas-a-pagar/${editando.id}/boleto`, { method: "DELETE" });
+                        apiFetch(`/api/contas-a-pagar/${editando.id}/boleto`, { method: "DELETE" });
                         setContas((prev) => prev.map((c) => c.id === editando.id ? { ...c, boletoUrl: undefined } : c));
                       }
                     }} className="text-xs text-red-500 hover:text-red-700 font-medium">Remover</button>
@@ -1645,7 +1646,7 @@ export default function ContasAPagarPage() {
                       periodicidade: detalhe.periodicidade,
                       ordemServicoId: detalhe.ordemServicoId || "",
                     };
-                    const res = await fetch("/api/contas-a-pagar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+                    const res = await apiFetch("/api/contas-a-pagar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
                     const result = await res.json();
                     const contasCriadas = Array.isArray(result.contas) ? result.contas : [result];
                     setContas((prev) => [...prev, ...contasCriadas]);
@@ -2015,7 +2016,7 @@ export default function ContasAPagarPage() {
                   if (!formNovoFornecedor.razaoSocial.trim()) return;
                   setSalvandoFornecedor(true);
                   try {
-                    const res = await fetch("/api/fornecedores", {
+                    const res = await apiFetch("/api/fornecedores", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ ...formNovoFornecedor, status: "Ativo" }),
@@ -2124,7 +2125,7 @@ export default function ContasAPagarPage() {
           importando={importando}
           setImportando={setImportando}
           onImportado={() => {
-            fetch("/api/contas-a-pagar")
+            apiFetch("/api/contas-a-pagar")
               .then((r) => r.json())
               .then((d) => setContas(d.contas ?? []));
             setShowModalImportar(false);
@@ -2345,7 +2346,7 @@ function ModalImportarPlanilha({
     const formData = new FormData();
     formData.append("arquivo", file);
     try {
-      const res = await fetch("/api/contas-a-pagar/importar", {
+      const res = await apiFetch("/api/contas-a-pagar/importar", {
         method: "POST",
         body: formData,
       });
@@ -2374,7 +2375,7 @@ function ModalImportarPlanilha({
     formData.append("arquivo", file);
     formData.append("confirmar", "true");
     try {
-      const res = await fetch("/api/contas-a-pagar/importar", {
+      const res = await apiFetch("/api/contas-a-pagar/importar", {
         method: "POST",
         body: formData,
       });

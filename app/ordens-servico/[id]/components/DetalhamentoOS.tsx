@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import type { OrdemServico, CampoDinamicoDef, DocumentoFornecedor } from "@/app/types";
 import CampoDinamicoRenderer from "./CampoDinamicoRenderer";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface Props {
   os: OrdemServico;
@@ -39,7 +40,7 @@ export default function DetalhamentoOS({ os, camposDinamicos, onUpdateOS, osId }
     try {
       const form = new FormData();
       form.append("arquivo", file);
-      const res = await fetch(`/api/ordens-servico/${osId}/documentos`, {
+      const res = await apiFetch(`/api/ordens-servico/${osId}/documentos`, {
         method: "POST",
         body: form,
       });
@@ -59,8 +60,7 @@ export default function DetalhamentoOS({ os, camposDinamicos, onUpdateOS, osId }
   async function handleDeleteDoc(docId: string) {
     if (!confirm("Excluir este documento?")) return;
     try {
-      const res = await fetch(
-        `/api/ordens-servico/${osId}/documentos/${docId}`,
+      const res = await apiFetch(`/api/ordens-servico/${osId}/documentos/${docId}`,
         { method: "DELETE" }
       );
       if (!res.ok) throw new Error("Delete failed");

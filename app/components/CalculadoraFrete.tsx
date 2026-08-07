@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Cliente } from "@/app/types";
 import InputEndereco from "@/app/components/InputEndereco";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface Props {
   enderecoSugerido?: string;
@@ -54,7 +55,7 @@ export default function CalculadoraFrete({
 
   useEffect(() => {
     if (!clienteId) return;
-    fetch(`/api/clientes/${clienteId}`)
+    apiFetch(`/api/clientes/${clienteId}`)
       .then((r) => r.json())
       .then((c: Cliente) => {
         const addr = [c.endereco, c.bairro, c.cidade, c.estado].filter(Boolean).join(", ");
@@ -75,7 +76,7 @@ export default function CalculadoraFrete({
     setErro(null);
 
     try {
-      const res = await fetch("/api/calcular-frete", {
+      const res = await apiFetch("/api/calcular-frete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ origem: origem.trim(), destinos: alvos }),

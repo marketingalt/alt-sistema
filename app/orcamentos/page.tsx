@@ -9,6 +9,7 @@ import StatusDropdown from "@/app/components/StatusDropdown";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
 import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import { valorFrete } from "@/lib/calculos";
+import { apiFetch } from "@/lib/api-fetch";
 
 function totalOrcamento(o: Orcamento) {
   const itens = o.itens.reduce((a, i) => a + (i.total || 0), 0);
@@ -106,7 +107,7 @@ export default function ListaOrcamentos() {
   function carregarOrcamentos() {
     setCarregando(true);
     setErro(null);
-    fetch("/api/orcamentos", { cache: "no-store" })
+    apiFetch("/api/orcamentos", { cache: "no-store" })
       .then((r) => {
         if (!r.ok) throw new Error("Erro HTTP " + r.status);
         return r.json();
@@ -130,7 +131,7 @@ export default function ListaOrcamentos() {
     carregarOrcamentos();
 
     // Carrega projetos do planejamento para exibir como tags
-    fetch("/api/planejamento").then((r) => r.json()).then((data) => {
+    apiFetch("/api/planejamento").then((r) => r.json()).then((data) => {
       if (data?.projetos) {
         const map: Record<string, { nome: string; cor: string }> = {};
         data.projetos.forEach((p: any) => { map[p.id] = { nome: p.nome, cor: p.cor || "#6366f1" }; });
@@ -153,7 +154,7 @@ export default function ListaOrcamentos() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/usuarios", { cache: "no-store" })
+    apiFetch("/api/usuarios", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -170,7 +171,7 @@ export default function ListaOrcamentos() {
   async function deletarOrcamento(id: string, numero: string) {
     if (!confirm(`Excluir orçamento #${numero} permanentemente?`)) return;
     try {
-      const res = await fetch(`/api/orcamentos/${id}`, {
+      const res = await apiFetch(`/api/orcamentos/${id}`, {
         method: "DELETE",
         cache: "no-store",
       });

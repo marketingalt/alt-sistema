@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Produto, Fornecedor } from "@/app/types";
 import ModalNovoFornecedor from "./ModalNovoFornecedor";
 import ImagemReferencia from "./ImagemReferencia";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface Props {
   nomeInicial?: string;
@@ -32,7 +33,7 @@ export default function ModalNovoProduto({ nomeInicial = "", onSalvar, onFechar 
   });
 
   useEffect(() => {
-    fetch("/api/fornecedores").then((r) => r.json()).then(setFornecedores);
+    apiFetch("/api/fornecedores").then((r) => r.json()).then(setFornecedores);
   }, []);
 
   function set(campo: string, valor: unknown) {
@@ -51,7 +52,7 @@ export default function ModalNovoProduto({ nomeInicial = "", onSalvar, onFechar 
     setSalvando(true);
     try {
       const id = Math.random().toString(36).substring(2, 10);
-      const res = await fetch("/api/produtos", {
+      const res = await apiFetch("/api/produtos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...dados, imagemUrl, id, createdAt: new Date().toISOString() }),

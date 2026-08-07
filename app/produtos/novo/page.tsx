@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ProdutoForm from "@/app/components/ProdutoForm";
 import type { Produto } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 function gerarId() { return Math.random().toString(36).substring(2, 10); }
 
@@ -23,7 +24,7 @@ export default function NovoProduto() {
     if (!dados.nome) { alert("Informe o nome do produto."); return; }
     setSalvando(true);
     try {
-      const res = await fetch("/api/produtos", {
+      const res = await apiFetch("/api/produtos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...dados, id, createdAt: new Date().toISOString() }),

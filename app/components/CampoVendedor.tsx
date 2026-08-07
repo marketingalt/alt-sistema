@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface Vendedor {
   id: string;
@@ -17,7 +18,7 @@ export default function CampoVendedor({ value, onChange }: Props) {
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
 
   useEffect(() => {
-    fetch("/api/financeiro/vendas-comissoes/vendedores")
+    apiFetch("/api/financeiro/vendas-comissoes/vendedores")
       .then((r) => (r.ok ? r.json() : []))
       .then((lista: Vendedor[]) => setVendedores(lista))
       .catch(() => {});

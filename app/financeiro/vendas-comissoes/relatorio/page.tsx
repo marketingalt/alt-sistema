@@ -6,6 +6,7 @@ import { downloadCSV } from "@/lib/export-csv";
 import type { Vendedor } from "@/app/api/financeiro/vendas-comissoes/vendedores/route";
 import type { Venda } from "@/app/api/financeiro/vendas-comissoes/vendas/route";
 import type { RelatorioPreset, FiltrosRelatorio } from "@/app/api/financeiro/vendas-comissoes/relatorio-presets/route";
+import { apiFetch } from "@/lib/api-fetch";
 
 // ── Utilitários ──
 
@@ -76,9 +77,9 @@ export default function RelatorioVendasComissoesPage() {
 
   async function carregar() {
     const [resVend, resVendas, resPresets] = await Promise.all([
-      fetch("/api/financeiro/vendas-comissoes/vendedores"),
-      fetch("/api/financeiro/vendas-comissoes/vendas"),
-      fetch("/api/financeiro/vendas-comissoes/relatorio-presets"),
+      apiFetch("/api/financeiro/vendas-comissoes/vendedores"),
+      apiFetch("/api/financeiro/vendas-comissoes/vendas"),
+      apiFetch("/api/financeiro/vendas-comissoes/relatorio-presets"),
     ]);
     setVendedores(await resVend.json());
     setVendas(await resVendas.json());
@@ -146,7 +147,7 @@ export default function RelatorioVendasComissoesPage() {
   async function salvarPreset() {
     if (!nomePreset.trim()) return;
     setSalvandoPreset(true);
-    await fetch("/api/financeiro/vendas-comissoes/relatorio-presets", {
+    await apiFetch("/api/financeiro/vendas-comissoes/relatorio-presets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -169,12 +170,12 @@ export default function RelatorioVendasComissoesPage() {
 
   async function excluirPreset(id: string) {
     if (!confirm("Excluir esta pré-definição?")) return;
-    await fetch(`/api/financeiro/vendas-comissoes/relatorio-presets?id=${id}`, { method: "DELETE" });
+    await apiFetch(`/api/financeiro/vendas-comissoes/relatorio-presets?id=${id}`, { method: "DELETE" });
     await carregar();
   }
 
   async function atualizarPreset(p: RelatorioPreset) {
-    await fetch("/api/financeiro/vendas-comissoes/relatorio-presets", {
+    await apiFetch("/api/financeiro/vendas-comissoes/relatorio-presets", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -250,7 +251,7 @@ export default function RelatorioVendasComissoesPage() {
       ];
     });
 
-    const res = await fetch("/api/financeiro/export-pdf", {
+    const res = await apiFetch("/api/financeiro/export-pdf", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

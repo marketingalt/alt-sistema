@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Cliente } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface Props {
   onSalvar: (cliente: Cliente) => void;
@@ -34,7 +35,7 @@ export default function ModalNovoCliente({ onSalvar, onFechar }: Props) {
     setSalvando(true);
     try {
       const id = Math.random().toString(36).substring(2, 10);
-      const res = await fetch("/api/clientes", {
+      const res = await apiFetch("/api/clientes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

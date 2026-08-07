@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import AvatarIniciais from "./AvatarIniciais";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface UserOption {
   id: string;
@@ -22,7 +23,7 @@ export default function MultiUserSelect({ value, onChange, label, placeholder = 
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/usuarios")
+    apiFetch("/api/usuarios")
       .then((r) => r.json())
       .then(setUsuarios)
       .catch(() => {});

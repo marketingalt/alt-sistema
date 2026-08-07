@@ -121,14 +121,14 @@ export default function FeedbacksPage() {
     setCarregando(true);
     try {
       const [resSessoes, resUsuarios] = await Promise.all([
-        fetch("/api/rh/feedbacks"),
-        fetch("/api/admin/usuarios"),
+        apiFetch("/api/rh/feedbacks"),
+        apiFetch("/api/admin/usuarios"),
       ]);
       if (resSessoes.ok) {
         const data = await resSessoes.json();
         // Se não há dados, cria com o exemplo
         if (data.length === 0) {
-          const res = await fetch("/api/rh/feedbacks", {
+          const res = await apiFetch("/api/rh/feedbacks", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(SESSOES_EXEMPLO),
@@ -207,7 +207,7 @@ export default function FeedbacksPage() {
       };
 
       if (editandoSessaoId) {
-        const res = await fetch(`/api/rh/feedbacks/${editandoSessaoId}`, {
+        const res = await apiFetch(`/api/rh/feedbacks/${editandoSessaoId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -217,7 +217,7 @@ export default function FeedbacksPage() {
           setSessoes((prev) => prev.map((s) => (s.id === editandoSessaoId ? atualizada : s)));
         }
       } else {
-        const res = await fetch("/api/rh/feedbacks", {
+        const res = await apiFetch("/api/rh/feedbacks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -239,7 +239,7 @@ export default function FeedbacksPage() {
 
   async function excluirSessao(id: string) {
     if (!confirm("Excluir esta sessão de feedback?")) return;
-    await fetch(`/api/rh/feedbacks/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/rh/feedbacks/${id}`, { method: "DELETE" });
     setSessoes((prev) => prev.filter((s) => s.id !== id));
     if (editandoSessaoId === id) setMostrarFormulario(false);
   }
@@ -597,3 +597,4 @@ export default function FeedbacksPage() {
 
 // Fragment necessário para rowSpan
 import { Fragment } from "react";
+import { apiFetch } from "@/lib/api-fetch";

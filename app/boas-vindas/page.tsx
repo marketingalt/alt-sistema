@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import SistemaLogo from "@/app/components/SistemaLogo";
+import { apiFetch } from "@/lib/api-fetch";
+import { BASE_PATH } from "@/lib/base-path";
 
 type Modulo = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "planejamento" | "financeiro" | "logistica" | "rh";
 
@@ -118,7 +120,7 @@ export default function BoasVindasPage() {
     setErro("");
 
     try {
-      const res = await fetch("/api/admin/onboarding", {
+      const res = await apiFetch("/api/admin/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -146,7 +148,7 @@ export default function BoasVindasPage() {
       for (let tentativa = 0; tentativa < 30; tentativa++) {
         await user?.reload();
         if (user?.publicMetadata?.onboarding === true) {
-          window.location.href = "/";
+          window.location.href = BASE_PATH || "/";
           return;
         }
         // Espera 500ms antes da próxima tentativa
@@ -155,7 +157,7 @@ export default function BoasVindasPage() {
 
       // Se após 30 tentativas (~15s) ainda não propagou, redireciona mesmo assim
       // O middleware vai usar o cookie como fallback
-      window.location.href = "/";
+      window.location.href = BASE_PATH || "/";
     } catch {
       setErro("Erro de rede. Tente novamente.");
       setSalvando(false);

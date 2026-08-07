@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface SistemaLogoProps {
   className?: string;
@@ -12,7 +13,7 @@ export default function SistemaLogo({ className, width = 180, height = 50 }: Sis
   const [src, setSrc] = useState<string>("/logo.png");
 
   useEffect(() => {
-    fetch("/api/admin/logo")
+    apiFetch("/api/admin/logo")
       .then((r) => r.json())
       .then((data) => {
         if (data.logoBase64) setSrc(data.logoBase64);

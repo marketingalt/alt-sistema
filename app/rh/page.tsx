@@ -5,6 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface ClerkUser {
   id: string;
@@ -56,7 +57,7 @@ export default function RhPage() {
 
   async function carregarUsuarios() {
     try {
-      const res = await fetch("/api/admin/usuarios");
+      const res = await apiFetch("/api/admin/usuarios");
       if (res.ok) {
         const data = await res.json();
         setUsuarios(data);
@@ -70,7 +71,7 @@ export default function RhPage() {
     setUsuarioSelecionado(u);
     setCarregandoDocs(true);
     try {
-      const res = await fetch(`/api/rh/documentos?email=${encodeURIComponent(u.email)}`);
+      const res = await apiFetch(`/api/rh/documentos?email=${encodeURIComponent(u.email)}`);
       if (res.ok) {
         const data = await res.json();
         setDocumentos(data.documentos || []);
@@ -89,7 +90,7 @@ export default function RhPage() {
       formData.append("email", usuarioSelecionado.email);
       formData.append("categoria", categoria);
 
-      const res = await fetch("/api/rh/documentos", {
+      const res = await apiFetch("/api/rh/documentos", {
         method: "POST",
         body: formData,
       });
@@ -112,8 +113,7 @@ export default function RhPage() {
     if (!confirm("Remover este documento?")) return;
 
     try {
-      const res = await fetch(
-        `/api/rh/documentos/${docId}?email=${encodeURIComponent(usuarioSelecionado.email)}`,
+      const res = await apiFetch(`/api/rh/documentos/${docId}?email=${encodeURIComponent(usuarioSelecionado.email)}`,
         { method: "DELETE" }
       );
       if (res.ok) {
@@ -126,8 +126,7 @@ export default function RhPage() {
 
   async function baixarDocumento(doc: DocumentoRH) {
     if (!usuarioSelecionado) return;
-    const res = await fetch(
-      `/api/rh/documentos?email=${encodeURIComponent(usuarioSelecionado.email)}&download=${doc.id}`
+    const res = await apiFetch(`/api/rh/documentos?email=${encodeURIComponent(usuarioSelecionado.email)}&download=${doc.id}`
     );
     if (!res.ok) return;
     const blob = await res.blob();

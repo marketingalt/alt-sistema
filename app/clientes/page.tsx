@@ -7,6 +7,7 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
 import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import type { Cliente, StatusCliente } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 const STATUS_CORES: Record<StatusCliente, string> = {
   "Ativo": "bg-green-100 text-green-700",
@@ -23,11 +24,11 @@ export default function ListaClientes() {
   const [filtroUsuario, setFiltroUsuario] = useState("");
 
   useEffect(() => {
-    fetch("/api/clientes").then((r) => r.json()).then((d) => { setClientes(d); setCarregando(false); });
+    apiFetch("/api/clientes").then((r) => r.json()).then((d) => { setClientes(d); setCarregando(false); });
   }, []);
 
   useEffect(() => {
-    fetch("/api/usuarios").then((r) => r.json()).then(setUsuarios).catch(() => {});
+    apiFetch("/api/usuarios").then((r) => r.json()).then(setUsuarios).catch(() => {});
   }, []);
 
   const filtrados = clientes.filter((c) => {

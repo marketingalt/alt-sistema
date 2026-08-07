@@ -9,6 +9,7 @@ import { useUser } from "@clerk/nextjs";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
 import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import type { Orcamento, ItemOrcamento, OrdemServico } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 // ── Error boundary para capturar erro real ──────────────────────────────────────
 class PageErrorBoundary extends Component<{ children: React.ReactNode }, { error: Error | null }> {
@@ -1076,10 +1077,10 @@ function ContasAReceberPage() {
   async function carregar() {
     try {
       const [resOrc, resFat, resOS, resClientes] = await Promise.all([
-        fetch("/api/orcamentos"),
-        fetch("/api/faturamentos"),
-        fetch("/api/ordens-servico"),
-        fetch("/api/clientes"),
+        apiFetch("/api/orcamentos"),
+        apiFetch("/api/faturamentos"),
+        apiFetch("/api/ordens-servico"),
+        apiFetch("/api/clientes"),
       ]);
       const dataOrc = await resOrc.json();
       const dataFat = await resFat.json();
@@ -1099,14 +1100,14 @@ function ContasAReceberPage() {
   useEffect(() => { carregar(); }, []);
 
   useEffect(() => {
-    fetch("/api/usuarios")
+    apiFetch("/api/usuarios")
       .then((r) => r.json())
       .then((data) => setUsuarios(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    fetch("/api/config")
+    apiFetch("/api/config")
       .then((r) => r.json())
       .then((d) => { if (d.bancos?.length) setBancos(d.bancos); })
       .catch(() => {});
@@ -1284,7 +1285,7 @@ function ContasAReceberPage() {
     if (row.tipo === "orcamento") body.orcamentoId = row.orcamento?.id;
 
     const id = row.tipo === "manual" ? row.fat.id : row.orcamento?.id;
-    await fetch(`/api/faturamentos/${id}`, {
+    await apiFetch(`/api/faturamentos/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -1295,7 +1296,7 @@ function ContasAReceberPage() {
   async function excluirManual(rowId: string) {
     const row = rows.find((r) => r.rowId === rowId);
     if (!row || row.tipo !== "manual") return;
-    await fetch(`/api/faturamentos/${row.fat.id}`, { method: "DELETE" });
+    await apiFetch(`/api/faturamentos/${row.fat.id}`, { method: "DELETE" });
     await carregar();
   }
 
@@ -1366,7 +1367,7 @@ function ContasAReceberPage() {
         os,
       };
     });
-    const res = await fetch("/api/financeiro/export-pdf", {
+    const res = await apiFetch("/api/financeiro/export-pdf", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1390,7 +1391,7 @@ function ContasAReceberPage() {
   }
 
   async function salvarNovoLancamento(dados: Partial<RegistroFaturamento>) {
-    await fetch("/api/faturamentos", {
+    await apiFetch("/api/faturamentos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...dados, tipo: "manual" }),
@@ -1403,7 +1404,7 @@ function ContasAReceberPage() {
     if (!detalheAberto) return;
     const row = detalheAberto;
     const id = row.tipo === "manual" ? row.fat.id : row.orcamento?.id;
-    await fetch(`/api/faturamentos/${id}`, {
+    await apiFetch(`/api/faturamentos/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...dados, ...(row.tipo === "orcamento" ? { orcamentoId: row.orcamento?.id } : {}) }),

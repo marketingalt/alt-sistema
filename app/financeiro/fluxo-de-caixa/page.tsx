@@ -7,6 +7,7 @@ import { downloadCSV } from "@/lib/export-csv";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
 import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface Lancamento {
   id: string;
@@ -140,7 +141,7 @@ function ComprovanteActions({ lancamentoId, comprovanteUrl, onUpdate, uploading,
           try {
             const fd = new FormData();
             fd.append("arquivo", file);
-            const res = await fetch(`/api/fluxo-caixa/${lancamentoId}/comprovante`, { method: "POST", body: fd });
+            const res = await apiFetch(`/api/fluxo-caixa/${lancamentoId}/comprovante`, { method: "POST", body: fd });
             const d = res.ok ? await res.json() : null;
             if (d?.comprovanteUrl) {
               onUpdate(d.comprovanteUrl);
@@ -179,7 +180,7 @@ function ComprovanteActions({ lancamentoId, comprovanteUrl, onUpdate, uploading,
       {comprovanteUrl && (
         <button type="button" onClick={async () => {
           if (!confirm("Remover comprovante?")) return;
-          await fetch(`/api/fluxo-caixa/${lancamentoId}/comprovante`, { method: "DELETE" });
+          await apiFetch(`/api/fluxo-caixa/${lancamentoId}/comprovante`, { method: "DELETE" });
           onUpdate(undefined);
         }} className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50" title="Remover comprovante">
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -217,7 +218,7 @@ export default function FluxoDeCaixaPage() {
   }
 
   useEffect(() => {
-    fetch("/api/config")
+    apiFetch("/api/config")
       .then((r) => r.json())
       .then((d) => {
         if (d.bancos?.length) setBancos(d.bancos);
@@ -228,21 +229,21 @@ export default function FluxoDeCaixaPage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/ordens-servico")
+    apiFetch("/api/ordens-servico")
       .then((r) => r.json())
       .then((d) => setOrdensServico(Array.isArray(d) ? d : []))
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    fetch("/api/contas-a-pagar")
+    apiFetch("/api/contas-a-pagar")
       .then((r) => r.json())
       .then((d) => setContasPagar(Array.isArray(d?.contas) ? d.contas : []))
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    fetch("/api/usuarios")
+    apiFetch("/api/usuarios")
       .then((r) => r.json())
       .then((d) => setUsuarios(Array.isArray(d) ? d : []))
       .catch(() => {});
@@ -290,7 +291,7 @@ export default function FluxoDeCaixaPage() {
   useEffect(() => {
     setLoading(true);
     setErro(null);
-    fetch("/api/fluxo-caixa")
+    apiFetch("/api/fluxo-caixa")
       .then((r) => {
         if (!r.ok) throw new Error(`Erro HTTP ${r.status}`);
         return r.json();
@@ -483,7 +484,7 @@ export default function FluxoDeCaixaPage() {
       valor: l.valor,
       saldoCorrido: l.saldoCorrido,
     }));
-    const res = await fetch("/api/financeiro/export-pdf", {
+    const res = await apiFetch("/api/financeiro/export-pdf", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -535,10 +536,10 @@ export default function FluxoDeCaixaPage() {
     const payload = { ...form, valor: numerico, banco: normalizarBanco(form.banco) };
     try {
       if (editando) {
-        await fetch(`/api/fluxo-caixa/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        await apiFetch(`/api/fluxo-caixa/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         setDados((prev) => prev ? { ...prev, lancamentos: prev.lancamentos.map((l) => l.id === editando.id ? { ...l, ...payload } : l) } : prev);
       } else {
-        const res = await fetch("/api/fluxo-caixa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const res = await apiFetch("/api/fluxo-caixa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         const novo = await res.json();
         setDados((prev) => prev ? { ...prev, lancamentos: [...prev.lancamentos, novo] } : prev);
       }
@@ -550,7 +551,7 @@ export default function FluxoDeCaixaPage() {
 
   async function excluir(id: string) {
     if (!confirm("Excluir este lançamento?")) return;
-    await fetch(`/api/fluxo-caixa/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/fluxo-caixa/${id}`, { method: "DELETE" });
     setDados((prev) => prev ? { ...prev, lancamentos: prev.lancamentos.filter((l) => l.id !== id) } : prev);
   }
 
@@ -1193,7 +1194,7 @@ export default function FluxoDeCaixaPage() {
           categorias={categorias.length ? categorias : CATEGORIAS_FALLBACK}
           onClose={() => setShowModalCategorias(false)}
           onSalvar={async (novas) => {
-            await fetch("/api/config", {
+            await apiFetch("/api/config", {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ categorias: novas }),
@@ -1210,7 +1211,7 @@ export default function FluxoDeCaixaPage() {
           titulo="Áreas"
           onClose={() => setShowModalAreas(false)}
           onSalvar={async (novas) => {
-            await fetch("/api/config", {
+            await apiFetch("/api/config", {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ areas: novas }),

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ProdutoForm from "@/app/components/ProdutoForm";
 import type { Produto } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 export default function DetalheProduto() {
   const { id } = useParams<{ id: string }>();
@@ -14,7 +15,7 @@ export default function DetalheProduto() {
   const [salvo, setSalvo] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/produtos/${id}`).then((r) => r.json()).then(setDados);
+    apiFetch(`/api/produtos/${id}`).then((r) => r.json()).then(setDados);
   }, [id]);
 
   function onChange(campo: keyof Produto, valor: unknown) {
@@ -26,7 +27,7 @@ export default function DetalheProduto() {
     if (!dados) return;
     setSalvando(true);
     try {
-      await fetch(`/api/produtos/${id}`, {
+      await apiFetch(`/api/produtos/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dados),
@@ -41,7 +42,7 @@ export default function DetalheProduto() {
 
   async function deletar() {
     if (!confirm("Excluir este produto permanentemente?")) return;
-    await fetch(`/api/produtos/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/produtos/${id}`, { method: "DELETE" });
     router.push("/produtos");
   }
 

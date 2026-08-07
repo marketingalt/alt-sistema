@@ -9,6 +9,7 @@ import ClienteForm from "@/app/components/ClienteForm";
 import DocumentosFornecedor from "@/app/components/DocumentosFornecedor";
 import type { Cliente, DocumentoFornecedor, Orcamento } from "@/app/types";
 import { STATUS_CONFIG } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 const STATUS_CORES: Record<string, string> = {
   "Ativo": "bg-green-100 text-green-700",
@@ -36,8 +37,8 @@ export default function DetalheCliente() {
   const [projetos, setProjetos] = useState<Orcamento[]>([]);
 
   useEffect(() => {
-    fetch(`/api/clientes/${id}`).then((r) => r.json()).then(setDados);
-    fetch("/api/orcamentos")
+    apiFetch(`/api/clientes/${id}`).then((r) => r.json()).then(setDados);
+    apiFetch("/api/orcamentos")
       .then((r) => r.json())
       .then((lista: Orcamento[]) => setProjetos(lista.filter((o) => o.clienteId === id)));
   }, [id]);
@@ -51,7 +52,7 @@ export default function DetalheCliente() {
     if (!dados) return;
     setSalvando(true);
     try {
-      await fetch(`/api/clientes/${id}`, {
+      await apiFetch(`/api/clientes/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dados),
@@ -66,7 +67,7 @@ export default function DetalheCliente() {
 
   async function deletar() {
     if (!confirm("Excluir este cliente permanentemente?")) return;
-    await fetch(`/api/clientes/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/clientes/${id}`, { method: "DELETE" });
     router.push("/clientes");
   }
 

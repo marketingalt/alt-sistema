@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Fornecedor } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface Props {
   onSalvar: (f: Fornecedor) => void;
@@ -31,7 +32,7 @@ export default function ModalNovoFornecedor({ onSalvar, onFechar }: Props) {
     }
     setSalvando(true);
     try {
-      const res = await fetch("/api/fornecedores", {
+      const res = await apiFetch("/api/fornecedores", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

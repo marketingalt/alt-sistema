@@ -28,6 +28,7 @@ import { useAutoSave, getDraft, clearDraft } from "@/hooks/useAutoSave";
 import HistoricoAtividades from "@/app/components/HistoricoAtividades";
 import ModalEnviarOrcamento from "@/app/components/ModalEnviarOrcamento";
 import CampoVendedor from "@/app/components/CampoVendedor";
+import { apiFetch } from "@/lib/api-fetch";
 
 const TODOS_STATUS = Object.keys(STATUS_CONFIG) as StatusOrcamento[];
 
@@ -140,7 +141,7 @@ export default function VisualizarOrcamento() {
 
   // ── Efeitos (existente) ──
   useEffect(() => {
-    fetch(`/api/orcamentos/${id}`)
+    apiFetch(`/api/orcamentos/${id}`)
       .then((r) => r.json())
       .then((data) => {
         const margem = data.margemPadrao ?? MARGEM_PADRAO;
@@ -180,12 +181,12 @@ export default function VisualizarOrcamento() {
 
   // Carrega produtos cadastrados para autocomplete na edição de itens
   useEffect(() => {
-    fetch("/api/produtos").then((r) => r.json()).then(setProdutos).catch(() => {});
+    apiFetch("/api/produtos").then((r) => r.json()).then(setProdutos).catch(() => {});
   }, []);
 
   // Carrega projetos do planejamento para tags
   useEffect(() => {
-    fetch("/api/planejamento").then((r) => r.json()).then((data) => {
+    apiFetch("/api/planejamento").then((r) => r.json()).then((data) => {
       if (data?.projetos) {
         setProjetosPlanejamento(data.projetos.map((p: any) => ({ id: p.id, nome: p.nome, cor: p.cor || "#6366f1" })));
       }
@@ -197,7 +198,7 @@ export default function VisualizarOrcamento() {
   // Busca OS vinculada
   useEffect(() => {
     if (!orcamento?.id) return;
-    fetch("/api/ordens-servico").then((r) => r.json()).then((lista: any[]) => {
+    apiFetch("/api/ordens-servico").then((r) => r.json()).then((lista: any[]) => {
       const encontrada = lista.find((o: any) => o.orcamentoId === orcamento.id);
       if (encontrada) setOsVinculada({ id: encontrada.id, numero: encontrada.numero });
     }).catch(() => {});
@@ -229,7 +230,7 @@ export default function VisualizarOrcamento() {
     if (!modalFreteProducao || !orcamento) { setEnderecoFornecedorModal(""); return; }
     const item = orcamento.itens.find((i) => i.id === modalFreteProducao);
     if (!item?.fornecedorId) return;
-    fetch(`/api/fornecedores/${item.fornecedorId}`)
+    apiFetch(`/api/fornecedores/${item.fornecedorId}`)
       .then((r) => r.json())
       .then((f: Fornecedor) => {
         const addr = [f.endereco, f.cidade, f.estado].filter(Boolean).join(", ");
@@ -482,7 +483,7 @@ export default function VisualizarOrcamento() {
     }
     setSalvando(true);
     try {
-      const res = await fetch(`/api/orcamentos/${id}`, {
+      const res = await apiFetch(`/api/orcamentos/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(orcamento),
@@ -506,7 +507,7 @@ export default function VisualizarOrcamento() {
   async function gerarPdf(tipo: "especificacoes" | "valores" | "os") {
     setGerandoPdf(true);
     try {
-      const res = await fetch(`/api/pdf/${id}?tipo=${tipo}`, {
+      const res = await apiFetch(`/api/pdf/${id}?tipo=${tipo}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ logoBase64 }),
@@ -551,7 +552,7 @@ export default function VisualizarOrcamento() {
   async function carregarVersoes() {
     setCarregandoVersoes(true);
     try {
-      const res = await fetch(`/api/orcamentos/${id}/versoes`);
+      const res = await apiFetch(`/api/orcamentos/${id}/versoes`);
       if (res.ok) {
         const data = await res.json();
         setVersoes(data);
@@ -568,7 +569,7 @@ export default function VisualizarOrcamento() {
     setSalvandoVersao(true);
     try {
       const { versoes: _, ...dadosSnapshot } = orcamento;
-      const res = await fetch(`/api/orcamentos/${id}/versoes`, {
+      const res = await apiFetch(`/api/orcamentos/${id}/versoes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nome: novaVersaoNome.trim(), dados: dadosSnapshot }),
@@ -589,7 +590,7 @@ export default function VisualizarOrcamento() {
   async function handleRestaurarVersao(versaoId: string) {
     if (!confirm("Restaurar esta versão? Alterações não salvas serão perdidas.")) return;
     try {
-      const res = await fetch(`/api/orcamentos/${id}/versoes/${versaoId}/restaurar`, { method: "POST" });
+      const res = await apiFetch(`/api/orcamentos/${id}/versoes/${versaoId}/restaurar`, { method: "POST" });
       if (!res.ok) throw new Error("Erro ao restaurar versão");
       const dadosRestaurados = await res.json();
       setOrcamento((prev) => {
@@ -614,7 +615,7 @@ export default function VisualizarOrcamento() {
   async function deletar() {
     if (!confirm("Deletar este orçamento permanentemente?")) return;
     try {
-      const res = await fetch(`/api/orcamentos/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/orcamentos/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Erro ao deletar" }));
         alert(err.error);
@@ -635,7 +636,7 @@ export default function VisualizarOrcamento() {
       const novoId = Math.random().toString(36).substring(2, 10);
 
       // Busca novo número sequencial
-      const resNum = await fetch("/api/numero");
+      const resNum = await apiFetch("/api/numero");
       if (!resNum.ok) throw new Error("Erro ao gerar número");
       const { numero } = await resNum.json();
 
@@ -653,7 +654,7 @@ export default function VisualizarOrcamento() {
       };
 
       // Salva via POST (dispara sincronizarTarefasOrcamento automaticamente)
-      const res = await fetch("/api/orcamentos", {
+      const res = await apiFetch("/api/orcamentos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(copia),

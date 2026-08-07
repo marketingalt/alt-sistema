@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import { Orcamento } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -187,10 +188,10 @@ export default function PainelDeControlePage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/fluxo-caixa").then((r) => r.json()),
-      fetch("/api/contas-a-pagar").then((r) => r.json()),
-      fetch("/api/faturamentos").then((r) => r.json()),
-      fetch("/api/orcamentos").then((r) => r.json()),
+      apiFetch("/api/fluxo-caixa").then((r) => r.json()),
+      apiFetch("/api/contas-a-pagar").then((r) => r.json()),
+      apiFetch("/api/faturamentos").then((r) => r.json()),
+      apiFetch("/api/orcamentos").then((r) => r.json()),
     ]).then(([fc, cp, fat, orc]) => {
       setFluxo(fc);
       setContas(cp.contas ?? []);

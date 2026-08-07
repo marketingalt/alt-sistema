@@ -7,6 +7,7 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import FornecedorForm from "@/app/components/FornecedorForm";
 import DocumentosFornecedor from "@/app/components/DocumentosFornecedor";
 import type { Fornecedor, DocumentoFornecedor } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 export default function DetalheFornecedor() {
   const { id } = useParams<{ id: string }>();
@@ -19,7 +20,7 @@ export default function DetalheFornecedor() {
   const [salvo, setSalvo] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/fornecedores/${id}`)
+    apiFetch(`/api/fornecedores/${id}`)
       .then((r) => r.json())
       .then(setDados);
   }, [id]);
@@ -33,7 +34,7 @@ export default function DetalheFornecedor() {
     if (!dados) return;
     setSalvando(true);
     try {
-      await fetch(`/api/fornecedores/${id}`, {
+      await apiFetch(`/api/fornecedores/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dados),
@@ -48,7 +49,7 @@ export default function DetalheFornecedor() {
 
   async function deletar() {
     if (!confirm("Excluir este fornecedor permanentemente?")) return;
-    await fetch(`/api/fornecedores/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/fornecedores/${id}`, { method: "DELETE" });
     router.push("/fornecedores");
   }
 

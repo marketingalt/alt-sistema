@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import type { Projeto, Tarefa } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 // ── Helpers ──
 
@@ -59,7 +60,7 @@ export default function PlanejamentoDashboard() {
   async function carregar() {
     setErro("");
     try {
-      const res = await fetch("/api/planejamento");
+      const res = await apiFetch("/api/planejamento");
       if (!res.ok) throw new Error(`Erro ${res.status}`);
       const data = await res.json();
       setProjetos(data.projetos);
@@ -122,7 +123,7 @@ export default function PlanejamentoDashboard() {
     if (!novoNome.trim()) return;
     setSalvando(true);
     try {
-      const res = await fetch("/api/planejamento", {
+      const res = await apiFetch("/api/planejamento", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

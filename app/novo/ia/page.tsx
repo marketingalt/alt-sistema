@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import { apiFetch } from "@/lib/api-fetch";
 
 export default function NovoOrcamentoIA() {
   const router = useRouter();
@@ -75,7 +76,7 @@ export default function NovoOrcamentoIA() {
       if (arquivo) formData.append("arquivo", arquivo);
       imagens.forEach((img, i) => formData.append(`imagem_${i}`, img));
 
-      const res = await fetch("/api/extrair", {
+      const res = await apiFetch("/api/extrair", {
         method: "POST",
         body: formData,
       });

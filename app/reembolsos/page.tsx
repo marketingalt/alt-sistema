@@ -7,6 +7,7 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ComboboxCliente from "@/app/components/ComboboxCliente";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
 import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
+import { apiFetch } from "@/lib/api-fetch";
 
 // ── Tipos ──
 
@@ -116,9 +117,9 @@ export default function ReembolsosPage() {
   const carregar = useCallback(() => {
     setCarregando(true);
     Promise.all([
-      fetch("/api/reembolsos-despesas").then((r) => r.json()),
-      fetch("/api/usuarios").then((r) => r.json()),
-      fetch("/api/ordens-servico").then((r) => r.json()),
+      apiFetch("/api/reembolsos-despesas").then((r) => r.json()),
+      apiFetch("/api/usuarios").then((r) => r.json()),
+      apiFetch("/api/ordens-servico").then((r) => r.json()),
     ])
       .then(([reembolsosData, usuariosData, osData]: [ReembolsoDespesa[], Usuario[], OrdemServico[]]) => {
         setReembolsos(reembolsosData);
@@ -139,7 +140,7 @@ export default function ReembolsosPage() {
 
     setSalvando(true);
     try {
-      const res = await fetch("/api/reembolsos-despesas", {
+      const res = await apiFetch("/api/reembolsos-despesas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -169,7 +170,7 @@ export default function ReembolsosPage() {
     if (!editando) return;
     setSalvando(true);
     try {
-      const res = await fetch("/api/reembolsos-despesas", {
+      const res = await apiFetch("/api/reembolsos-despesas", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -205,7 +206,7 @@ export default function ReembolsosPage() {
   async function handleDeletar(id: string) {
     if (!confirm("Tem certeza que deseja excluir este reembolso?")) return;
     try {
-      const res = await fetch(`/api/reembolsos-despesas?id=${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/reembolsos-despesas?id=${id}`, { method: "DELETE" });
       if (res.ok) carregar();
     } catch {
       alert("Erro ao excluir reembolso");
@@ -215,7 +216,7 @@ export default function ReembolsosPage() {
   // ── Marcar como pago ──
   async function handlePagar(reb: ReembolsoDespesa) {
     try {
-      const res = await fetch("/api/reembolsos-despesas", {
+      const res = await apiFetch("/api/reembolsos-despesas", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

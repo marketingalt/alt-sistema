@@ -23,6 +23,7 @@ import DocumentoPreview from "@/app/orcamentos/[id]/DocumentoPreview";
 import CampoVendedor from "@/app/components/CampoVendedor";
 import { validarOrcamento, validarEstoque } from "@/lib/validacao";
 import type { ErroValidacao } from "@/lib/validacao";
+import { apiFetch } from "@/lib/api-fetch";
 
 const TIPOS = ["Silk", "DTF", "Bordado", "Laser", "Verniz UV", "Tampografia", "Sublimação", "Gravação em relevo", "Outro"];
 const FORMAS_PAGAMENTO = ["PIX", "TED", "DÉBITO", "BOLETO", "FATURA", FORMA_LINK_CARTAO];
@@ -95,8 +96,8 @@ export default function RevisarOrcamento() {
   const [rascunhoRestaurado, setRascunhoRestaurado] = useState(false);
 
   useEffect(() => {
-    fetch("/api/produtos").then((r) => r.json()).then(setProdutos);
-    fetch("/api/planejamento").then((r) => r.json()).then((data) => {
+    apiFetch("/api/produtos").then((r) => r.json()).then(setProdutos);
+    apiFetch("/api/planejamento").then((r) => r.json()).then((data) => {
       if (data?.projetos) {
         setProjetosPlanejamento(data.projetos.map((p: any) => ({ id: p.id, nome: p.nome, cor: p.cor || "#6366f1" })));
       }
@@ -107,7 +108,7 @@ export default function RevisarOrcamento() {
     if (!modalFreteProducao) { setEnderecoFornecedorModal(""); return; }
     const item = orcamento.itens.find((i) => i.id === modalFreteProducao);
     if (!item?.fornecedorId) return;
-    fetch(`/api/fornecedores/${item.fornecedorId}`)
+    apiFetch(`/api/fornecedores/${item.fornecedorId}`)
       .then((r) => r.json())
       .then((f: Fornecedor) => {
         const addr = [f.endereco, f.cidade, f.estado].filter(Boolean).join(", ");
@@ -126,7 +127,7 @@ export default function RevisarOrcamento() {
   }, [user]);
 
   useEffect(() => {
-    fetch("/api/numero")
+    apiFetch("/api/numero")
       .then((r) => r.json())
       .then(({ numero }) => setOrcamento((prev) => ({ ...prev, numero })))
       .catch(() => {
@@ -362,7 +363,7 @@ export default function RevisarOrcamento() {
     setSalvando(true);
     try {
       // Salva o orçamento
-      const res = await fetch("/api/orcamentos", {
+      const res = await apiFetch("/api/orcamentos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...orcamento, id: gerarId(), createdAt: new Date().toISOString() }),
@@ -377,7 +378,7 @@ export default function RevisarOrcamento() {
       if (clienteSelecionado && orcamento.solicitante && orcamento.clienteId) {
         const jaExiste = solicitantesConhecidos.includes(orcamento.solicitante);
         if (!jaExiste) {
-          await fetch(`/api/clientes/${orcamento.clienteId}`, {
+          await apiFetch(`/api/clientes/${orcamento.clienteId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Fornecedor } from "@/app/types";
 import ModalNovoFornecedor from "./ModalNovoFornecedor";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface Props {
   value: string;
@@ -30,7 +31,7 @@ export default function ComboboxFornecedor({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/fornecedores").then((r) => r.json()).then(setFornecedores);
+    apiFetch("/api/fornecedores").then((r) => r.json()).then(setFornecedores);
   }, []);
 
   useEffect(() => { setBusca(value); }, [value]);

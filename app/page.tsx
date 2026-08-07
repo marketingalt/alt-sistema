@@ -10,6 +10,8 @@ import Chart from "chart.js/auto";
 import type { Orcamento, StatusOrcamento } from "./types";
 import { STATUS_CONFIG } from "./types";
 import { valorFrete } from "@/lib/calculos";
+import { apiFetch } from "@/lib/api-fetch";
+import { BASE_PATH } from "@/lib/base-path";
 
 function totalOrcamento(o: Orcamento) {
   const produtos = o.itens.reduce((a, i) => a + (i.total || 0), 0);
@@ -53,7 +55,7 @@ export default function Dashboard() {
   const nome = user?.firstName || user?.fullName || "";
 
   useEffect(() => {
-    fetch("/api/orcamentos")
+    apiFetch("/api/orcamentos")
       .then((r) => r.json())
       .then((data) => {
         setOrcamentos(data.map((o: Orcamento) => ({ ...o, status: o.status || "Em andamento" })));
@@ -62,7 +64,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/planejamento")
+    apiFetch("/api/planejamento")
       .then((r) => r.json())
       .then((data) => {
         const projetos: any[] = (data.projetos || []).map((p: any) => ({
@@ -434,7 +436,7 @@ export default function Dashboard() {
                     className={`flex items-center justify-between py-3 px-4 rounded-xl hover:bg-gray-50 transition cursor-pointer ${
                       i < recentes.length - 1 ? "border-b border-gray-50" : ""
                     }`}
-                    onClick={() => window.location.href = `/orcamentos/${o.id}`}
+                    onClick={() => window.location.href = `${BASE_PATH}/orcamentos/${o.id}`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">

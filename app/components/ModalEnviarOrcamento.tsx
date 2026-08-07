@@ -7,6 +7,7 @@ import {
   gerarAssuntoEmail,
   gerarCorpoEmail,
 } from "@/lib/email-orcamento";
+import { apiFetch } from "@/lib/api-fetch";
 
 type TipoPdf = "especificacoes" | "valores" | "os";
 
@@ -67,7 +68,7 @@ export default function ModalEnviarOrcamento({ orcamento, aberto, onFechar, onDo
     if (!orcamento.clienteId) return;
     let ativo = true;
     setCarregandoEmail(true);
-    fetch(`/api/clientes/${orcamento.clienteId}`)
+    apiFetch(`/api/clientes/${orcamento.clienteId}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((c) => {
         if (ativo && c) setPara(c.emailContato || c.emailContatoFinanceiro || "");

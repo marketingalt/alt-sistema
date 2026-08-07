@@ -8,6 +8,7 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
 import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import type { Produto } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 function badgeEstoque(estoque: number) {
   if (estoque <= 0) return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600">Sem estoque</span>;
@@ -32,13 +33,13 @@ export default function ListaProdutos() {
 
   function carregar() {
     setCarregando(true);
-    fetch("/api/produtos").then((r) => r.json()).then((d) => { setProdutos(d); setCarregando(false); });
+    apiFetch("/api/produtos").then((r) => r.json()).then((d) => { setProdutos(d); setCarregando(false); });
   }
 
   useEffect(() => {
     carregar();
     // Sync automática ao abrir — só executa se passou mais de 1 hora
-    fetch("/api/xbz/sincronizar")
+    apiFetch("/api/xbz/sincronizar")
       .then((r) => r.json())
       .then((data) => {
         if (data.ultimaSync) setUltimaSync(data.ultimaSync);
@@ -48,7 +49,7 @@ export default function ListaProdutos() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/usuarios")
+    apiFetch("/api/usuarios")
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) setUsuarios(data);
@@ -129,7 +130,7 @@ export default function ListaProdutos() {
     setResultadoSync(null);
     setErroSync(null);
     try {
-      const res = await fetch("/api/xbz/sincronizar", { method: "POST" });
+      const res = await apiFetch("/api/xbz/sincronizar", { method: "POST" });
       const data = await res.json();
       if (!res.ok) { setErroSync(data.error || "Erro ao sincronizar."); return; }
       setResultadoSync({ criados: data.criados, atualizados: data.atualizados });

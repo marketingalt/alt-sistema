@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface Sugestao {
   texto: string;
@@ -62,7 +63,7 @@ export default function InputEndereco({ value, onChange, placeholder, className 
     timerRef.current = setTimeout(async () => {
       setCarregando(true);
       try {
-        const res = await fetch(`/api/sugerir-endereco?q=${encodeURIComponent(query)}`);
+        const res = await apiFetch(`/api/sugerir-endereco?q=${encodeURIComponent(query)}`);
         const data = await res.json();
         const lista: Sugestao[] = data.sugestoes ?? [];
         setSugestoes(lista);

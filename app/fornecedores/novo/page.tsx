@@ -6,6 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import FornecedorForm from "@/app/components/FornecedorForm";
 import type { Fornecedor } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 function gerarId() {
   return Math.random().toString(36).substring(2, 10);
@@ -33,7 +34,7 @@ export default function NovoFornecedor() {
     }
     setSalvando(true);
     try {
-      const res = await fetch("/api/fornecedores", {
+      const res = await apiFetch("/api/fornecedores", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...dados, id: gerarId(), createdAt: new Date().toISOString() }),

@@ -2,6 +2,7 @@
 
 import { useClerk, useUser } from "@clerk/nextjs";
 import SistemaLogo from "@/app/components/SistemaLogo";
+import { BASE_PATH } from "@/lib/base-path";
 
 export default function AcessoNegado() {
   const { signOut } = useClerk();
@@ -40,7 +41,7 @@ export default function AcessoNegado() {
         </p>
 
         <button
-          onClick={() => signOut({ redirectUrl: "/sign-in" })}
+          onClick={() => signOut({ redirectUrl: `${BASE_PATH}/sign-in` })}
           className="bg-[#fb4d06] text-white font-bold py-3 px-8 rounded-xl hover:bg-[#e04400] transition w-full"
         >
           Entrar com outra conta

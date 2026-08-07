@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Cliente } from "@/app/types";
 import ModalNovoCliente from "./ModalNovoCliente";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface Props {
   value: string;
@@ -30,7 +31,7 @@ export default function ComboboxCliente({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/clientes").then((r) => r.json()).then(setClientes);
+    apiFetch("/api/clientes").then((r) => r.json()).then(setClientes);
   }, []);
 
   useEffect(() => { setBusca(value); }, [value]);

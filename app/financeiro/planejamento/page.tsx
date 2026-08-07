@@ -16,6 +16,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Tarefa, StatusOrcamento } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 // ── Helpers ──
 
@@ -101,8 +102,8 @@ export default function FinanceiroPlanejamentoPage() {
   async function carregar() {
     try {
       const [resColunas, resTarefas] = await Promise.all([
-        fetch("/api/financeiro/planejamento"),
-        fetch("/api/financeiro/planejamento/tarefas"),
+        apiFetch("/api/financeiro/planejamento"),
+        apiFetch("/api/financeiro/planejamento/tarefas"),
       ]);
       if (resColunas.ok) {
         setColunas(await resColunas.json());
@@ -124,7 +125,7 @@ export default function FinanceiroPlanejamentoPage() {
   async function atualizarTarefa(id: string, campos: Partial<Tarefa>) {
     setTarefas((prev) => prev.map((t) => (t.id === id ? { ...t, ...campos } : t)));
     if (tarefaAberta?.id === id) setTarefaAberta((prev) => (prev ? { ...prev, ...campos } : null));
-    await fetch("/api/financeiro/planejamento/tarefas", {
+    await apiFetch("/api/financeiro/planejamento/tarefas", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, ...campos }),
@@ -136,7 +137,7 @@ export default function FinanceiroPlanejamentoPage() {
   // ═════════════════════════════════════════════
 
   async function handleSalvarStatuses(statuses: any[]) {
-    const res = await fetch("/api/financeiro/planejamento", {
+    const res = await apiFetch("/api/financeiro/planejamento", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ colunas: statuses }),
@@ -170,7 +171,7 @@ export default function FinanceiroPlanejamentoPage() {
   async function handleNovaTarefa(statusId: string) {
     const titulo = prompt("Título da tarefa:");
     if (!titulo?.trim()) return;
-    const res = await fetch("/api/financeiro/planejamento/tarefas", {
+    const res = await apiFetch("/api/financeiro/planejamento/tarefas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ statusId, titulo: titulo.trim() }),
@@ -183,7 +184,7 @@ export default function FinanceiroPlanejamentoPage() {
 
   async function handleDeletarTarefa(id: string) {
     if (!confirm("Excluir esta tarefa?")) return;
-    await fetch(`/api/financeiro/planejamento/tarefas?id=${id}`, { method: "DELETE" });
+    await apiFetch(`/api/financeiro/planejamento/tarefas?id=${id}`, { method: "DELETE" });
     setTarefas((prev) => prev.filter((t) => t.id !== id && t.parentTaskId !== id));
     if (tarefaAberta?.id === id) setTarefaAberta(null);
   }
@@ -235,7 +236,7 @@ export default function FinanceiroPlanejamentoPage() {
   async function handleTimer(tarefaId: string) {
     if (timerAtivo) {
       if (timerAtivo.tarefaId === tarefaId) {
-        const res = await fetch("/api/financeiro/planejamento/tarefas/timer", {
+        const res = await apiFetch("/api/financeiro/planejamento/tarefas/timer", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tarefaId, action: "stop" }),
@@ -247,12 +248,12 @@ export default function FinanceiroPlanejamentoPage() {
           setTimerAtivo(null);
         }
       } else {
-        await fetch("/api/financeiro/planejamento/tarefas/timer", {
+        await apiFetch("/api/financeiro/planejamento/tarefas/timer", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tarefaId: timerAtivo.tarefaId, action: "stop" }),
         });
-        await fetch("/api/financeiro/planejamento/tarefas/timer", {
+        await apiFetch("/api/financeiro/planejamento/tarefas/timer", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tarefaId, action: "start" }),
@@ -261,7 +262,7 @@ export default function FinanceiroPlanejamentoPage() {
         setTimerAtivo({ tarefaId, startTime: new Date().toISOString() });
       }
     } else {
-      const res = await fetch("/api/financeiro/planejamento/tarefas/timer", {
+      const res = await apiFetch("/api/financeiro/planejamento/tarefas/timer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tarefaId, action: "start" }),
@@ -284,7 +285,7 @@ export default function FinanceiroPlanejamentoPage() {
     const primeiroStatus = colunas.sort((a: any, b: any) => a.ordem - b.ordem)[0];
     if (!primeiroStatus) return;
 
-    const res = await fetch("/api/financeiro/planejamento/tarefas", {
+    const res = await apiFetch("/api/financeiro/planejamento/tarefas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

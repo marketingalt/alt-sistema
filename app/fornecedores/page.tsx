@@ -7,6 +7,7 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
 import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import type { Fornecedor } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 export default function ListaFornecedores() {
   const { user } = useUser();
@@ -18,13 +19,13 @@ export default function ListaFornecedores() {
   const [filtroUsuario, setFiltroUsuario] = useState("");
 
   useEffect(() => {
-    fetch("/api/fornecedores")
+    apiFetch("/api/fornecedores")
       .then((r) => r.json())
       .then((d) => { setFornecedores(d); setCarregando(false); });
   }, []);
 
   useEffect(() => {
-    fetch("/api/usuarios")
+    apiFetch("/api/usuarios")
       .then((r) => r.json())
       .then((d) => setUsuarios(d));
   }, []);

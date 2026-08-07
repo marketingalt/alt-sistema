@@ -8,6 +8,8 @@ import type { Venda, ComissaoItem } from "@/app/api/financeiro/vendas-comissoes/
 import type { ComissaoNF } from "@/app/api/financeiro/vendas-comissoes/comissoes-nf/route";
 import type { Orcamento } from "@/app/types";
 import { calcularComissaoOrcamento } from "@/lib/calculos";
+import { apiFetch } from "@/lib/api-fetch";
+import { BASE_PATH } from "@/lib/base-path";
 
 // ── Utilitários ──
 
@@ -389,10 +391,10 @@ export default function VendasComissoesPage() {
 
   async function carregar() {
     const [resVend, resVendas, resOrc, resNF] = await Promise.all([
-      fetch("/api/financeiro/vendas-comissoes/vendedores"),
-      fetch("/api/financeiro/vendas-comissoes/vendas"),
-      fetch("/api/orcamentos"),
-      fetch("/api/financeiro/vendas-comissoes/comissoes-nf"),
+      apiFetch("/api/financeiro/vendas-comissoes/vendedores"),
+      apiFetch("/api/financeiro/vendas-comissoes/vendas"),
+      apiFetch("/api/orcamentos"),
+      apiFetch("/api/financeiro/vendas-comissoes/comissoes-nf"),
     ]);
     const dataVend: Vendedor[] = await resVend.json();
     const dataVendas: Venda[] = await resVendas.json();
@@ -448,12 +450,12 @@ export default function VendasComissoesPage() {
 
   async function salvarVendedor(dados: Partial<Vendedor>) {
     if (modalVendedor.editar) {
-      await fetch("/api/financeiro/vendas-comissoes/vendedores", {
+      await apiFetch("/api/financeiro/vendas-comissoes/vendedores", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...dados, id: modalVendedor.editar.id }),
       });
     } else {
-      await fetch("/api/financeiro/vendas-comissoes/vendedores", {
+      await apiFetch("/api/financeiro/vendas-comissoes/vendedores", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dados),
       });
@@ -463,7 +465,7 @@ export default function VendasComissoesPage() {
   }
 
   async function toggleAtivo(v: Vendedor) {
-    await fetch("/api/financeiro/vendas-comissoes/vendedores", {
+    await apiFetch("/api/financeiro/vendas-comissoes/vendedores", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: v.id, ativo: !v.ativo }),
     });
@@ -472,7 +474,7 @@ export default function VendasComissoesPage() {
 
   async function excluirVendedor(id: string) {
     if (!confirm("Tem certeza?")) return;
-    await fetch(`/api/financeiro/vendas-comissoes/vendedores?id=${id}`, { method: "DELETE" });
+    await apiFetch(`/api/financeiro/vendas-comissoes/vendedores?id=${id}`, { method: "DELETE" });
     await carregar();
   }
 
@@ -502,7 +504,7 @@ export default function VendasComissoesPage() {
 
   async function atualizarVendedor(dados: Partial<Vendedor>) {
     if (!vendedorAtual) return;
-    await fetch("/api/financeiro/vendas-comissoes/vendedores", {
+    await apiFetch("/api/financeiro/vendas-comissoes/vendedores", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...dados, id: vendedorAtual.id }),
     });
@@ -516,18 +518,18 @@ export default function VendasComissoesPage() {
       token = gerarLinkToken();
       await atualizarVendedor({ linkToken: token });
     }
-    copiarTexto(`${window.location.origin}/p/vendedor/${token}`);
+    copiarTexto(`${window.location.origin}${BASE_PATH}/p/vendedor/${token}`);
     setLinkFeedback("copiado");
     setTimeout(() => setLinkFeedback(""), 2500);
   }
 
   async function salvarTransacao(dados: Partial<Venda>) {
     const res = modalTransacao.editar
-      ? await fetch("/api/financeiro/vendas-comissoes/vendas", {
+      ? await apiFetch("/api/financeiro/vendas-comissoes/vendas", {
           method: "PATCH", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...dados, id: modalTransacao.editar.id, vendedorId: vendedorSelId }),
         })
-      : await fetch("/api/financeiro/vendas-comissoes/vendas", {
+      : await apiFetch("/api/financeiro/vendas-comissoes/vendas", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...dados, vendedorId: vendedorSelId }),
         });
@@ -541,7 +543,7 @@ export default function VendasComissoesPage() {
   }
 
   async function toggleComissaoPaga(v: Venda) {
-    await fetch("/api/financeiro/vendas-comissoes/vendas", {
+    await apiFetch("/api/financeiro/vendas-comissoes/vendas", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: v.id, comissaoPaga: !v.comissaoPaga }),
     });
@@ -550,7 +552,7 @@ export default function VendasComissoesPage() {
 
   async function cancelarTransacao(v: Venda) {
     if (!confirm("Cancelar esta transação?")) return;
-    await fetch("/api/financeiro/vendas-comissoes/vendas", {
+    await apiFetch("/api/financeiro/vendas-comissoes/vendas", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: v.id, status: "Cancelada" }),
     });
@@ -559,19 +561,19 @@ export default function VendasComissoesPage() {
 
   async function excluirTransacao(id: string) {
     if (!confirm("Excluir transação?")) return;
-    await fetch(`/api/financeiro/vendas-comissoes/vendas?id=${id}`, { method: "DELETE" });
+    await apiFetch(`/api/financeiro/vendas-comissoes/vendas?id=${id}`, { method: "DELETE" });
     await carregar();
   }
 
   async function toggleNFEmissao(mes: number, ano: number) {
     const registro = comissoesNF.find((r) => r.vendedorId === vendedorSelId && r.ano === ano && r.mes === mes);
     if (registro) {
-      await fetch("/api/financeiro/vendas-comissoes/comissoes-nf", {
+      await apiFetch("/api/financeiro/vendas-comissoes/comissoes-nf", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: registro.id, nfEmitida: !registro.nfEmitida }),
       });
     } else {
-      await fetch("/api/financeiro/vendas-comissoes/comissoes-nf", {
+      await apiFetch("/api/financeiro/vendas-comissoes/comissoes-nf", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ vendedorId: vendedorSelId, ano, mes, nfEmitida: true }),
       });

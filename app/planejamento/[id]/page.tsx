@@ -70,6 +70,7 @@ function Icone({ d, className = "w-5 h-5" }: { d: string; className?: string }) 
 // ═══════════════════════════════════════════════════════════
 
 import React from "react";
+import { apiFetch } from "@/lib/api-fetch";
 
 class BoardErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -161,8 +162,8 @@ export default function KanbanPage() {
   async function carregar() {
     try {
       const [resPlanejamento, resOrcamentos] = await Promise.all([
-        fetch("/api/planejamento"),
-        fetch("/api/orcamentos"),
+        apiFetch("/api/planejamento"),
+        apiFetch("/api/orcamentos"),
       ]);
       if (resPlanejamento.ok) {
         const data = await resPlanejamento.json();
@@ -195,7 +196,7 @@ export default function KanbanPage() {
   async function atualizarTarefa(id: string, campos: Partial<Tarefa>) {
     setTarefas((prev) => prev.map((t) => (t.id === id ? { ...t, ...campos } : t)));
     if (tarefaAberta?.id === id) setTarefaAberta((prev) => prev ? { ...prev, ...campos } : null);
-    await fetch("/api/planejamento/tarefas", {
+    await apiFetch("/api/planejamento/tarefas", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, ...campos }),
@@ -208,7 +209,7 @@ export default function KanbanPage() {
 
   async function handleDeletarProjeto(id: string) {
     if (!confirm("Tem certeza que deseja excluir este projeto? Todas as tarefas serão removidas.")) return;
-    await fetch(`/api/planejamento?id=${id}`, { method: "DELETE" });
+    await apiFetch(`/api/planejamento?id=${id}`, { method: "DELETE" });
     router.push("/planejamento");
   }
 
@@ -233,7 +234,7 @@ export default function KanbanPage() {
     const customFields: Record<string, any> = {};
     if (novoCliente.trim()) customFields.clienteOrcamento = novoCliente.trim();
 
-    const res = await fetch("/api/planejamento/tarefas", {
+    const res = await apiFetch("/api/planejamento/tarefas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -253,7 +254,7 @@ export default function KanbanPage() {
 
   async function handleDeletarTarefa(id: string) {
     if (!confirm("Excluir esta tarefa?")) return;
-    await fetch(`/api/planejamento/tarefas?id=${id}`, { method: "DELETE" });
+    await apiFetch(`/api/planejamento/tarefas?id=${id}`, { method: "DELETE" });
     setTarefas((prev) => prev.filter((t) => t.id !== id && t.parentTaskId !== id));
     if (tarefaAberta?.id === id) setTarefaAberta(null);
   }
@@ -266,7 +267,7 @@ export default function KanbanPage() {
     try {
       let numero: string;
       try {
-        const resNum = await fetch("/api/numero");
+        const resNum = await apiFetch("/api/numero");
         if (!resNum.ok) {
           mostrarToast("erro", "Erro ao gerar número do orçamento");
           return;
@@ -314,7 +315,7 @@ export default function KanbanPage() {
         createdAt: new Date().toISOString(),
       };
 
-      const res = await fetch("/api/orcamentos", {
+      const res = await apiFetch("/api/orcamentos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -395,7 +396,7 @@ export default function KanbanPage() {
     if (timerAtivo) {
       if (timerAtivo.tarefaId === tarefaId) {
         // Parar o timer
-        const res = await fetch("/api/planejamento/tarefas/timer", {
+        const res = await apiFetch("/api/planejamento/tarefas/timer", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tarefaId, action: "stop" }),
@@ -408,12 +409,12 @@ export default function KanbanPage() {
         }
       } else {
         // Parar o anterior e iniciar novo
-        await fetch("/api/planejamento/tarefas/timer", {
+        await apiFetch("/api/planejamento/tarefas/timer", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tarefaId: timerAtivo.tarefaId, action: "stop" }),
         });
-        await fetch("/api/planejamento/tarefas/timer", {
+        await apiFetch("/api/planejamento/tarefas/timer", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tarefaId, action: "start" }),
@@ -423,7 +424,7 @@ export default function KanbanPage() {
       }
     } else {
       // Iniciar timer
-      const res = await fetch("/api/planejamento/tarefas/timer", {
+      const res = await apiFetch("/api/planejamento/tarefas/timer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tarefaId, action: "start" }),
@@ -450,7 +451,7 @@ export default function KanbanPage() {
     const orcamentoId = tarefaAberta.customFields?.orcamentoId as string | undefined;
     if (orcamentoId) {
       try {
-        const resOS = await fetch("/api/ordens-servico");
+        const resOS = await apiFetch("/api/ordens-servico");
         if (resOS.ok) {
           const ordens: any[] = await resOS.json();
           const os = ordens.find((o: any) => o.orcamentoId === orcamentoId);
@@ -463,7 +464,7 @@ export default function KanbanPage() {
       customFields.osId = tarefaAberta.customFields.osId;
     }
 
-    const res = await fetch("/api/planejamento/tarefas", {
+    const res = await apiFetch("/api/planejamento/tarefas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -552,7 +553,7 @@ export default function KanbanPage() {
                 nome={projetoAtivo?.nome || "Carregando..."}
                 onNomeAlterado={async (novoNome) => {
                   // Atualiza localmente
-                  const res = await fetch("/api/planejamento", {
+                  const res = await apiFetch("/api/planejamento", {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ id: projetoAtivo!.id, projeto: { nome: novoNome } }),
@@ -566,12 +567,12 @@ export default function KanbanPage() {
 
                     // Sincroniza nome do projeto com todos os orçamentos vinculados
                     try {
-                      const resOrc = await fetch("/api/orcamentos");
+                      const resOrc = await apiFetch("/api/orcamentos");
                       if (resOrc.ok) {
                         const orcamentos: Orcamento[] = await resOrc.json();
                         const vinculados = orcamentos.filter((o) => o.tags?.includes(projetoAtivo!.id));
                         for (const o of vinculados) {
-                          await fetch(`/api/orcamentos/${o.id}`, {
+                          await apiFetch(`/api/orcamentos/${o.id}`, {
                             method: "PATCH",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ nomeProjeto: novoNome }),
@@ -652,7 +653,7 @@ export default function KanbanPage() {
               onAbrirTarefa={(t) => setTarefaAberta(t)}
               onDeletarTarefa={handleDeletarTarefa}
               onSalvarStatuses={async (statuses) => {
-                const res = await fetch("/api/planejamento", {
+                const res = await apiFetch("/api/planejamento", {
                   method: "PUT",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ id: projetoAtivo.id, projeto: { statuses } }),

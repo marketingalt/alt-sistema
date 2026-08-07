@@ -6,6 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import type { Orcamento, StatusOrcamento } from "@/app/types";
 import { calcularCustoTotal } from "@/lib/calculos";
+import { apiFetch } from "@/lib/api-fetch";
 
 /* ───────── tipos ───────── */
 interface RegistroFaturamento {
@@ -101,10 +102,10 @@ export default function FaturamentosPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/orcamentos").then((r) => r.json()),
-      fetch("/api/faturamentos").then((r) => r.json()),
-      fetch("/api/ordens-servico").then((r) => r.json()),
-      fetch("/api/contas-a-pagar").then((r) => r.json()),
+      apiFetch("/api/orcamentos").then((r) => r.json()),
+      apiFetch("/api/faturamentos").then((r) => r.json()),
+      apiFetch("/api/ordens-servico").then((r) => r.json()),
+      apiFetch("/api/contas-a-pagar").then((r) => r.json()),
     ]).then(([orcs, fats, oss, caps]: any[]) => {
       setOrcamentos(orcs.filter((o: Orcamento) => STATUS_FATURAMENTO.includes(o.status)));
       setRegistros(fats.registros || []);
@@ -114,7 +115,7 @@ export default function FaturamentosPage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/usuarios").then((r) => r.json()).then(setUsuarios).catch(() => {});
+    apiFetch("/api/usuarios").then((r) => r.json()).then(setUsuarios).catch(() => {});
   }, []);
 
   // Mapas para cálculo de custos reais

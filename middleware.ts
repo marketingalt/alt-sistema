@@ -31,7 +31,9 @@ export default clerkMiddleware(async (auth, req) => {
 
     if (!temDominio) {
       console.log(`Acesso negado: ${emailPrincipal}`);
-      return NextResponse.redirect(new URL("/acesso-negado", req.url));
+      const url = req.nextUrl.clone();
+      url.pathname = "/acesso-negado";
+      return NextResponse.redirect(url);
     }
 
     // ── Onboarding ─────────────────────────────────────
@@ -53,7 +55,9 @@ export default clerkMiddleware(async (auth, req) => {
       !req.nextUrl.pathname.startsWith("/api/") &&
       !req.nextUrl.pathname.startsWith("/_next")
     ) {
-      return NextResponse.redirect(new URL("/boas-vindas", req.url));
+      const url = req.nextUrl.clone();
+      url.pathname = "/boas-vindas";
+      return NextResponse.redirect(url);
     }
   }
 });

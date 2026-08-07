@@ -7,6 +7,7 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
 import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import { STATUS_OS_CONFIG, type OrdemServico, type StatusOS } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 function Icone({ d, className = "w-5 h-5" }: { d: string; className?: string }) {
   return (
@@ -28,7 +29,7 @@ export default function OrdensServicoPage() {
 
   async function carregar() {
     try {
-      const res = await fetch("/api/ordens-servico");
+      const res = await apiFetch("/api/ordens-servico");
       if (res.ok) {
         const data = await res.json();
         setOrdens(data);
@@ -40,7 +41,7 @@ export default function OrdensServicoPage() {
   useEffect(() => { carregar(); }, []);
 
   useEffect(() => {
-    fetch("/api/usuarios")
+    apiFetch("/api/usuarios")
       .then((r) => r.ok ? r.json() : [])
       .then((data) => setUsuarios(data))
       .catch(() => {});

@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
 import Image from "next/image";
 import { useState, useEffect, useMemo, useRef } from "react";
+import { apiFetch } from "@/lib/api-fetch";
+import { BASE_PATH } from "@/lib/base-path";
 
 type Permissao = "orcamentos" | "clientes" | "fornecedores" | "produtos" | "financeiro" | "logistica" | "planejamento" | "rh" | "faturamento";
 
@@ -230,7 +232,7 @@ export default function Sidebar() {
 
   useEffect(() => {
     if (planejamentoPermitido) {
-      fetch("/api/planejamento")
+      apiFetch("/api/planejamento")
         .then((r) => {
           if (!r.ok) throw new Error("HTTP " + r.status);
           return r.json();
@@ -246,7 +248,7 @@ export default function Sidebar() {
 
   // Carrega logo do servidor (compartilhada entre todos os usuários)
   useEffect(() => {
-    fetch("/api/admin/logo")
+    apiFetch("/api/admin/logo")
       .then((r) => r.json())
       .then((data) => { if (data.logoBase64) setLogoSistema(data.logoBase64); })
       .catch(() => {});
@@ -306,7 +308,7 @@ export default function Sidebar() {
             reader.onload = async () => {
               const b64 = reader.result as string;
               try {
-                const res = await fetch("/api/admin/logo", {
+                const res = await apiFetch("/api/admin/logo", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ logoBase64: b64 }),
@@ -510,12 +512,12 @@ export default function Sidebar() {
                             if (!nome?.trim()) return;
                             const cor = ["#6366f1","#8b5cf6","#a855f7","#d946ef","#ec4899","#f43f5e","#fb4d06","#f97316","#eab308","#22c55e","#14b8a6","#06b6d4"][Math.floor(Math.random()*12)];
                             try {
-                              const res = await fetch("/api/planejamento", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: nome.trim(), cor }) });
+                              const res = await apiFetch("/api/planejamento", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: nome.trim(), cor }) });
                               if (res.ok) {
                                 const projeto = await res.json();
                                 setProjetosSidebar((prev) => [...prev, { id: projeto.id, nome: projeto.nome, cor: projeto.cor || cor }]);
                                 setPlanejamentoAberto(true);
-                                window.location.href = `/planejamento/${projeto.id}`;
+                                window.location.href = `${BASE_PATH}/planejamento/${projeto.id}`;
                               }
                             } catch (e) { console.error("Erro ao criar projeto:", e); }
                           }}
@@ -659,7 +661,7 @@ export default function Sidebar() {
       {/* Logout */}
       <div className={`px-3 pb-4 ${recolhido ? "pt-2" : ""} border-t border-white/10`}>
         <button
-          onClick={() => signOut({ redirectUrl: "/sign-in" })}
+          onClick={() => signOut({ redirectUrl: `${BASE_PATH}/sign-in` })}
           title={recolhido ? "Sair" : undefined}
           className={`w-full flex items-center ${recolhido ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-white/5 hover:text-red-400 transition`}
         >

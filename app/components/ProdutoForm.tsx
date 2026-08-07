@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import type { Produto, Fornecedor } from "@/app/types";
 import MultiUserSelect from "@/app/components/MultiUserSelect";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface Props {
   dados: Partial<Produto>;
@@ -30,7 +31,7 @@ export default function ProdutoForm({ dados, onChange, produtoId, onImagemAtuali
   const inputImgRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch("/api/fornecedores").then((r) => r.json()).then(setFornecedores);
+    apiFetch("/api/fornecedores").then((r) => r.json()).then(setFornecedores);
   }, []);
 
   function handleFornecedor(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -47,7 +48,7 @@ export default function ProdutoForm({ dados, onChange, produtoId, onImagemAtuali
     try {
       const form = new FormData();
       form.append("imagem", arquivo);
-      const res = await fetch(`/api/produtos/${produtoId}/imagem`, { method: "POST", body: form });
+      const res = await apiFetch(`/api/produtos/${produtoId}/imagem`, { method: "POST", body: form });
       if (!res.ok) {
         const errText = await res.text().catch(() => "sem resposta");
         console.error("Erro no upload:", res.status, errText);
@@ -81,7 +82,7 @@ export default function ProdutoForm({ dados, onChange, produtoId, onImagemAtuali
   async function removerImagem() {
     if (!produtoId || !dados.imagemUrl) return;
     if (!confirm("Remover imagem do produto?")) return;
-    await fetch(`/api/produtos/${produtoId}/imagem`, { method: "DELETE" });
+    await apiFetch(`/api/produtos/${produtoId}/imagem`, { method: "DELETE" });
     onChange("imagemUrl", undefined);
     onImagemAtualizada?.(undefined);
   }

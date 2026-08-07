@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { StatusOrcamento } from "@/app/types";
 import { STATUS_CONFIG } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 const TODOS_STATUS = Object.keys(STATUS_CONFIG) as StatusOrcamento[];
 
@@ -71,7 +72,7 @@ export default function StatusDropdown({
     }
 
     try {
-      const res = await fetch(`/api/orcamentos/${orcamentoId}`, {
+      const res = await apiFetch(`/api/orcamentos/${orcamentoId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: novo }),

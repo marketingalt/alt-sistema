@@ -7,6 +7,7 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import ClienteForm from "@/app/components/ClienteForm";
 import DocumentosFornecedor from "@/app/components/DocumentosFornecedor";
 import type { Cliente, DocumentoFornecedor } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 function gerarId() { return Math.random().toString(36).substring(2, 10); }
 
@@ -36,7 +37,7 @@ export default function NovoCliente() {
     }
     setSalvando(true);
     try {
-      const res = await fetch("/api/clientes", {
+      const res = await apiFetch("/api/clientes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...dados, id, createdAt: new Date().toISOString() }),

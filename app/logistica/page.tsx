@@ -7,6 +7,7 @@ import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import AvatarIniciais from "@/app/components/AvatarIniciais";
 import ParticipantesAvatar from "@/app/components/ParticipantesAvatar";
 import type { OrdemServico } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 type Aba = "reembolsos" | "entregas";
 
@@ -333,8 +334,8 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
   function carregar() {
     setCarregando(true);
     Promise.all([
-      fetch("/api/reembolsos").then((r) => r.json()),
-      fetch("/api/ordens-servico").then((r) => r.json()),
+      apiFetch("/api/reembolsos").then((r) => r.json()),
+      apiFetch("/api/ordens-servico").then((r) => r.json()),
     ])
       .then(([reembolsosData, osData]: [Reembolso[], OrdemServico[]]) => {
         setReembolsos(reembolsosData);
@@ -347,7 +348,7 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
   useEffect(() => { carregar(); }, []);
 
   useEffect(() => {
-    fetch("/api/usuarios")
+    apiFetch("/api/usuarios")
       .then((r) => r.json())
       .then(setUsuarios)
       .catch(() => {});
@@ -418,7 +419,7 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
     try {
       setBuscaOS("");
       setOsSelecionada(null);
-      const res = await fetch("/api/reembolsos", {
+      const res = await apiFetch("/api/reembolsos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -469,7 +470,7 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
     formData.append("arquivo", file);
 
     try {
-      const res = await fetch(`/api/reembolsos/${reembolsoId}/comprovante`, {
+      const res = await apiFetch(`/api/reembolsos/${reembolsoId}/comprovante`, {
         method: "POST",
         body: formData,
       });
@@ -485,7 +486,7 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
   }
 
   async function baixarComprovante(reb: Reembolso) {
-    const res = await fetch(`/api/reembolsos?download=${reb.id}`);
+    const res = await apiFetch(`/api/reembolsos?download=${reb.id}`);
     if (!res.ok) return;
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -499,7 +500,7 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
   async function deletarReembolso(reb: Reembolso) {
     if (!confirm(`Tem certeza que deseja excluir o reembolso de "${reb.motorista}" (${fmt(reb.total)})?`)) return;
     try {
-      const res = await fetch(`/api/reembolsos/${reb.id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/reembolsos/${reb.id}`, { method: "DELETE" });
       if (res.ok) {
         carregar();
       } else {
@@ -534,7 +535,7 @@ function AbaReembolsos({ motorista }: { motorista: MotoristaHeader }) {
   async function salvarEdicao() {
     if (!editandoReb) return;
     try {
-      const res = await fetch(`/api/reembolsos/${editandoReb.id}`, {
+      const res = await apiFetch(`/api/reembolsos/${editandoReb.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editForm),

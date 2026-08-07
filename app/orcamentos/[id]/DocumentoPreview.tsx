@@ -3,6 +3,7 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import type { Orcamento, ItemOrcamento } from "@/app/types";
 import { FORMA_LINK_CARTAO, infoFrete } from "@/lib/calculos";
+import { apiFetch } from "@/lib/api-fetch";
 
 const ALT_EMPRESA = "ALT. MARKETING E PUBLICIDADE";
 const ALT_CNPJ = "45.025.544/0001-92";
@@ -37,7 +38,7 @@ export default function DocumentoPreview({ orcamento, onUpdateCampo, onUpdateIte
   // Carrega a logo padrão de orçamentos (fallback quando o orçamento não tem a sua)
   useEffect(() => {
     if (orcamento.logoOrcamento) return;
-    fetch("/api/admin/logo-orcamento")
+    apiFetch("/api/admin/logo-orcamento")
       .then((r) => r.json())
       .then((data) => {
         if (data.logoBase64) setLogoPadrao(data.logoBase64);

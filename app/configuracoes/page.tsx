@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
+import { apiFetch } from "@/lib/api-fetch";
 
 // ── Itens do sidebar que podem ser reorganizados ──
 
@@ -69,7 +70,7 @@ export default function Configuracoes() {
 
   // Carrega a logo padrão de orçamentos
   useEffect(() => {
-    fetch("/api/admin/logo-orcamento")
+    apiFetch("/api/admin/logo-orcamento")
       .then((r) => r.json())
       .then((data) => {
         if (data.logoBase64) setLogoOrcamentoPadrao(data.logoBase64);
@@ -90,7 +91,7 @@ export default function Configuracoes() {
       const b64 = reader.result as string;
       setLogoOrcamentoPadrao(b64);
       setLogoSalvo(false);
-      fetch("/api/admin/logo-orcamento", {
+      apiFetch("/api/admin/logo-orcamento", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ logoBase64: b64 }),
@@ -106,7 +107,7 @@ export default function Configuracoes() {
 
   const handleLogoRemover = useCallback(() => {
     setLogoOrcamentoPadrao(null);
-    fetch("/api/admin/logo-orcamento", { method: "DELETE" }).catch(() => {});
+    apiFetch("/api/admin/logo-orcamento", { method: "DELETE" }).catch(() => {});
   }, []);
 
   function salvarOrdem(novaOrdem: string[]) {

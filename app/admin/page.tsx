@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { ClerkUserWithRole, SystemSettings } from "@/lib/admin";
 import type { CampoDinamicoDef } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 type Aba = "usuarios" | "registros" | "configuracoes" | "os-campos";
 
@@ -106,7 +107,7 @@ function AbaUsuarios() {
     setCarregando(true);
     setErro("");
     try {
-      const res = await fetch("/api/admin/usuarios");
+      const res = await apiFetch("/api/admin/usuarios");
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Erro ao carregar");
@@ -124,7 +125,7 @@ function AbaUsuarios() {
   async function excluirUsuario(targetUserId: string) {
     setExcluindo(targetUserId);
     try {
-      const res = await fetch(`/api/admin/usuarios?userId=${targetUserId}`, {
+      const res = await apiFetch(`/api/admin/usuarios?userId=${targetUserId}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -149,7 +150,7 @@ function AbaUsuarios() {
 
     setAlterando(targetUserId);
     try {
-      const res = await fetch("/api/admin/usuarios", {
+      const res = await apiFetch("/api/admin/usuarios", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ targetUserId, role: novaRole }),
@@ -201,7 +202,7 @@ function AbaUsuarios() {
           onExcluir={() => excluirUsuario(u.id)}
           onAlterarPermissoes={(novasPerms) => {
             setAlterando(u.id);
-            fetch("/api/admin/usuarios", {
+            apiFetch("/api/admin/usuarios", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ targetUserId: u.id, permissoes: novasPerms }),
@@ -439,7 +440,7 @@ function AbaRegistros() {
   useEffect(() => {
     async function carregar() {
       try {
-        const res = await fetch("/api/admin/registros");
+        const res = await apiFetch("/api/admin/registros");
         if (res.ok) {
           setCounts(await res.json());
         }
@@ -516,7 +517,7 @@ function AbaConfiguracoes() {
   const [erro, setErro] = useState("");
 
   useEffect(() => {
-    fetch("/api/admin/configuracoes")
+    apiFetch("/api/admin/configuracoes")
       .then((r) => r.json())
       .then((data) => setSettings(data))
       .catch(() => setErro("Erro ao carregar configurações"))
@@ -542,10 +543,10 @@ function AbaConfiguracoes() {
     setErro("");
     try {
       // Preserva logos salvas por componentes independentes (LogoUpload, LogoOrcamentoUpload)
-      const currentRes = await fetch("/api/admin/configuracoes");
+      const currentRes = await apiFetch("/api/admin/configuracoes");
       const currentSettings: SystemSettings = await currentRes.json();
       const merged = { ...currentSettings, ...settings, logoBase64: currentSettings.logoBase64, logoOrcamentoPadrao: currentSettings.logoOrcamentoPadrao };
-      const res = await fetch("/api/admin/configuracoes", {
+      const res = await apiFetch("/api/admin/configuracoes", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(merged),
@@ -728,7 +729,7 @@ function LogoUpload() {
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/logo")
+    apiFetch("/api/admin/logo")
       .then((r) => r.json())
       .then((data) => {
         if (data.logoBase64) setLogo(data.logoBase64);
@@ -743,7 +744,7 @@ function LogoUpload() {
     reader.onload = async () => {
       const b64 = reader.result as string;
       try {
-        const res = await fetch("/api/admin/logo", {
+        const res = await apiFetch("/api/admin/logo", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ logoBase64: b64 }),
@@ -762,7 +763,7 @@ function LogoUpload() {
   async function removerLogo() {
     setEnviando(true);
     try {
-      const res = await fetch("/api/admin/logo", { method: "DELETE" });
+      const res = await apiFetch("/api/admin/logo", { method: "DELETE" });
       if (res.ok) setLogo(null);
     } catch {
       alert("Erro ao remover logo");
@@ -815,7 +816,7 @@ function LogoOrcamentoUpload() {
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/logo-orcamento")
+    apiFetch("/api/admin/logo-orcamento")
       .then((r) => r.json())
       .then((data) => {
         if (data.logoBase64) setLogo(data.logoBase64);
@@ -830,7 +831,7 @@ function LogoOrcamentoUpload() {
     reader.onload = async () => {
       const b64 = reader.result as string;
       try {
-        const res = await fetch("/api/admin/logo-orcamento", {
+        const res = await apiFetch("/api/admin/logo-orcamento", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ logoBase64: b64 }),
@@ -849,7 +850,7 @@ function LogoOrcamentoUpload() {
   async function removerLogo() {
     setEnviando(true);
     try {
-      const res = await fetch("/api/admin/logo-orcamento", { method: "DELETE" });
+      const res = await apiFetch("/api/admin/logo-orcamento", { method: "DELETE" });
       if (res.ok) setLogo(null);
     } catch {
       alert("Erro ao remover logo");
@@ -940,7 +941,7 @@ function AbaCamposOS() {
   const [erro, setErro] = useState("");
 
   useEffect(() => {
-    fetch("/api/admin/configuracoes")
+    apiFetch("/api/admin/configuracoes")
       .then((r) => r.json())
       .then((data: SystemSettings) => setCampos(data.osCamposDinamicos || []))
       .catch(() => setErro("Erro ao carregar campos"))
@@ -1020,10 +1021,10 @@ function AbaCamposOS() {
     setSalvo(false);
     setErro("");
     try {
-      const res = await fetch("/api/admin/configuracoes");
+      const res = await apiFetch("/api/admin/configuracoes");
       const settings: SystemSettings = await res.json();
       settings.osCamposDinamicos = campos;
-      const putRes = await fetch("/api/admin/configuracoes", {
+      const putRes = await apiFetch("/api/admin/configuracoes", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),

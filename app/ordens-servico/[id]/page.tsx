@@ -20,6 +20,7 @@ import DetalhamentoOS from "./components/DetalhamentoOS";
 import AreaInternaOS from "./components/AreaInternaOS";
 import { downloadCSV } from "@/lib/export-csv";
 import type { ResumoFluxoOS, ItemFluxoOS } from "@/app/api/ordens-servico/[id]/fluxo-caixa/route";
+import { apiFetch } from "@/lib/api-fetch";
 
 function Icone({ d, className = "w-5 h-5" }: { d: string; className?: string }) {
   return (
@@ -292,7 +293,7 @@ export default function DetalheOSPage() {
   const carregarStatus = useCallback(async (orcamentoId: string) => {
     // Orçamento
     try {
-      const resO = await fetch(`/api/orcamentos/${orcamentoId}`);
+      const resO = await apiFetch(`/api/orcamentos/${orcamentoId}`);
       if (resO.ok) {
         const orcamento = await resO.json();
         setOrcamentoStatus(orcamento.status || "—");
@@ -301,7 +302,7 @@ export default function DetalheOSPage() {
 
     // Financeiro kanban
     try {
-      const resF = await fetch("/api/financeiro/kanban");
+      const resF = await apiFetch("/api/financeiro/kanban");
       if (resF.ok) {
         const kanban = await resF.json();
         const tarefas = kanban.colunas?.flatMap((c: any) =>
@@ -316,7 +317,7 @@ export default function DetalheOSPage() {
 
     // Planejamento
     try {
-      const resPl = await fetch("/api/planejamento/tarefas");
+      const resPl = await apiFetch("/api/planejamento/tarefas");
       if (resPl.ok) {
         const todas: Tarefa[] = await resPl.json();
         const tarefaOrcamento = todas.find(
@@ -324,7 +325,7 @@ export default function DetalheOSPage() {
         );
         if (tarefaOrcamento) {
           try {
-            const resP = await fetch("/api/planejamento");
+            const resP = await apiFetch("/api/planejamento");
             if (resP.ok) {
               const dataP = await resP.json();
               const proj = (dataP.projetos || []).find(
@@ -341,7 +342,7 @@ export default function DetalheOSPage() {
   // ── Carregar dados completos (primeira carga) ──────────
   async function carregar() {
     try {
-      const res = await fetch(`/api/ordens-servico/${osId}`);
+      const res = await apiFetch(`/api/ordens-servico/${osId}`);
       if (!res.ok) throw new Error("Não encontrada");
       const data: OrdemServico = await res.json();
       setOs(data);
@@ -349,7 +350,7 @@ export default function DetalheOSPage() {
 
       // Campos dinâmicos
       try {
-        const resC = await fetch("/api/admin/configuracoes");
+        const resC = await apiFetch("/api/admin/configuracoes");
         if (resC.ok) {
           const settings: SystemSettings = await resC.json();
           setCamposDinamicos(settings.osCamposDinamicos || []);
@@ -359,7 +360,7 @@ export default function DetalheOSPage() {
       // Cliente
       if (data.cliente) {
         try {
-          const resCl = await fetch(`/api/clientes?search=${encodeURIComponent(data.cliente)}`);
+          const resCl = await apiFetch(`/api/clientes?search=${encodeURIComponent(data.cliente)}`);
           if (resCl.ok) {
             const clientes: Cliente[] = await resCl.json();
             if (clientes.length > 0) setCliente(clientes[0]);
@@ -369,13 +370,13 @@ export default function DetalheOSPage() {
 
       // Fornecedores (para exibir info de pagamento)
       try {
-        const resForn = await fetch("/api/fornecedores");
+        const resForn = await apiFetch("/api/fornecedores");
         if (resForn.ok) setFornecedores(await resForn.json());
       } catch {}
 
       // Subtarefas
       try {
-        const resT = await fetch("/api/planejamento/tarefas");
+        const resT = await apiFetch("/api/planejamento/tarefas");
         if (resT.ok) {
           const todas: Tarefa[] = await resT.json();
           setSubtarefas(todas.filter((t) => t.parentTaskId && t.customFields?.osId === osId));
@@ -384,7 +385,7 @@ export default function DetalheOSPage() {
 
       // Projetos
       try {
-        const resP = await fetch("/api/planejamento");
+        const resP = await apiFetch("/api/planejamento");
         if (resP.ok) {
           const dataP = await resP.json();
           const map: Record<string, { nome: string; cor: string }> = {};
@@ -411,7 +412,7 @@ export default function DetalheOSPage() {
   async function carregarFluxoCaixa() {
     setCarregandoFluxo(true);
     try {
-      const res = await fetch(`/api/ordens-servico/${osId}/fluxo-caixa`);
+      const res = await apiFetch(`/api/ordens-servico/${osId}/fluxo-caixa`);
       if (res.ok) {
         const data: ResumoFluxoOS = await res.json();
         setFluxoCaixa(data);
@@ -456,7 +457,7 @@ export default function DetalheOSPage() {
     setModalModulo(modulo);
     setCarregandoDocs(true);
     try {
-      const res = await fetch(`/api/orcamentos/${orcamentoIdRef.current}`);
+      const res = await apiFetch(`/api/orcamentos/${orcamentoIdRef.current}`);
       if (res.ok) {
         const orcamento = await res.json();
         setDocumentosOrcamento(orcamento.documentos || []);
@@ -481,7 +482,7 @@ export default function DetalheOSPage() {
       if (!os) return;
       setSalvando(true);
       try {
-        const res = await fetch(`/api/ordens-servico/${osId}`, {
+        const res = await apiFetch(`/api/ordens-servico/${osId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(updates),

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import Chart from "chart.js/auto";
+import { apiFetch } from "@/lib/api-fetch";
 
 // ── Tipos ──
 interface Lancamento {
@@ -165,8 +166,8 @@ export default function VisaoGeralFinanceiro() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch("/api/fluxo-caixa").then((r) => r.json()),
-      fetch("/api/faturamentos").then((r) => r.json()),
+      apiFetch("/api/fluxo-caixa").then((r) => r.json()),
+      apiFetch("/api/faturamentos").then((r) => r.json()),
     ])
       .then(([fc, fat]: [DadosCaixa, { registros: FaturamentoEntry[] }]) => {
         setDados(fc);

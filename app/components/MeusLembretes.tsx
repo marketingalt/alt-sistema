@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import type { Tarefa, Projeto, StatusKanban } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 type Periodo = "dia" | "semana" | "mes";
 
@@ -103,11 +104,11 @@ export default function MeusLembretes() {
     setErro(null);
 
     Promise.all([
-      fetch("/api/planejamento").then((r) => {
+      apiFetch("/api/planejamento").then((r) => {
         if (!r.ok) throw new Error("Erro ao carregar planejamento");
         return r.json();
       }),
-      fetch("/api/financeiro/planejamento/tarefas").then((r) => {
+      apiFetch("/api/financeiro/planejamento/tarefas").then((r) => {
         if (!r.ok) throw new Error("Erro ao carregar tarefas financeiras");
         return r.json();
       }),

@@ -5,6 +5,7 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import WorkspaceLayout from "@/app/components/WorkspaceLayout";
 import type { FeedbackSessao, FeedbackStatus } from "@/app/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface DocumentoRH {
   id: string;
@@ -91,7 +92,7 @@ export default function PerfilPage() {
   async function carregarDocumentos() {
     setCarregandoDocs(true);
     try {
-      const res = await fetch("/api/rh/documentos");
+      const res = await apiFetch("/api/rh/documentos");
       if (res.ok) {
         const data = await res.json();
         setDocumentos(data.documentos || []);
@@ -107,7 +108,7 @@ export default function PerfilPage() {
     if (!user?.id) { setCarregandoFeedbacks(false); return; }
     setCarregandoFeedbacks(true);
     try {
-      const res = await fetch(`/api/rh/feedbacks?colaboradorId=${encodeURIComponent(user.id)}`);
+      const res = await apiFetch(`/api/rh/feedbacks?colaboradorId=${encodeURIComponent(user.id)}`);
       if (res.ok) {
         const data = await res.json();
         setFeedbacks(data);
@@ -128,7 +129,7 @@ export default function PerfilPage() {
     setErro("");
     setSalvo(false);
     try {
-      const res = await fetch("/api/perfil", {
+      const res = await apiFetch("/api/perfil", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nomeExibicao: nome.trim() }),
@@ -162,7 +163,7 @@ export default function PerfilPage() {
   }
 
   async function baixarDocumento(doc: DocumentoRH) {
-    const res = await fetch(`/api/rh/documentos?email=${encodeURIComponent(user?.emailAddresses[0]?.emailAddress || "")}&download=${doc.id}`);
+    const res = await apiFetch(`/api/rh/documentos?email=${encodeURIComponent(user?.emailAddresses[0]?.emailAddress || "")}&download=${doc.id}`);
     if (!res.ok) return;
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);

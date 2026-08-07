@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { apiFetch } from "@/lib/api-fetch";
 
 export interface UserOption {
   id: string;
@@ -37,7 +38,7 @@ export default function UserAutocomplete({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetch("/api/admin/usuarios")
+    apiFetch("/api/admin/usuarios")
       .then((r) => r.json())
       .then((data: UserOption[]) => {
         if (cancelled) return;
