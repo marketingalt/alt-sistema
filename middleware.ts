@@ -61,7 +61,7 @@ export default clerkMiddleware(async (auth, req) => {
       return NextResponse.redirect(url);
     }
   }
-}, { signInUrl: "/sign-in" });
+}, { signInUrl: "/omni-alt/sign-in" });
 
 export const config = {
   matcher: [
