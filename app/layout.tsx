@@ -15,12 +15,12 @@ export const metadata: Metadata = {
   title: "Omni Alt",
   description: "Sistema interno de gestão — Omni Alt",
   icons: {
-    icon: "/logo.png",
+    icon: "/omni-alt/logo.png",
   },
   openGraph: {
     title: "Omni Alt",
     description: "Sistema interno de gestão — Omni Alt",
-    images: ["/logo.png"],
+    images: ["/omni-alt/logo.png"],
   },
 };
 
@@ -30,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider localization={ptBR}>
+    <ClerkProvider localization={ptBR} signInUrl="/omni-alt/sign-in" signUpUrl="/omni-alt/sign-up">
       <html lang="pt-BR" className="h-full">
         <Script id="theme-init" strategy="beforeInteractive">
           {`
