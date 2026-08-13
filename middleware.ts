@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { BASE_PATH } from "./lib/base-path";
 
 const DOMINIO_PERMITIDO = "@altmkt.com.br";
 const isPublicRoute = createRouteMatcher([
@@ -32,7 +33,7 @@ export default clerkMiddleware(async (auth, req) => {
     if (!temDominio) {
       console.log(`Acesso negado: ${emailPrincipal}`);
       const url = req.nextUrl.clone();
-      url.pathname = "/acesso-negado";
+      url.pathname = `${BASE_PATH}/acesso-negado`;
       return NextResponse.redirect(url);
     }
 
@@ -56,11 +57,11 @@ export default clerkMiddleware(async (auth, req) => {
       !req.nextUrl.pathname.startsWith("/_next")
     ) {
       const url = req.nextUrl.clone();
-      url.pathname = "/boas-vindas";
+      url.pathname = `${BASE_PATH}/boas-vindas`;
       return NextResponse.redirect(url);
     }
   }
-});
+}, { signInUrl: "/sign-in" });
 
 export const config = {
   matcher: [
