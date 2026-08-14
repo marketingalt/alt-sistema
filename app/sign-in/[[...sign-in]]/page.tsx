@@ -33,7 +33,7 @@ export default function SignInPage() {
             <span className="text-3xl font-bold text-[#fb4d06] tracking-tight">Omni</span>
             <span className="text-3xl font-bold text-[#fb4d06] tracking-tight ml-1.5">Alt</span>
           </div>
-          <SignIn />
+          <SignIn path="/omni-alt/sign-in" routing="path" />
         </div>
       </div>
     </div>
